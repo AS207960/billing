@@ -1,0 +1,137 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: billing-django-static
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: billing-django-media
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: billing-django-conf
+data:
+  HOST: billing.as207960.net
+  DJANGO_SETTINGS_MODULE: as207960_billing.settings
+  EXTERNAL_URL: "https://billing.as207960.net"
+  SENTRY_ENVIRONMENT: "prod"
+  KEYCLOAK_SERVER_URL: "https://sso.as207960.net/"
+  KEYCLOAK_REALM: master
+  KEYCLOAK_SCOPES: "openid email profile"
+  KEYCLOAK_CLIENT_ID: "billing"
+  STRIPE_PUBLIC_KEY: "pk_live_VLsjEC8QBoN5rQWW0rfVccqW00VzaknDP3"
+  DB_HOST: "postgres"
+  DB_NAME: "billing"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-django
+  labels:
+    app: billing
+    part: django
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: billing
+      part: django
+  template:
+    metadata:
+      labels:
+        app: billing
+        part: django
+    spec:
+      volumes:
+        - name: static
+          persistentVolumeClaim:
+            claimName: billing-django-static
+        - name: media
+          persistentVolumeClaim:
+            claimName: billing-django-media
+      initContainers:
+        - name: django
+          image: as207960/billing-django:(version)
+          imagePullPolicy: Always
+          command: ["sh", "-c", "python3 manage.py collectstatic --noinput && python3 manage.py migrate && python3 manage.py sync-keycloak"]
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - mountPath: "/app/static/"
+              name: static
+            - mountPath: "/app/media/"
+              name: media
+          envFrom:
+            - configMapRef:
+                name: billing-django-conf
+            - secretRef:
+                name: billing-db-creds
+              prefix: "DB_"
+            - secretRef:
+                name: billing-django-secret
+            - secretRef:
+                name: billing-keycloak
+              prefix: "KEYCLOAK_"
+            - secretRef:
+                name: billing-stripe-secret
+            - secretRef:
+                name: billing-monzo-secret
+      containers:
+        - name: gunicorn
+          image: as207960/billing-django:(version)
+          imagePullPolicy: Always
+          command: ["gunicorn", "-w", "8", "-b", "0.0.0.0:8000", "--forwarded-allow-ips", "*", "--access-logfile", "-", "as207960_billing.wsgi:application"]
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - mountPath: "/app/static/"
+              name: static
+            - mountPath: "/app/media/"
+              name: media
+          envFrom:
+            - configMapRef:
+                name: billing-django-conf
+            - secretRef:
+                name: billing-db-creds
+              prefix: "DB_"
+            - secretRef:
+                name: billing-django-secret
+            - secretRef:
+                name: billing-keycloak
+              prefix: "KEYCLOAK_"
+            - secretRef:
+                name: billing-stripe-secret
+            - secretRef:
+                name: billing-monzo-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-django
+  labels:
+    app: billing
+    part: django
+spec:
+  selector:
+    app: billing
+    part: django
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: gunicorn

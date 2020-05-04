@@ -1,0 +1,61 @@
+{% extends 'billing/base.html' %}
+{% load mathfilters %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Account details</h1>
+        <h2>Saved cards</h2>
+        <div class="table-responsive table-striped table-hover table-striped">
+            <table class="table">
+                <thead class="thead-dark">
+                <tr>
+                    <th>Billing name</th>
+                    <th>Brand</th>
+                    <th>Last 4 digits</th>
+                    <th>Expiry</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                {% if cards %}
+                    {% for card in cards %}
+                        <tr>
+                            <td>
+                                {{ card.billing_details.name }}
+                                {% if card.id == user.account.default_stripe_payment_method_id %}
+                                    <span class="badge badge-info">Default</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ card.card.brand|upper }}</td>
+                            <td>*** *** **** {{ card.card.last4 }}</td>
+                            <td>{{ card.card.exp_month|stringformat:"02d" }} / {{ card.card.exp_year }}</td>
+                            <td>
+                                <form action="{% url 'edit_card' card.id %}" method="post">
+                                    {% csrf_token %}
+                                    <div class="btn-group">
+                                        <a href="{% url 'edit_card' card.id %}" class="btn btn-info btn-sm">
+                                            Edit
+                                        </a>
+                                        {% if card.id != user.account.default_stripe_payment_method_id %}
+                                            <button type="submit" class="btn btn-primary btn-sm" name="action" value="default">
+                                                Make default
+                                            </button>
+                                        {% endif %}
+                                        <button type="submit" class="btn btn-danger btn-sm" name="action" value="delete">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="4">No saved cards</td>
+                    </tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </div>
+        <a href="{% url 'add_card' %}" class="btn btn-success">Add new card</a>
+    </div>
+{% endblock %}
