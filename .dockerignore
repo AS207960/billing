@@ -2,3 +2,5 @@ kube
 secrets
 db.sqlite3
 .gitignore
+venv
+build.sh

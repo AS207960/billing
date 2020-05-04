@@ -6,3 +6,4 @@ gunicorn
 stripe
 django-crispy-forms
 django-countries
+django-mathfilters
