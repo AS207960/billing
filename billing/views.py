@@ -185,7 +185,7 @@ def top_up_bacs(request):
         descriptor="Top-up by bank transfer",
         amount=amount,
         type=models.LedgerItem.TYPE_BACS,
-        type_id=secrets.token_hex(9).upper()
+        type_id=ref
     )
     ledger_item.save()
 
