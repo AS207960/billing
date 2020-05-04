@@ -239,7 +239,13 @@ def fail_top_up(request, item_id):
 @login_required
 def add_card(request):
     intent = stripe.SetupIntent.create(
-        customer=request.user.account.get_stripe_id()
+        customer=request.user.account.get_stripe_id(),
+        usage="off_session",
+        payment_method_options={
+            "card": {
+                "request_three_d_secure": "any"
+            }
+        }
     )
     return render(request, "billing/add_card.html", {
         "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
