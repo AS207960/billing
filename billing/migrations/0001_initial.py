@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='LedgerItem',
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
                 ('descriptor', models.CharField(max_length=255)),
                 ('amount', models.DecimalField(decimal_places=2, default=0, max_digits=9)),
                 ('account', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='billing.Account')),

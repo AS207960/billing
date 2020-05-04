@@ -21,9 +21,4 @@ class Migration(migrations.Migration):
             name='type_id',
             field=models.CharField(blank=True, max_length=255, null=True),
         ),
-        migrations.AlterField(
-            model_name='ledgeritem',
-            name='id',
-            field=models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False),
-        ),
     ]
