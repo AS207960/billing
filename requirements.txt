@@ -7,4 +7,4 @@ stripe
 django-crispy-forms
 django-countries
 django-mathfilters
-django-phone-field
+django-phonenumber-field[phonenumbers]
