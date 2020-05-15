@@ -202,7 +202,7 @@ class RecurringPlanTier(models.Model):
     flat_fee = models.DecimalField(decimal_places=2, max_digits=9)
 
     class Meta:
-        ordering = ['last_unit']
+        ordering = ('last_unit', 'id')
 
 
 class Subscription(models.Model):

@@ -9,7 +9,6 @@ admin.site.register(models.ExchangeRate)
 
 class RecurringPlanTierInline(admin.TabularInline):
     model = models.RecurringPlanTier
-    readonly_fields = ('id',)
     extra = 0
 
 
@@ -20,7 +19,6 @@ class RecurringPlanAdmin(admin.ModelAdmin):
 
 class SubscriptionUsageInline(admin.TabularInline):
     model = models.SubscriptionUsage
-    readonly_fields = ('id',)
     extra = 0
 
 
