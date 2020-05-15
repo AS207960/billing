@@ -55,6 +55,10 @@
                                         <span class="badge badge-warning">
                                             Pending
                                         </span>
+                                    {% elif item.state == "S" %}
+                                        <span class="badge badge-info">
+                                            Processing
+                                        </span>
                                     {% elif item.state == "F" %}
                                         <span class="badge badge-danger">
                                             Failed
@@ -71,7 +75,7 @@
                                         {% else %}
                                             -&pound;{{ item.balance_at|abs|floatformat:2 }}
                                         {% endif %}
-                                    {% elif item.state == "P" %}
+                                    {% elif item.state == "P" or item.state == "S" %}
                                         {% if item.balance_at >= 0 %}
                                             (&pound;{{ item.balance_at|floatformat:2 }})
                                         {% else %}
@@ -88,6 +92,11 @@
                                     {% elif item.state == "P" and item.type == "F" %}
                                         <div class="btn-group">
                                             <a href="{% url 'complete_top_up_bacs' item.id %}" class="btn btn-success btn-sm">Complete</a>
+                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">Cancel</a>
+                                        </div>
+                                    {% elif item.state == "P" and item.type == "S" %}
+                                        <div class="btn-group">
+                                            <a href="{% url 'complete_top_up_sources' item.id %}" class="btn btn-success btn-sm">Complete</a>
                                             <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">Cancel</a>
                                         </div>
                                     {% endif %}

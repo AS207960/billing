@@ -137,6 +137,8 @@ with open(os.path.join(BASE_DIR, "secrets/keycloak.json")) as f:
     keycloak_conf = json.load(f)
 with open(os.path.join(BASE_DIR, "secrets/stripe.json")) as f:
     stripe_conf = json.load(f)
+with open(os.path.join(BASE_DIR, "secrets/open_exchange.json")) as f:
+    open_exchange_conf = json.load(f)
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
@@ -150,6 +152,8 @@ stripe.api_key = stripe_conf["server_key"]
 stripe.api_version = "2019-05-16; identity_beta=v3"
 STRIPE_PUBLIC_KEY = stripe_conf["public_key"]
 STRIPE_ENDPOINT_SECRET = stripe_conf["endpoint_secret"]
+
+OPEN_EXCHANGE_API_KEY = open_exchange_conf["key"]
 
 MONZO_WEBHOOK_SECRET_KEY = "test"
 

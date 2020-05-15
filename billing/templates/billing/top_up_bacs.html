@@ -4,8 +4,9 @@
         <h1>Top-up by BACS/Faster Payments/SEPA</h1>
 
         <p>
-            Please send <b>&pound;{{ amount|floatformat:2 }}</b> with a reference of <b>{{ ref }}</b>
-            to our bank account to complete the payment.
+            Please send <b>{{ amount|floatformat:2 }} GBP</b> (or equivalent in your local currency,
+            we'll update the final amount if the exchange rate changes before it settles)
+            with a reference of <b>{{ ref }}</b> to our bank account to complete the payment.
         </p>
 
         <h2>UK BACS/Faster Payments</h2>
@@ -17,7 +18,15 @@
 
         <h2>SEPA</h2>
         <p>
-            IBAN: <b>GB06MONZ04000453868700</b>
+            Account holder: <b>AS207960 Cyfyngedig</b>
+            IBAN: <b>GB06MONZ04000453868700</b><br>
+            BIC: <b>MONZGB2L</b>
+        </p>
+
+        <h2>Possibly needed information for all</h2>
+        <p>
+            Our address: <b>13 Pen-y-lan Terrace, Caerdydd, Cymru, CF23 9EU, GB</b><br>
+            Bank address: <b>Monzo Bank, 38 Finsbury Square, London, EC2A 1PX, GB</b>
         </p>
 
         <a href="{% url 'dashboard' %}" class="btn btn-primary">Back to dashboard</a>

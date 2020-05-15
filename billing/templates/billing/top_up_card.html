@@ -7,6 +7,13 @@
             <form action="" method="post">
                 {% csrf_token %}
                 <div class="form-group">
+                    <label for="currency_select">Charge currency</label>
+                    <select class="form-control" id="currency_select" name="currency">
+                        <option value="gbp">Pound sterling</option>
+                        <option value="eur">Euro</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label for="card_select">Select card</label>
                     <select class="form-control" id="card_select" name="card">
                         <option value="new">New card</option>
@@ -42,7 +49,7 @@
             var stripe = Stripe('{{ stripe_public_key }}');
             var paymentRequest = stripe.paymentRequest({
                 country: 'GB',
-                currency: 'gbp',
+                currency: "{{ currency }}",
                 total: {
                     label: 'Top-up',
                     amount: {{ amount }},
