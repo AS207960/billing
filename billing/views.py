@@ -98,7 +98,7 @@ def top_up_card(request):
         if charge_currency not in ("eur", "gbp"):
             return HttpResponseBadRequest()
 
-        amount_currency = models.ExchangeRate('gbp', charge_currency) * amount
+        amount_currency = models.ExchangeRate.get_rate('gbp', charge_currency) * amount
         amount_int = int(amount_currency * decimal.Decimal(100))
         if request.POST.get("card") == "new" or not cards:
             payment_intent = stripe.PaymentIntent.create(
@@ -779,6 +779,9 @@ def attempt_charge_account(account: models.Account, amount: decimal.Decimal):
     if account.default_stripe_payment_method_id:
         amount_int = int(amount * decimal.Decimal(100))
 
+        if amount_int < 30:
+            raise ChargeError("Charge too small")
+
         ledger_item = models.LedgerItem(
             account=account,
             descriptor="Top-up by card",
@@ -970,18 +973,19 @@ def log_usage(request, subscription_id):
     if "timestamp" in data:
         now = datetime.datetime.utcfromtimestamp(data["timestamp"])
 
-    charge_diff = subscription.plan.calculate_charge(
-        usage_units
-    ) - subscription.plan.calculate_charge(
-        old_usage.usage_units
-    )
+    if subscription.plan.billing_type == models.RecurringPlan.TYPE_RECURRING:
+        charge_diff = subscription.plan.calculate_charge(
+            usage_units
+        ) - subscription.plan.calculate_charge(
+            old_usage.usage_units
+        )
 
-    try:
-        charge_account(subscription.account, charge_diff, subscription.plan.name, f"su_{subscription_usage_id}", True)
-    except ChargeError as e:
-        return HttpResponse(json.dumps({
-            "message": e.message
-        }), content_type='application/json', status=402)
+        try:
+            charge_account(subscription.account, charge_diff, subscription.plan.name, f"su_{subscription_usage_id}", True)
+        except ChargeError as e:
+            return HttpResponse(json.dumps({
+                "message": e.message
+            }), content_type='application/json', status=402)
 
     subscription_usage = models.SubscriptionUsage(
         id=subscription_usage_id,
