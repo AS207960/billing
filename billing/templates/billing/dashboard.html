@@ -3,6 +3,18 @@
 {% block content %}
     <div class="container my-3">
         <h1>Account dashboard</h1>
+        <div class="alert alert-info" id="notif-alert">
+            <p>Get notifications about activity on your account?</p>
+            <hr>
+            <div class="btn-group">
+                <button class="btn btn-success" id="btn-notif-yes">
+                    Yes
+                </button>
+                <button class="btn btn-danger" id="btn-notif-no">
+                    No
+                </button>
+            </div>
+        </div>
         <div class="row">
             <div class="col-md-3">
                 <div class="card border-success">
@@ -109,4 +121,86 @@
             </div>
         </div>
     </div>
+    <script>
+        function registerPush() {
+            {#new Notification("AS207960 Billing", {#}
+            {#    body: "£1.00 for HexDNS",#}
+            {#    badge: "https://as207960.net/img/logo.png",#}
+            {#    icon: "https://as207960.net/img/logo.png",#}
+            {#    renotify: true,#}
+            {#    requireInteraction: true#}
+            {# }); #}
+
+            var serverKey = new Uint8Array(([
+                0x04, 0xb1, 0x1f, 0x9d, 0x47, 0x95, 0xde, 0xca, 0x64, 0x4d, 0xa5, 0x97, 0x98, 0x62, 0x11, 0x32, 0xf6,
+                0xb7, 0x52, 0x2e, 0x28, 0x1c, 0xef, 0x72, 0x96, 0x3b, 0xf0, 0xfc, 0x4f, 0xbe, 0xa5, 0xad, 0xc3, 0xcd,
+                0x79, 0x5c, 0x71, 0x37, 0x88, 0xd3, 0x15, 0x1a, 0xf1, 0x17, 0x47, 0xf7, 0x13, 0x1a, 0xf0, 0x58, 0x1a,
+                0x9c, 0x9b, 0x38, 0x06, 0x44, 0x01, 0x22, 0x58, 0xb4, 0x34, 0xe7, 0xe8, 0x1c, 0x3b
+            ]));
+
+            navigator.serviceWorker.register('/static/billing/js/sw.js')
+                .then(function(serviceWorkerRegistration) {
+                    var options = {
+                        userVisibleOnly: true,
+                        applicationServerKey: serverKey
+                    };
+                    serviceWorkerRegistration.pushManager.subscribe(options).then(
+                        function(pushSubscription) {
+                            const subscriptionObject = JSON.stringify(pushSubscription);
+                            fetch('/save_subscription/', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: subscriptionObject
+                            })
+                                .then(function(response) {
+                                    if (!response.ok) {
+                                        console.error('Bad status code from server.');
+                                    }
+                                });
+                        }, function(error) {
+                            console.error(error);
+                        }
+                    );
+                });
+        }
+
+        function checkNotifications() {
+            var notif_alert = document.getElementById("notif-alert");
+            var btn_yes = document.getElementById("btn-notif-yes");
+            var btn_no = document.getElementById("btn-notif-no");
+
+            if (!('serviceWorker' in navigator)) {
+                notif_alert.style.display = 'none';
+                return;
+            }
+
+            if (!('PushManager' in window)) {
+                notif_alert.style.display = 'none';
+                return;
+            }
+
+            if (Notification.permission === "granted") {
+                notif_alert.style.display = 'none';
+                registerPush();
+            } else if (Notification.permission !== "denied") {
+                btn_yes.addEventListener('click', function askNotifications() {
+                    notif_alert.style.display = 'none';
+                    Notification.requestPermission().then(function (permission) {
+                        if (permission === "granted") {
+                            registerPush();
+                        }
+                    });
+                });
+                btn_no.addEventListener('click', function notifNo() {
+                    notif_alert.style.display = 'none';
+                });
+            } else {
+                notif_alert.style.display = 'none';
+            }
+        }
+
+        window.addEventListener('load', checkNotifications)
+    </script>
 {% endblock %}

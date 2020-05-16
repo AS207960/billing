@@ -25,4 +25,5 @@ urlpatterns = [
     path('charge_user/<user_id>/', views.charge_user),
     path('subscribe_user/<user_id>/', views.subscribe_user),
     path('log_usage/<subscription_id>/', views.log_usage),
+    path('save_subscription/', views.save_subscription),
 ]

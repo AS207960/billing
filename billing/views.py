@@ -779,8 +779,9 @@ def attempt_charge_account(account: models.Account, amount: decimal.Decimal):
     if account.default_stripe_payment_method_id:
         amount_int = int(amount * decimal.Decimal(100))
 
-        if amount_int < 30:
-            raise ChargeError("Charge too small")
+        if amount_int < 100:
+            amount_int = 100
+            amount = decimal.Decimal(1)
 
         ledger_item = models.LedgerItem(
             account=account,
@@ -997,3 +998,27 @@ def log_usage(request, subscription_id):
 
     return HttpResponse(status=200)
 
+
+@csrf_exempt
+@login_required
+@require_POST
+def save_subscription(request):
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest()
+
+    try:
+        subscription_m = models.NotificationSubscription.objects.get(
+            endpoint=body.get("endpoint")
+        )
+    except models.NotificationSubscription.DoesNotExist:
+        subscription_m = models.NotificationSubscription()
+        subscription_m.endpoint = body.get("endpoint")
+
+    subscription_m.key_auth = body.get("keys", {}).get("auth")
+    subscription_m.key_p256dh = body.get("keys", {}).get("p256dh")
+    subscription_m.account = request.user.account
+    subscription_m.save()
+
+    return HttpResponse(status=200)

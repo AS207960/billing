@@ -49,6 +49,13 @@ def create_user_profile(sender, instance, created, **kwargs):
     instance.account.save()
 
 
+class NotificationSubscription(models.Model):
+    endpoint = models.TextField()
+    key_auth = models.TextField()
+    key_p256dh = models.TextField()
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+
+
 class LedgerItem(models.Model):
     STATE_PENDING = "P"
     STATE_PROCESSING = "S"
