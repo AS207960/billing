@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, reverse, get_object_or_404
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest
@@ -969,3 +969,60 @@ def save_subscription(request):
     subscription_m.save()
 
     return HttpResponse(status=200)
+
+
+@login_required
+@permission_required('billing.view_account', raise_exception=True)
+def view_accounts(request):
+    accounts = models.Account.objects.all()
+
+    return render(request, "billing/accounts.html", {
+        "accounts": accounts
+    })
+
+
+@login_required
+@permission_required('billing.view_account', raise_exception=True)
+def view_account(request, account_id):
+    user = get_object_or_404(get_user_model(), username=account_id)
+    account = user.account  # type: models.Account
+    cards = []
+
+    if account.stripe_customer_id:
+        cards = stripe.PaymentMethod.list(
+            customer=account.stripe_customer_id,
+            type="card"
+        ).auto_paging_iter()
+
+    return render(request, "billing/account.html", {
+        "account": account,
+        "cards": cards
+    })
+
+
+@login_required
+@permission_required('billing.add_ledgeritem', raise_exception=True)
+def charge_account(request, account_id):
+    user = get_object_or_404(get_user_model(), username=account_id)
+    account = user.account  # type: models.Account
+
+    if request.method == "POST":
+        form = forms.AccountChargeForm(request.POST)
+        if form.is_valid():
+            amount = form.cleaned_data['amount']
+            descriptor = form.cleaned_data['descriptor']
+            type_id = form.cleaned_data['id']
+
+            try:
+                tasks.charge_account(account, amount, descriptor, type_id)
+            except tasks.ChargeError as e:
+                form.errors['__all__'] = (e.message,)
+            else:
+                return redirect('view_account', user.username)
+    else:
+        form = forms.AccountChargeForm()
+
+    return render(request, "billing/account_charge.html", {
+        "account": account,
+        "form": form
+    })

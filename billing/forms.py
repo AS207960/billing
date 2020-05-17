@@ -73,3 +73,15 @@ class SOFORTForm(forms.Form):
 
         self.helper = crispy_forms.helper.FormHelper()
         self.helper.add_input(crispy_forms.layout.Submit('submit', 'Next'))
+
+
+class AccountChargeForm(forms.Form):
+    amount = forms.DecimalField(decimal_places=2, max_digits=9, label="Amount (GBP)")
+    descriptor = forms.CharField(max_length=255)
+    id = forms.CharField(max_length=255, required=False, label='ID')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Charge'))
