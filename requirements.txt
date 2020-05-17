@@ -9,3 +9,4 @@ django-countries
 django-mathfilters
 django-phonenumber-field[phonenumbers]
 python-dateutil
+pywebpush
