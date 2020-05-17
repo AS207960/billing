@@ -4,6 +4,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.db.models import Q, F
 from django.core.exceptions import ValidationError
+from dateutil import relativedelta
+import datetime
 import stripe
 import decimal
 import uuid
@@ -21,6 +23,13 @@ class Account(models.Model):
     def balance(self):
         return self.ledgeritem_set\
             .filter(state=LedgerItem.STATE_COMPLETED)\
+            .aggregate(balance=models.Sum('amount'))\
+            .get('balance') or decimal.Decimal(0)
+
+    @property
+    def processing_and_completed_balance(self):
+        return self.ledgeritem_set\
+            .filter(Q(state=LedgerItem.STATE_COMPLETED) | Q(state=LedgerItem.STATE_PROCESSING))\
             .aggregate(balance=models.Sum('amount'))\
             .get('balance') or decimal.Decimal(0)
 
@@ -178,6 +187,15 @@ class RecurringPlan(models.Model):
         elif self.billing_type == self.TYPE_METERED and self.aggregation_type is None:
             raise ValidationError("Aggregation type is required for metered types")
 
+    @property
+    def billing_interval(self):
+        if self.billing_interval_unit == self.INTERVAL_DAY:
+            return datetime.timedelta(days=self.billing_interval_value)
+        elif self.billing_interval_unit == self.INTERVAL_WEEK:
+            return datetime.timedelta(weeks=self.billing_interval_value)
+        elif self.billing_interval_unit == self.INTERVAL_MONTH:
+            return relativedelta.relativedelta(months=self.billing_interval_value)
+
     def calculate_charge(self, units: int) -> decimal.Decimal:
         if self.tiers_type == self.TIERS_VOLUME:
             tier = self.recurringplantier_set.filter(last_unit__lte=units)\
@@ -216,12 +234,59 @@ class Subscription(models.Model):
     STATE_ACTIVE = "A"
     STATE_PAST_DUE = "P"
     STATE_CANCELLED = "C"
+    STATES = (
+        (STATE_ACTIVE, "Active"),
+        (STATE_PAST_DUE, "Past due"),
+        (STATE_CANCELLED, "Cancelled"),
+    )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     plan = models.ForeignKey(RecurringPlan, on_delete=models.CASCADE)
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     last_billed = models.DateTimeField()
     last_bill_attempted = models.DateTimeField()
+    state = models.CharField(max_length=1, choices=STATES)
+
+    @property
+    def next_bill(self):
+        billing_interval = self.plan.billing_interval
+        return self.last_billed + billing_interval
+
+    @property
+    def usage_in_period(self):
+        if self.plan.billing_type == RecurringPlan.TYPE_RECURRING:
+            last_usage = self.subscriptionusage_set.first()
+            if not last_usage:
+                return 0
+            else:
+                return last_usage.usage_units
+        elif self.plan.billing_type == RecurringPlan.TYPE_METERED:
+            if self.plan.aggregation_type == RecurringPlan.AGGREGATION_LAST_EVER:
+                last_usage = self.subscriptionusage_set.first()
+                if not last_usage:
+                    return 0
+                else:
+                    return last_usage.usage_units
+            elif self.plan.aggregation_type == RecurringPlan.AGGREGATION_LAST_PERIOD:
+                last_usage = self.subscriptionusage_set.filter(timestamp__gt=self.last_billed).first()
+                if not last_usage:
+                    return 0
+                else:
+                    return last_usage.usage_units
+            elif self.plan.aggregation_type == RecurringPlan.AGGREGATION_SUM:
+                last_usage = self.subscriptionusage_set.filter(timestamp__gt=self.last_billed)\
+                                 .aggregate(usage=models.Sum('usage_units')) \
+                                 .get('usage') or 0
+                return last_usage
+            elif self.plan.aggregation_type == RecurringPlan.AGGREGATION_MAX:
+                last_usage = self.subscriptionusage_set.filter(timestamp__gt=self.last_billed)\
+                                 .aggregate(usage=models.Max('usage_units')) \
+                                 .get('usage') or 0
+                return last_usage
+
+    @property
+    def next_charge(self):
+        return self.plan.calculate_charge(self.usage_in_period)
 
 
 class SubscriptionUsage(models.Model):

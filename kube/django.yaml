@@ -38,6 +38,10 @@ data:
   STRIPE_PUBLIC_KEY: "pk_live_VLsjEC8QBoN5rQWW0rfVccqW00VzaknDP3"
   DB_HOST: "postgres"
   DB_NAME: "billing"
+  EMAIL_HOST: "smtp.sendgrid.net"
+  EMAIL_HOST_USER: "apikey"
+  EMAIL_PORT: "587"
+  EMAIL_USE_TLS: "true"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -94,6 +98,9 @@ spec:
                 name: billing-monzo-secret
             - secretRef:
                 name: billing-open-exchange-secret
+            - secretRef:
+                name: billing-email
+              prefix: "EMAIL_"
       containers:
         - name: gunicorn
           image: as207960/billing-django:(version)
@@ -123,6 +130,9 @@ spec:
                 name: billing-monzo-secret
             - secretRef:
                 name: billing-open-exchange-secret
+            - secretRef:
+                name: billing-email
+              prefix: "EMAIL_"
 ---
 apiVersion: batch/v1beta1
 kind: CronJob
@@ -168,6 +178,107 @@ spec:
                     name: billing-monzo-secret
                 - secretRef:
                     name: billing-open-exchange-secret
+                - secretRef:
+                    name: billing-email
+                  prefix: "EMAIL_"
+          restartPolicy: OnFailure
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: billing-attempt-reconcile
+spec:
+  schedule: "00 4 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          volumes:
+            - name: static
+              persistentVolumeClaim:
+                claimName: billing-django-static
+            - name: media
+              persistentVolumeClaim:
+                claimName: billing-django-media
+          containers:
+            - name: django
+              image: as207960/billing-django:(version)
+              imagePullPolicy: Always
+              command: ["sh", "-c", "python3 manage.py attempt-reconcile"]
+              volumeMounts:
+                - mountPath: "/app/static/"
+                  name: static
+                - mountPath: "/app/media/"
+                  name: media
+              envFrom:
+                - configMapRef:
+                    name: billing-django-conf
+                - secretRef:
+                    name: billing-db-creds
+                  prefix: "DB_"
+                - secretRef:
+                    name: billing-django-secret
+                - secretRef:
+                    name: billing-keycloak
+                  prefix: "KEYCLOAK_"
+                - secretRef:
+                    name: billing-stripe-secret
+                - secretRef:
+                    name: billing-monzo-secret
+                - secretRef:
+                    name: billing-open-exchange-secret
+                - secretRef:
+                    name: billing-email
+                  prefix: "EMAIL_"
+          restartPolicy: OnFailure
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: billing-run-billing
+spec:
+  schedule: "34 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          volumes:
+            - name: static
+              persistentVolumeClaim:
+                claimName: billing-django-static
+            - name: media
+              persistentVolumeClaim:
+                claimName: billing-django-media
+          containers:
+            - name: django
+              image: as207960/billing-django:(version)
+              imagePullPolicy: Always
+              command: ["sh", "-c", "python3 manage.py run-billing"]
+              volumeMounts:
+                - mountPath: "/app/static/"
+                  name: static
+                - mountPath: "/app/media/"
+                  name: media
+              envFrom:
+                - configMapRef:
+                    name: billing-django-conf
+                - secretRef:
+                    name: billing-db-creds
+                  prefix: "DB_"
+                - secretRef:
+                    name: billing-django-secret
+                - secretRef:
+                    name: billing-keycloak
+                  prefix: "KEYCLOAK_"
+                - secretRef:
+                    name: billing-stripe-secret
+                - secretRef:
+                    name: billing-monzo-secret
+                - secretRef:
+                    name: billing-open-exchange-secret
+                - secretRef:
+                    name: billing-email
+                  prefix: "EMAIL_"
           restartPolicy: OnFailure
 ---
 apiVersion: v1

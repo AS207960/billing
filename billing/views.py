@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, reverse, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseNotFound
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -15,7 +15,11 @@ import uuid
 import django_keycloak_auth.clients
 import keycloak.exceptions
 import datetime
-from . import forms, models
+from . import forms, models, tasks
+
+
+def sw(request):
+    return render(request, "billing/js/sw.js", {}, content_type="application/javascript")
 
 
 @login_required
@@ -25,23 +29,6 @@ def dashboard(request):
     return render(request, "billing/dashboard.html", {
         "ledger_items": ledger_items,
         "account": request.user.account
-    })
-
-
-@login_required
-def account_details(request):
-    account = request.user.account  # type: models.Account
-    cards = []
-
-    if account.stripe_customer_id:
-        cards = stripe.PaymentMethod.list(
-            customer=account.stripe_customer_id,
-            type="card"
-        ).auto_paging_iter()
-
-    return render(request, "billing/account_details.html", {
-        "account": account,
-        "cards": cards
     })
 
 
@@ -183,6 +170,8 @@ def complete_top_up_card(request, item_id):
     payment_intent = stripe.PaymentIntent.retrieve(ledger_item.type_id)
 
     if payment_intent["status"] == "succeeded":
+        ledger_item.state = ledger_item.STATE_COMPLETED
+        ledger_item.save()
         return redirect('dashboard')
 
     return render(request, "billing/top_up_card.html", {
@@ -526,6 +515,25 @@ def fail_top_up(request, item_id):
 
 
 @login_required
+def account_details(request):
+    account = request.user.account  # type: models.Account
+    cards = []
+
+    if account.stripe_customer_id:
+        cards = stripe.PaymentMethod.list(
+            customer=account.stripe_customer_id,
+            type="card"
+        ).auto_paging_iter()
+
+    subscriptions = request.user.account.subscription_set.all()
+
+    return render(request, "billing/account_details.html", {
+        "account": account,
+        "cards": cards,
+        "subscriptions": subscriptions
+    })
+
+@login_required
 def add_card(request):
     intent = stripe.SetupIntent.create(
         customer=request.user.account.get_stripe_id(),
@@ -555,6 +563,9 @@ def edit_card(request, pm_id):
 
         if action == "delete":
             stripe.PaymentMethod.detach(pm_id)
+            if request.user.account.default_stripe_payment_method_id == pm_id:
+                request.user.account.default_stripe_payment_method_id = None
+                request.user.account.save()
             return redirect('account_details')
 
         elif action == "default":
@@ -770,75 +781,6 @@ def monzo_webhook(request, secret_key):
     return HttpResponse(status=200)
 
 
-class ChargeError(Exception):
-    def __init__(self, message):
-        self.message = message
-
-
-def attempt_charge_account(account: models.Account, amount: decimal.Decimal):
-    if account.default_stripe_payment_method_id:
-        amount_int = int(amount * decimal.Decimal(100))
-
-        if amount_int < 100:
-            amount_int = 100
-            amount = decimal.Decimal(1)
-
-        ledger_item = models.LedgerItem(
-            account=account,
-            descriptor="Top-up by card",
-            amount=amount,
-            type=models.LedgerItem.TYPE_CARD,
-        )
-
-        try:
-            payment_intent = stripe.PaymentIntent.create(
-                amount=amount_int,
-                currency='gbp',
-                customer=account.get_stripe_id(),
-                description='Top-up',
-                receipt_email=account.user.email,
-                statement_descriptor_suffix="Top-up",
-                payment_method=account.default_stripe_payment_method_id,
-                confirm=True,
-                off_session=True,
-            )
-        except stripe.error.CardError as e:
-            err = e.error
-            ledger_item.type_id = err.payment_intent['id']
-            ledger_item.state = ledger_item.STATE_FAILED
-            ledger_item.save()
-            raise ChargeError(err.message)
-
-        ledger_item.state = ledger_item.STATE_COMPLETED
-        ledger_item.type_id = payment_intent['id']
-        ledger_item.save()
-    else:
-        raise ChargeError("No card available to charge")
-
-
-def charge_account(account: models.Account, amount: decimal.Decimal, descriptor: str, type_id: str, can_reject=True):
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor=descriptor,
-        amount=-amount,
-        type=models.LedgerItem.TYPE_CHARGE,
-        type_id=type_id
-    )
-    ledger_item.save()
-
-    if account.balance - amount < 0:
-        charge_amount = -(account.balance - amount)
-        try:
-            attempt_charge_account(account, charge_amount)
-        except ChargeError as e:
-            if can_reject:
-                ledger_item.state = ledger_item.STATE_FAILED
-                ledger_item.save()
-                raise e
-    ledger_item.state = ledger_item.STATE_COMPLETED
-    ledger_item.save()
-
-
 def check_api_auth(request):
     auth = request.META.get("HTTP_AUTHORIZATION")
     if not auth or not auth.startswith("Bearer "):
@@ -885,8 +827,8 @@ def charge_user(request, user_id):
         return HttpResponseBadRequest()
 
     try:
-        charge_account(account, amount, data["descriptor"], data["id"], can_reject)
-    except ChargeError as e:
+        tasks.charge_account(account, amount, data["descriptor"], data["id"], can_reject)
+    except tasks.ChargeError as e:
         return HttpResponse(json.dumps({
             "message": e.message
         }), content_type='application/json', status=402)
@@ -924,8 +866,8 @@ def subscribe_user(request, user_id):
     now = timezone.now()
 
     try:
-        charge_account(account, initial_charge, plan.name, f"su_{subscription_usage_id}", True)
-    except ChargeError as e:
+        tasks.charge_account(account, initial_charge, plan.name, f"su_{subscription_usage_id}", True)
+    except tasks.ChargeError as e:
         return HttpResponse(json.dumps({
             "message": e.message
         }), content_type='application/json', status=402)
@@ -975,6 +917,11 @@ def log_usage(request, subscription_id):
         now = datetime.datetime.utcfromtimestamp(data["timestamp"])
 
     if subscription.plan.billing_type == models.RecurringPlan.TYPE_RECURRING:
+        if subscription.state != subscription.STATE_ACTIVE:
+            return HttpResponse(json.dumps({
+                "message": "Error with subscription payment"
+            }), content_type='application/json', status=402)
+
         charge_diff = subscription.plan.calculate_charge(
             usage_units
         ) - subscription.plan.calculate_charge(
@@ -982,8 +929,8 @@ def log_usage(request, subscription_id):
         )
 
         try:
-            charge_account(subscription.account, charge_diff, subscription.plan.name, f"su_{subscription_usage_id}", True)
-        except ChargeError as e:
+            tasks.charge_account(subscription.account, charge_diff, subscription.plan.name, f"su_{subscription_usage_id}")
+        except tasks.ChargeError as e:
             return HttpResponse(json.dumps({
                 "message": e.message
             }), content_type='application/json', status=402)

@@ -141,6 +141,7 @@ with open(os.path.join(BASE_DIR, "secrets/open_exchange.json")) as f:
     open_exchange_conf = json.load(f)
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "AS207960 Billing <billing@as207960.net>"
 
 KEYCLOAK_SERVER_URL = keycloak_conf["server_url"]
 KEYCLOAK_REALM = keycloak_conf["realm"]
@@ -160,3 +161,6 @@ MONZO_WEBHOOK_SECRET_KEY = "test"
 PHONENUMBER_DEFAULT_REGION = "GB"
 CRISPY_TEMPLATE_PACK = "bootstrap4"
 CRISPY_FAIL_SILENTLY = not DEBUG
+
+with open(os.path.join(BASE_DIR, "secrets/vapid_private.der")) as f:
+    PUSH_PRIV_KEY = f.read()

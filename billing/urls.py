@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
@@ -26,4 +27,5 @@ urlpatterns = [
     path('subscribe_user/<user_id>/', views.subscribe_user),
     path('log_usage/<subscription_id>/', views.log_usage),
     path('save_subscription/', views.save_subscription),
+    path('sw.js', views.sw)
 ]
