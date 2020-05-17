@@ -99,6 +99,8 @@ spec:
             - secretRef:
                 name: billing-open-exchange-secret
             - secretRef:
+                name: billing-webpush
+            - secretRef:
                 name: billing-email
               prefix: "EMAIL_"
       containers:
@@ -130,6 +132,8 @@ spec:
                 name: billing-monzo-secret
             - secretRef:
                 name: billing-open-exchange-secret
+            - secretRef:
+                name: billing-webpush
             - secretRef:
                 name: billing-email
               prefix: "EMAIL_"
@@ -178,6 +182,8 @@ spec:
                     name: billing-monzo-secret
                 - secretRef:
                     name: billing-open-exchange-secret
+                - secretRef:
+                    name: billing-webpush
                 - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
@@ -228,6 +234,8 @@ spec:
                 - secretRef:
                     name: billing-open-exchange-secret
                 - secretRef:
+                    name: billing-webpush
+                - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
           restartPolicy: OnFailure
@@ -276,6 +284,8 @@ spec:
                     name: billing-monzo-secret
                 - secretRef:
                     name: billing-open-exchange-secret
+                - secretRef:
+                    name: billing-webpush
                 - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
