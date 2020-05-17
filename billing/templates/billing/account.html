@@ -11,7 +11,13 @@
                     Balance: <b>&pound;{{ account.balance|floatformat:2 }}</b><br/>
                     Completed and processing balance: <b>&pound;{{ account.processing_and_completed_balance|floatformat:2 }}</b><br/>
                     Pending balance: <b>&pound;{{ account.pending_balance|floatformat:2 }}</b><br/>
-                    Stripe customer ID: <b>{{ account.stripe_customer_id }}</b>
+                    Stripe customer ID: {% if account.stripe_customer_id %}
+                        <a href="https://dashboard.stripe.com/customers/{{ account.stripe_customer_id }}" target="_blank">
+                            <b>{{ account.stripe_customer_id }}</b>
+                        </a>
+                    {% else %}
+                        <b>N/A</b>
+                    {% endif %}
                 </p>
             </div>
             <div class="col">
