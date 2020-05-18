@@ -58,6 +58,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'xff.middleware.XForwardedForMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -187,3 +188,6 @@ EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", False)
 DEFAULT_FROM_EMAIL = "AS207960 Billing <billing@as207960.net>"
 
 PUSH_PRIV_KEY = os.getenv("PUSH_PRIV_KEY")
+
+XFF_TRUSTED_PROXY_DEPTH = 2
+XFF_STRICT = True
