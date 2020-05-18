@@ -79,6 +79,7 @@ class AccountChargeForm(forms.Form):
     amount = forms.DecimalField(decimal_places=2, max_digits=9, label="Amount (GBP)", min_value=0)
     descriptor = forms.CharField(max_length=255)
     id = forms.CharField(max_length=255, required=False, label='ID')
+    can_reject = forms.BooleanField(initial=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

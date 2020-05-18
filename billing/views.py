@@ -1012,9 +1012,10 @@ def charge_account(request, account_id):
             amount = form.cleaned_data['amount']
             descriptor = form.cleaned_data['descriptor']
             type_id = form.cleaned_data['id']
+            can_reject = form.cleaned_data['can_reject']
 
             try:
-                tasks.charge_account(account, amount, descriptor, type_id)
+                tasks.charge_account(account, amount, descriptor, type_id, can_reject=can_reject)
             except tasks.ChargeError as e:
                 form.errors['__all__'] = (e.message,)
             else:

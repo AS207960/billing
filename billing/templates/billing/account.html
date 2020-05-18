@@ -24,7 +24,7 @@
                 {% if perms.billing.add_ledgeritem %}
                     <div class="btn-group">
                         <a href="{% url 'charge_account' account.user.username %}" class="btn btn-success">Charge account</a>
-                        <a href="{% url 'manual_top_up_account' account.user.username %}" class="btn btn-success">Manual top-up</a>
+                        <a href="{% url 'manual_top_up_account' account.user.username %}" class="btn btn-info">Manual top-up</a>
                     </div>
                 {% endif %}
             </div>
