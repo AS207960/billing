@@ -767,7 +767,7 @@ def monzo_webhook(request, secret_key):
         ref = data.get("metadata", {}).get("notes")
         ledger_item = models.LedgerItem.objects.filter(
             type=models.LedgerItem.TYPE_BACS,
-            type_id=ref,
+            type_id__contains=ref,
             state=models.LedgerItem.STATE_PENDING
         ).first()
 
@@ -1023,6 +1023,36 @@ def charge_account(request, account_id):
         form = forms.AccountChargeForm()
 
     return render(request, "billing/account_charge.html", {
+        "account": account,
+        "form": form
+    })
+
+
+@login_required
+@permission_required('billing.add_ledgeritem', raise_exception=True)
+def manual_top_up_account(request, account_id):
+    user = get_object_or_404(get_user_model(), username=account_id)
+    account = user.account  # type: models.Account
+
+    if request.method == "POST":
+        form = forms.ManualTopUpForm(request.POST)
+        if form.is_valid():
+            amount = form.cleaned_data['amount']
+            descriptor = form.cleaned_data['descriptor']
+
+            ledger_item = models.LedgerItem(
+                account=account,
+                type=models.LedgerItem.TYPE_MANUAL,
+                descriptor=descriptor,
+                amount=amount,
+                state=models.LedgerItem.STATE_COMPLETED,
+            )
+            ledger_item.save()
+            return redirect('view_account', user.username)
+    else:
+        form = forms.ManualTopUpForm()
+
+    return render(request, "billing/account_top_up.html", {
         "account": account,
         "form": form
     })

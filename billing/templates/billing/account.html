@@ -22,7 +22,10 @@
             </div>
             <div class="col">
                 {% if perms.billing.add_ledgeritem %}
-                    <a href="{% url 'charge_account' account.user.username %}" class="btn btn-success">Charge account</a>
+                    <div class="btn-group">
+                        <a href="{% url 'charge_account' account.user.username %}" class="btn btn-success">Charge account</a>
+                        <a href="{% url 'manual_top_up_account' account.user.username %}" class="btn btn-success">Manual top-up</a>
+                    </div>
                 {% endif %}
             </div>
         </div>
@@ -114,6 +117,7 @@
                 <table class="table">
                     <thead class="thead-dark">
                     <tr>
+                        <th>ID</th>
                         <th>Time</th>
                         <th>Description</th>
                         <th>Amount</th>
@@ -123,6 +127,7 @@
                     <tbody>
                     {% for item in account.ledgeritem_set.all %}
                         <tr>
+                            <th scope="row">{{ item.id }}</th>
                             <td>{{ item.timestamp }}</td>
                             <td>
                                 {{ item.descriptor }}

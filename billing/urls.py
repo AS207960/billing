@@ -29,6 +29,7 @@ urlpatterns = [
     path('save_subscription/', views.save_subscription),
     path('sw.js', views.sw),
     path('accounts/', views.view_accounts, name='view_accounts'),
-    path('accounts/<account_id>', views.view_account, name='view_account'),
-    path('accounts/<account_id>/charge', views.charge_account, name='charge_account'),
+    path('accounts/<account_id>/', views.view_account, name='view_account'),
+    path('accounts/<account_id>/charge/', views.charge_account, name='charge_account'),
+    path('accounts/<account_id>/top_up/', views.manual_top_up_account, name='manual_top_up_account'),
 ]

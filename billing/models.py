@@ -81,11 +81,13 @@ class LedgerItem(models.Model):
     TYPE_CARD = "C"
     TYPE_BACS = "F"
     TYPE_SOURCES = "S"
+    TYPE_MANUAL = "M"
     TYPES = (
         (TYPE_CHARGE, "Charge"),
         (TYPE_CARD, "Card"),
         (TYPE_BACS, "BACS/Faster payments/SEPA"),
         (TYPE_SOURCES, "Sources"),
+        (TYPE_MANUAL, "Manual"),
     )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
