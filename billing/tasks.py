@@ -13,8 +13,12 @@ import stripe.error
 def alert_account(account: models.Account, ledger_item: models.LedgerItem, new=False):
     extra = None
     if ledger_item.type == ledger_item.TYPE_CHARGE:
-        emoji = "📉"
-        body = f"£{-ledger_item.amount:.2f} for {ledger_item.descriptor}"
+        if ledger_item.amount <= 0:
+            emoji = "📉"
+            body = f"£{-ledger_item.amount:.2f} for {ledger_item.descriptor}"
+        else:
+            emoji = "📈"
+            body = f"£{ledger_item.amount:.2f} refund for {ledger_item.descriptor}"
     else:
         emoji = "💸"
         body = f"£{ledger_item.amount:.2f} from {ledger_item.descriptor}"

@@ -74,7 +74,7 @@ def top_up_card(request):
             type="card"
         ).auto_paging_iter())
 
-    if cards and request.method != "POST":
+    if request.method != "POST":
         return render(request, "billing/top_up_card.html", {
             "is_new": False,
             "cards": cards
