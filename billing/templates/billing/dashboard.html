@@ -17,7 +17,7 @@
         </div>
         <div class="row">
             <div class="col-md-3">
-                <div class="card border-success">
+                <div class="card {% if account.balance < 0 %}border-danger{% elif account.balance < 5 %}border-warning{% else %}border-success{% endif %}">
                     <div class="card-header">
                         Balance
                     </div>
