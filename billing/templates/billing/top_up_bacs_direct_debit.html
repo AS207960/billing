@@ -1,0 +1,69 @@
+{% extends 'billing/base.html' %}
+{% block content %}
+    {% if not is_new %}
+        <div class="container my-3">
+            <h1>Top-up by BACS Direct Debit</h1>
+
+            <form action="" method="post">
+                {% csrf_token %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="thead-dark">
+                        <tr>
+                            <th>Account number</th>
+                            <th>Sort code</th>
+                            <th>Reference</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for mandate in mandates %}
+                            <tr>
+                                <td>**** {{ mandate.payment_method.bacs_debit.last4 }}</td>
+                                <td>{{ mandate.payment_method.bacs_debit.sort_code }}</td>
+                                <td>{{ mandate.mandate.payment_method_details.bacs_debit.reference }}</td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="{{ mandate.mandate.payment_method_details.bacs_debit.url }}" class="btn btn-primary btn-sm">View mandate</a>
+                                        <button type="submit" name="mandate" value="{{ mandate.id }}" class="btn btn-success btn-sm">Select</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        <tr>
+                            <td colspan="4" class="text-center">
+                                <button type="submit" name="mandate" value="new" class="btn btn-success btn-sm">New mandate</button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+        </div>
+    {% else %}
+        <div class="container my-3">
+            <h1>Top-up by BACS Direct Debit</h1>
+
+            <div class="alert alert-danger" role="alert" id="card-error" style="display: none;"></div>
+            <div class="alert alert-info" role="alert" id="card-loading">
+                Processing...
+            </div>
+        </div>
+        <script src="https://js.stripe.com/v3/"></script>
+        <script>
+            var stripe = Stripe('{{ stripe_public_key }}');
+            var error = document.getElementById("card-error");
+            var loading = document.getElementById("card-loading");
+
+            stripe.redirectToCheckout({
+                sessionId: '{{ checkout_id }}'
+            }).then(function (result) {
+                if (result.error) {
+                    error.style.display = "block";
+                    loading.style.display = "none";
+                    error.innerText = result.error.message;
+                }
+            });
+        </script>
+    {% endif %}
+{% endblock %}

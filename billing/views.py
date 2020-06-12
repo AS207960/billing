@@ -41,6 +41,8 @@ def top_up(request):
                 return redirect(reverse("top_up_card") + f"?amount={form.cleaned_data['amount']}")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_BACS:
                 return redirect(reverse("top_up_bacs") + f"?amount={form.cleaned_data['amount']}")
+            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_BACS_DIRECT_DEBIT:
+                return redirect(reverse("top_up_bacs_direct_debit") + f"?amount={form.cleaned_data['amount']}")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_SOFORT:
                 return redirect(reverse("top_up_sofort") + f"?amount={form.cleaned_data['amount']}")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_GIROPAY:
@@ -221,6 +223,118 @@ def complete_top_up_bacs(request, item_id):
     return render(request, "billing/top_up_bacs.html", {
         "ref": ledger_item.type_id,
         "amount": ledger_item.amount
+    })
+
+
+@login_required
+def top_up_bacs_direct_debit(request):
+    account = request.user.account
+
+    mandates = list(models.BACSMandate.objects.filter(account=account, active=True))
+
+    if request.method != "POST" and mandates:
+        def map_mandate(m):
+            mandate = stripe.Mandate.retrieve(m.mandate_id)
+            payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
+            return {
+                "id": m.id,
+                "mandate": mandate,
+                "payment_method": payment_method
+            }
+
+        return render(request, "billing/top_up_bacs_direct_debit.html", {
+            "is_new": False,
+            "mandates": list(map(map_mandate, mandates))
+        })
+    else:
+        amount = decimal.Decimal(request.GET.get("amount"))
+        amount_int = int(amount * decimal.Decimal(100))
+
+        if request.POST.get("mandate") == "new" or not mandates:
+            session = stripe.checkout.Session.create(
+                payment_method_types=['bacs_debit'],
+                line_items=[{
+                    'price_data': {
+                        'currency': 'gbp',
+                        'product_data': {
+                            'name': 'Top-up',
+                        },
+                        'unit_amount': amount_int,
+                    },
+                    'quantity': 1,
+                }],
+                mode='payment',
+                customer=account.get_stripe_id(),
+                payment_intent_data={
+                    'setup_future_usage': 'off_session',
+                },
+                success_url=request.build_absolute_uri(reverse('dashboard')),
+                cancel_url=request.build_absolute_uri(reverse('dashboard')),
+            )
+
+            ledger_item = models.LedgerItem(
+                account=account,
+                descriptor="Top-up by BACS Direct Debit",
+                amount=amount,
+                type=models.LedgerItem.TYPE_CHECKOUT,
+                type_id=session["id"]
+            )
+            ledger_item.save()
+
+            return render(request, "billing/top_up_bacs_direct_debit.html", {
+                "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
+                "checkout_id": session["id"],
+                "is_new": True
+            })
+        else:
+            mandate_id = request.POST.get("mandate")
+            mandate = get_object_or_404(models.BACSMandate, id=mandate_id, active=True)
+
+            if mandate.account != request.user.account:
+                return HttpResponseForbidden()
+
+            payment_intent = stripe.PaymentIntent.create(
+                payment_method_types=['bacs_debit'],
+                payment_method=mandate.payment_method,
+                customer=account.get_stripe_id(),
+                description='Top-up',
+                confirm=True,
+                amount=amount_int,
+                receipt_email=request.user.email,
+                return_url=request.build_absolute_uri(reverse('dashboard')),
+                currency='gbp',
+            )
+
+            ledger_item = models.LedgerItem(
+                account=account,
+                descriptor="Top-up by BACS Direct Debit",
+                amount=amount,
+                type=models.LedgerItem.TYPE_CARD,
+                type_id=payment_intent['id'],
+                state=models.LedgerItem.STATE_PROCESSING
+            )
+            ledger_item.save()
+
+            return redirect('dashboard')
+
+
+@login_required
+def complete_top_up_checkout(request, item_id):
+    ledger_item = get_object_or_404(models.LedgerItem, id=item_id)
+
+    if ledger_item.account != request.user.account:
+        return HttpResponseForbidden
+
+    if ledger_item.state != ledger_item.STATE_PENDING:
+        return redirect('dashboard')
+
+    if ledger_item.type != ledger_item.TYPE_CHECKOUT:
+        return HttpResponseBadRequest
+
+    return render(request, "billing/top_up_bacs_direct_debit.html", {
+        "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
+        "checkout_id": ledger_item.type_id,
+        "is_new": True
     })
 
 
@@ -502,11 +616,16 @@ def fail_top_up(request, item_id):
     if ledger_item.state != ledger_item.STATE_PENDING:
         return redirect('dashboard')
 
-    if ledger_item.type not in (ledger_item.TYPE_CARD, ledger_item.TYPE_BACS, ledger_item.TYPE_SOURCES):
+    if ledger_item.type not in (
+            ledger_item.TYPE_CARD, ledger_item.TYPE_BACS, ledger_item.TYPE_SOURCES, ledger_item.TYPE_CHECKOUT
+    ):
         return HttpResponseBadRequest
 
     if ledger_item.type == ledger_item.TYPE_CARD:
         stripe.PaymentIntent.cancel(ledger_item.type_id)
+    elif ledger_item.type == ledger_item.TYPE_BACS:
+        session = stripe.checkout.Session.retrieve(ledger_item.type_id)
+        stripe.PaymentIntent.cancel(session["payment_intent"])
 
     ledger_item.state = models.LedgerItem.STATE_FAILED
     ledger_item.save()
@@ -525,13 +644,26 @@ def account_details(request):
             type="card"
         ).auto_paging_iter()
 
+    def map_mandate(m):
+        mandate = stripe.Mandate.retrieve(m.mandate_id)
+        payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
+        return {
+            "id": m.id,
+            "mandate": mandate,
+            "payment_method": payment_method
+        }
+
+    mandates = list(map(map_mandate, models.BACSMandate.objects.filter(account=account)))
+
     subscriptions = request.user.account.subscription_set.all()
 
     return render(request, "billing/account_details.html", {
         "account": account,
         "cards": cards,
+        "mandates": mandates,
         "subscriptions": subscriptions
     })
+
 
 @login_required
 def add_card(request):
@@ -623,6 +755,42 @@ def edit_card(request, pm_id):
     })
 
 
+@login_required
+def add_bacs_mandate(request):
+    account = request.user.account
+
+    session = stripe.checkout.Session.create(
+        payment_method_types=['bacs_debit'],
+        mode='setup',
+        customer=account.get_stripe_id(),
+        success_url=request.build_absolute_uri(reverse('account_details')),
+        cancel_url=request.build_absolute_uri(reverse('account_details')),
+    )
+
+    return render(request, "billing/top_up_bacs_direct_debit.html", {
+        "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
+        "checkout_id": session["id"],
+        "is_new": True
+    })
+
+
+@login_required
+@require_POST
+def edit_bacs_mandate(request, m_id):
+    mandate = get_object_or_404(models.BACSMandate, id=m_id)
+
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
+
+    action = request.POST.get("action")
+
+    if action == "delete":
+        stripe.PaymentMethod.detach(mandate.payment_method)
+        mandate.delete()
+
+    return redirect('account_details')
+
+
 @csrf_exempt
 @require_POST
 def stripe_webhook(request):
@@ -656,6 +824,18 @@ def stripe_webhook(request):
     elif event.type == 'charge.succeeded':
         charge = event.data.object
         charge_succeeded(charge)
+    elif event.type == "checkout.session.completed":
+        session = event.data.object
+        checkout_session_completed(session)
+    elif event.type == "checkout.session.async_payment_failed":
+        session = event.data.object
+        checkout_session_async_failed(session)
+    elif event.type == "checkout.session.async_payment_succeeded":
+        session = event.data.object
+        checkout_session_async_succeeded(session)
+    elif event.type == "mandate.updated":
+        mandate = event.data.object
+        mandate_update(mandate)
     else:
         return HttpResponseBadRequest()
 
@@ -749,6 +929,65 @@ def charge_succeeded(charge):
 
     ledger_item.state = models.LedgerItem.STATE_COMPLETED
     ledger_item.save()
+
+
+def checkout_session_completed(session):
+    ledger_item = models.LedgerItem.objects.filter(
+        type=models.LedgerItem.TYPE_CHECKOUT,
+        type_id=session['id']
+    ).first()
+
+    if session["mode"] == "payment":
+        payment_intent = stripe.PaymentIntent.retrieve(session["payment_intent"])
+        for charge in payment_intent["charges"]["data"]:
+            if charge["payment_method_details"]["type"] == "bacs_debit":
+                models.BACSMandate.sync_mandate(
+                    charge["payment_method_details"]["bacs_debit"]["mandate"],
+                    ledger_item.account if ledger_item else None
+                )
+    elif session["mode"] == "setup":
+        setup_intent = stripe.SetupIntent.retrieve(session["setup_intent"])
+        models.BACSMandate.sync_mandate(
+            setup_intent["mandate"], ledger_item.account if ledger_item else None
+        )
+
+    if ledger_item:
+        ledger_item.state = models.LedgerItem.STATE_PROCESSING
+        ledger_item.save()
+
+
+def checkout_session_async_succeeded(session):
+    ledger_item = models.LedgerItem.objects.filter(
+        type=models.LedgerItem.TYPE_CHECKOUT,
+        type_id=session['id']
+    ).first()
+
+    if not ledger_item:
+        return
+
+    ledger_item.state = models.LedgerItem.STATE_COMPLETED
+    ledger_item.save()
+
+
+def checkout_session_async_failed(session):
+    ledger_item = models.LedgerItem.objects.filter(
+        type=models.LedgerItem.TYPE_CHECKOUT,
+        type_id=session['id']
+    ).first()
+
+    if not ledger_item:
+        return
+
+    ledger_item.state = models.LedgerItem.STATE_FAILED
+    ledger_item.save()
+
+
+def mandate_update(mandate):
+    payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
+    account = models.Account.objects.filter(stripe_customer_id=payment_method["customer"]).first()
+    models.BACSMandate.sync_mandate(
+        mandate["id"], account
+    )
 
 
 @csrf_exempt

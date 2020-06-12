@@ -50,13 +50,71 @@
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="4">No saved cards</td>
+                        <td colspan="5">No saved cards</td>
                     </tr>
                 {% endif %}
+                <tr>
+                    <td colspan="5" class="text-center">
+                        <a href="{% url 'add_card' %}" class="btn btn-success btn-sm">Add new card</a>
+                    </td>
+                </tr>
                 </tbody>
             </table>
         </div>
-        <a href="{% url 'add_card' %}" class="btn btn-success">Add new card</a>
+        <hr>
+        <h2>BACS Direct Debit Mandates</h2>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="thead-dark">
+                <tr>
+                    <th>Account number</th>
+                    <th>Sort code</th>
+                    <th>Reference</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                {% if mandates %}
+                    {% for mandate in mandates %}
+                        <tr>
+                            <td>
+                                **** {{ mandate.payment_method.bacs_debit.last4 }}
+                                {% if mandate.mandate.payment_method_details.bacs_debit.network_status == "pending" %}
+                                    <span class="badge badge-warning">Pending</span>
+                                {% elif mandate.mandate.payment_method_details.bacs_debit.network_status == "revoked" %}
+                                    <span class="badge badge-danger">Revoked</span>
+                                {% elif mandate.mandate.payment_method_details.bacs_debit.network_status == "refused" %}
+                                    <span class="badge badge-danger">Refused</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ mandate.payment_method.bacs_debit.sort_code }}</td>
+                            <td>{{ mandate.mandate.payment_method_details.bacs_debit.reference }}</td>
+                            <td>
+                                <form action="{% url 'edit_bacs_mandate' mandate.id %}" method="post">
+                                    {% csrf_token %}
+                                    <div class="btn-group">
+                                        <a href="{{ mandate.mandate.payment_method_details.bacs_debit.url }}" class="btn btn-primary btn-sm">View mandate</a>
+                                        <button type="submit" class="btn btn-danger btn-sm" name="action" value="delete">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="4">No mandates</td>
+                    </tr>
+                {% endif %}
+                <tr>
+                    <td colspan="4" class="text-center">
+                        <a href="{% url 'add_bacs_mandate' %}" class="btn btn-success btn-sm">New mandate</a>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
         <hr>
         <h2>My subscriptions</h2>
         <div class="table-responsive table-striped table-hover table-striped">

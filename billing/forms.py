@@ -8,6 +8,7 @@ from phonenumber_field.formfields import PhoneNumberField
 class TopUpForm(forms.Form):
     METHOD_CARD = 'C'
     METHOD_BACS = 'B'
+    METHOD_BACS_DIRECT_DEBIT = 'D'
     METHOD_SOFORT = 'S'
     METHOD_GIROPAY = 'G'
     METHOD_BANCONTACT = 'A'
@@ -17,6 +18,7 @@ class TopUpForm(forms.Form):
     METHOD_P24 = 'P'
     METHODS = (
         (METHOD_BACS, "BACS/Faster payments/SEPA"),
+        (METHOD_BACS_DIRECT_DEBIT, "BACS Direct Debit"),
         (METHOD_SOFORT, "SOFORT"),
         (METHOD_GIROPAY, "giropay"),
         (METHOD_BANCONTACT, "Bancontact"),

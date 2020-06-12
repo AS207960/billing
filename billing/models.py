@@ -44,11 +44,24 @@ class Account(models.Model):
         if self.stripe_customer_id:
             return self.stripe_customer_id
 
-        customer = stripe.Customer.create()
+        customer = stripe.Customer.create(
+            email=self.user.email,
+            description=self.user.username,
+            name=f"{self.user.first_name} {self.user.last_name}"
+        )
         customer_id = customer['id']
         self.stripe_customer_id = customer_id
         self.save()
         return customer_id
+
+    def save(self, *args, **kwargs):
+        if self.stripe_customer_id:
+            stripe.Customer.modify(
+                "cus_HS4uPWzz8XIjta",
+                email=self.user.email,
+                name=f"{self.user.first_name} {self.user.last_name}"
+            )
+        super().save(*args, **kwargs)
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
@@ -81,12 +94,14 @@ class LedgerItem(models.Model):
     TYPE_CARD = "C"
     TYPE_BACS = "F"
     TYPE_SOURCES = "S"
+    TYPE_CHECKOUT = "H"
     TYPE_MANUAL = "M"
     TYPES = (
         (TYPE_CHARGE, "Charge"),
         (TYPE_CARD, "Card"),
         (TYPE_BACS, "BACS/Faster payments/SEPA"),
         (TYPE_SOURCES, "Sources"),
+        (TYPE_CHECKOUT, "Checkout"),
         (TYPE_MANUAL, "Manual"),
     )
 
@@ -115,6 +130,31 @@ class LedgerItem(models.Model):
         return queryset \
             .aggregate(balance=models.Sum('amount')) \
             .get('balance') or decimal.Decimal(0)
+
+
+class BACSMandate(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
+    mandate_id = models.CharField(max_length=255)
+    payment_method = models.CharField(max_length=255)
+    active = models.BooleanField(default=False)
+
+    @classmethod
+    def sync_mandate(cls, mandate_id, account):
+        mandate_obj = cls.objects.filter(mandate_id=mandate_id).first()
+        mandate = stripe.Mandate.retrieve(mandate_id)
+        if not mandate_obj:
+            if account:
+                mandate_obj = cls(
+                    mandate_id=mandate_id,
+                    active=mandate["status"] == "active",
+                    payment_method=mandate["payment_method"],
+                    account=account
+                )
+                mandate_obj.save()
+        else:
+            mandate_obj.active = mandate["status"] == "active"
+            mandate_obj.save()
 
 
 class ExchangeRate(models.Model):
