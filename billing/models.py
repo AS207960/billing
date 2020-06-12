@@ -57,7 +57,7 @@ class Account(models.Model):
     def save(self, *args, **kwargs):
         if self.stripe_customer_id:
             stripe.Customer.modify(
-                "cus_HS4uPWzz8XIjta",
+                self.stripe_customer_id,
                 email=self.user.email,
                 name=f"{self.user.first_name} {self.user.last_name}"
             )

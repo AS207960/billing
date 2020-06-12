@@ -943,12 +943,14 @@ def checkout_session_completed(session):
             if charge["payment_method_details"]["type"] == "bacs_debit":
                 models.BACSMandate.sync_mandate(
                     charge["payment_method_details"]["bacs_debit"]["mandate"],
-                    ledger_item.account if ledger_item else None
+                    ledger_item.account if ledger_item else
+                    models.Account.objects.filter(stripe_customer_id=payment_intent["customer"]).first()
                 )
     elif session["mode"] == "setup":
         setup_intent = stripe.SetupIntent.retrieve(session["setup_intent"])
         models.BACSMandate.sync_mandate(
-            setup_intent["mandate"], ledger_item.account if ledger_item else None
+            setup_intent["mandate"], ledger_item.account if ledger_item else
+            models.Account.objects.filter(stripe_customer_id=setup_intent["customer"]).first()
         )
 
     if ledger_item:
