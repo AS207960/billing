@@ -3,6 +3,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.dispatch import receiver
 from django.db.models.signals import pre_save
+import multiprocessing
 import sentry_sdk
 import pywebpush
 import json
@@ -68,9 +69,12 @@ def alert_account(account: models.Account, ledger_item: models.LedgerItem, new=F
 def send_item_notif(sender, instance, **kwargs):
     old_instance = models.LedgerItem.objects.filter(id=instance.id).first()
     if not old_instance:
-        alert_account(instance.account, instance, new=True)
+        p = multiprocessing.Process(target=alert_account, args=(instance.account, instance), kwargs={"new": True})
     elif old_instance.state != instance.state:
-        alert_account(instance.account, instance)
+        p = multiprocessing.Process(target=alert_account, args=(instance.account, instance))
+    else:
+        return
+    p.start()
 
 
 class ChargeError(Exception):
@@ -88,7 +92,7 @@ def attempt_charge_account(account: models.Account, amount: decimal.Decimal):
 
         ledger_item = models.LedgerItem(
             account=account,
-            descriptor="Top-up by card",
+            descriptor="Automatic top-up",
             amount=amount,
             type=models.LedgerItem.TYPE_CARD,
         )
@@ -102,17 +106,18 @@ def attempt_charge_account(account: models.Account, amount: decimal.Decimal):
                 receipt_email=account.user.email,
                 statement_descriptor_suffix="Top-up",
                 payment_method=account.default_stripe_payment_method_id,
+                payment_method_types=["card", "bacs_debit"],
                 confirm=True,
                 off_session=True,
             )
-        except stripe.error.CardError as e:
+        except (stripe.error.CardError, stripe.error.InvalidRequestError) as e:
             err = e.error
             ledger_item.type_id = err.payment_intent['id']
             ledger_item.state = ledger_item.STATE_FAILED
             ledger_item.save()
             raise ChargeError(err.message)
 
-        ledger_item.state = ledger_item.STATE_COMPLETED
+        ledger_item.state = ledger_item.STATE_PROCESSING
         ledger_item.type_id = payment_intent['id']
         ledger_item.save()
     else:

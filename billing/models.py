@@ -153,7 +153,11 @@ class BACSMandate(models.Model):
                 )
                 mandate_obj.save()
         else:
-            mandate_obj.active = mandate["status"] == "active"
+            is_active = mandate["status"] == "active"
+            mandate_obj.active = is_active
+            if not is_active and mandate_obj.payment_method == mandate_obj.account.default_stripe_payment_method_id:
+                mandate_obj.account.default_stripe_payment_method_id = None
+                mandate_obj.account.save()
             mandate_obj.save()
 
 

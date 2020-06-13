@@ -649,6 +649,7 @@ def account_details(request):
         payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
         return {
             "id": m.id,
+            "mandate_obj": m,
             "mandate": mandate,
             "payment_method": payment_method
         }
@@ -787,6 +788,10 @@ def edit_bacs_mandate(request, m_id):
     if action == "delete":
         stripe.PaymentMethod.detach(mandate.payment_method)
         mandate.delete()
+
+    elif action == "default" and mandate.active:
+        request.user.account.default_stripe_payment_method_id = mandate.payment_method
+        request.user.account.save()
 
     return redirect('account_details')
 

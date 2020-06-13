@@ -86,6 +86,9 @@
                                 {% elif mandate.mandate.payment_method_details.bacs_debit.network_status == "refused" %}
                                     <span class="badge badge-danger">Refused</span>
                                 {% endif %}
+                                {% if mandate.mandate_obj.payment_method != user.account.default_stripe_payment_method_id %}
+                                    <span class="badge badge-info">Default</span>
+                                {% endif %}
                             </td>
                             <td>{{ mandate.payment_method.bacs_debit.sort_code }}</td>
                             <td>{{ mandate.mandate.payment_method_details.bacs_debit.reference }}</td>
@@ -94,6 +97,11 @@
                                     {% csrf_token %}
                                     <div class="btn-group">
                                         <a href="{{ mandate.mandate.payment_method_details.bacs_debit.url }}" class="btn btn-primary btn-sm">View mandate</a>
+                                        {% if mandate.mandate_obj.payment_method != user.account.default_stripe_payment_method_id and mandate.mandate_obj.active %}
+                                            <button type="submit" class="btn btn-primary btn-sm" name="action" value="default">
+                                                Make default
+                                            </button>
+                                        {% endif %}
                                         <button type="submit" class="btn btn-danger btn-sm" name="action" value="delete">
                                             Delete
                                         </button>
