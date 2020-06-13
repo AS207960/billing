@@ -1049,6 +1049,33 @@ def check_api_auth(request):
 
 @csrf_exempt
 @require_POST
+def convert_currency(request):
+    auth_error = check_api_auth(request)
+    if auth_error:
+        return auth_error
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest()
+
+    if "from" not in data or "to" not in data or "amount" not in data:
+        return HttpResponseBadRequest()
+
+    try:
+        amount = decimal.Decimal(data["amount"])
+    except decimal.InvalidOperation:
+        return HttpResponseBadRequest()
+
+    amount = models.ExchangeRate.get_rate(data["from"], data["to"]) * amount
+
+    return HttpResponse(json.dumps({
+        "amount": str(amount)
+    }), content_type='application/json', status=200)
+
+
+@csrf_exempt
+@require_POST
 def charge_user(request, user_id):
     auth_error = check_api_auth(request)
     if auth_error:
