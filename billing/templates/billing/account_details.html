@@ -86,7 +86,7 @@
                                 {% elif mandate.mandate.payment_method_details.bacs_debit.network_status == "refused" %}
                                     <span class="badge badge-danger">Refused</span>
                                 {% endif %}
-                                {% if mandate.mandate_obj.payment_method != user.account.default_stripe_payment_method_id %}
+                                {% if mandate.mandate_obj.payment_method == user.account.default_stripe_payment_method_id %}
                                     <span class="badge badge-info">Default</span>
                                 {% endif %}
                             </td>
