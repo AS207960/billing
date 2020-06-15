@@ -1355,7 +1355,8 @@ def edit_ledger_item(request, item_id):
     ledger_item = get_object_or_404(models.LedgerItem, pk=item_id)
 
     if request.method == "POST":
-        if request.POST.get("paid") == "true" and ledger_item.type == ledger_item.TYPE_BACS:
+        if request.POST.get("paid") == "true" and ledger_item.type == ledger_item.TYPE_BACS and \
+                ledger_item.state == ledger_item.STATE_PENDING:
             ledger_item.state = ledger_item.STATE_COMPLETED
             ledger_item.save()
 
