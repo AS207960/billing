@@ -1,0 +1,318 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: billing-django-test-static
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: billing-django-test-media
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: billing-django-test-conf
+data:
+  HOST: billing.test.as207960.net
+  DJANGO_SETTINGS_MODULE: as207960_billing.settings
+  EXTERNAL_URL: "https://billing.test.as207960.net"
+  SENTRY_ENVIRONMENT: "test"
+  KEYCLOAK_SERVER_URL: "https://sso.as207960.net/"
+  KEYCLOAK_REALM: test
+  KEYCLOAK_SCOPES: "openid email profile"
+  KEYCLOAK_CLIENT_ID: "billing"
+  STRIPE_PUBLIC_KEY: "pk_test_HiLhXV0p2Gk4HzYr5S5vpmbi00pSy0cAVL"
+  DB_HOST: "postgres"
+  DB_NAME: "billing-test"
+  EMAIL_HOST: "mx.postal.as207960.net"
+  EMAIL_HOST_USER: "apikey"
+  EMAIL_PORT: "25"
+  EMAIL_FROM: "AS207960 Billing [test] <billing-test@as207960.net>"
+  IS_TEST: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-django-test
+  labels:
+    app: billing-test
+    part: django
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: billing-test
+      part: django
+  template:
+    metadata:
+      labels:
+        app: billing-test
+        part: django
+    spec:
+      volumes:
+        - name: static
+          persistentVolumeClaim:
+            claimName: billing-django-test-static
+        - name: media
+          persistentVolumeClaim:
+            claimName: billing-django-test-media
+      initContainers:
+        - name: django
+          image: as207960/billing-django:(version)
+          imagePullPolicy: Always
+          command: ["sh", "-c", "python3 manage.py collectstatic --noinput && python3 manage.py migrate && python3 manage.py sync-keycloak"]
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - mountPath: "/app/static/"
+              name: static
+            - mountPath: "/app/media/"
+              name: media
+          envFrom:
+            - configMapRef:
+                name: billing-django-test-conf
+            - secretRef:
+                name: billing-db-test-creds
+              prefix: "DB_"
+            - secretRef:
+                name: billing-django-test-secret
+            - secretRef:
+                name: billing-test-keycloak
+              prefix: "KEYCLOAK_"
+            - secretRef:
+                name: billing-stripe-test-secret
+            - secretRef:
+                name: billing-monzo-test-secret
+            - secretRef:
+                name: billing-open-exchange-secret
+            - secretRef:
+                name: billing-webpush
+            - secretRef:
+                name: billing-test-email
+              prefix: "EMAIL_"
+      containers:
+        - name: gunicorn
+          image: as207960/billing-django:(version)
+          imagePullPolicy: Always
+          command: ["gunicorn", "-w", "8", "-b", "[::]:8000", "--forwarded-allow-ips", "*", "--access-logfile", "-", "as207960_billing.wsgi:application"]
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - mountPath: "/app/static/"
+              name: static
+            - mountPath: "/app/media/"
+              name: media
+          envFrom:
+            - configMapRef:
+                name: billing-django-test-conf
+            - secretRef:
+                name: billing-db-test-creds
+              prefix: "DB_"
+            - secretRef:
+                name: billing-django-test-secret
+            - secretRef:
+                name: billing-test-keycloak
+              prefix: "KEYCLOAK_"
+            - secretRef:
+                name: billing-stripe-test-secret
+            - secretRef:
+                name: billing-monzo-test-secret
+            - secretRef:
+                name: billing-open-exchange-secret
+            - secretRef:
+                name: billing-webpush
+            - secretRef:
+                name: billing-test-email
+              prefix: "EMAIL_"
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: billing-test-get-exchange
+  labels:
+    app: billing-test
+    part: get-exchange
+spec:
+  schedule: "17 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          volumes:
+            - name: static
+              persistentVolumeClaim:
+                claimName: billing-django-test-static
+            - name: media
+              persistentVolumeClaim:
+                claimName: billing-django-test-media
+          containers:
+            - name: django
+              image: as207960/billing-django:(version)
+              imagePullPolicy: Always
+              command: ["sh", "-c", "python3 manage.py sync-exchange"]
+              volumeMounts:
+                - mountPath: "/app/static/"
+                  name: static
+                - mountPath: "/app/media/"
+                  name: media
+              envFrom:
+                - configMapRef:
+                    name: billing-django-test-conf
+                - secretRef:
+                    name: billing-db-test-creds
+                  prefix: "DB_"
+                - secretRef:
+                    name: billing-django-test-secret
+                - secretRef:
+                    name: billing-test-keycloak
+                  prefix: "KEYCLOAK_"
+                - secretRef:
+                    name: billing-stripe-test-secret
+                - secretRef:
+                    name: billing-monzo-test-secret
+                - secretRef:
+                    name: billing-open-exchange-secret
+                - secretRef:
+                    name: billing-webpush
+                - secretRef:
+                    name: billing-test-email
+                  prefix: "EMAIL_"
+          restartPolicy: OnFailure
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: billing-test-attempt-reconcile
+  labels:
+    app: billing-test
+    part: attempt-reconcile
+spec:
+  schedule: "00 4 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          volumes:
+            - name: static
+              persistentVolumeClaim:
+                claimName: billing-django-test-static
+            - name: media
+              persistentVolumeClaim:
+                claimName: billing-django-test-media
+          containers:
+            - name: django
+              image: as207960/billing-django:(version)
+              imagePullPolicy: Always
+              command: ["sh", "-c", "python3 manage.py attempt-reconcile"]
+              volumeMounts:
+                - mountPath: "/app/static/"
+                  name: static
+                - mountPath: "/app/media/"
+                  name: media
+              envFrom:
+                - configMapRef:
+                    name: billing-django-test-conf
+                - secretRef:
+                    name: billing-db-test-creds
+                  prefix: "DB_"
+                - secretRef:
+                    name: billing-django-test-secret
+                - secretRef:
+                    name: billing-test-keycloak
+                  prefix: "KEYCLOAK_"
+                - secretRef:
+                    name: billing-stripe-test-secret
+                - secretRef:
+                    name: billing-monzo-test-secret
+                - secretRef:
+                    name: billing-open-exchange-secret
+                - secretRef:
+                    name: billing-webpush
+                - secretRef:
+                    name: billing-test-email
+                  prefix: "EMAIL_"
+          restartPolicy: OnFailure
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: billing-test-run-billing
+  labels:
+    app: billing-test
+    part: run-billing
+spec:
+  schedule: "34 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          volumes:
+            - name: static
+              persistentVolumeClaim:
+                claimName: billing-django-test-static
+            - name: media
+              persistentVolumeClaim:
+                claimName: billing-django-test-media
+          containers:
+            - name: django
+              image: as207960/billing-django:(version)
+              imagePullPolicy: Always
+              command: ["sh", "-c", "python3 manage.py run-billing"]
+              volumeMounts:
+                - mountPath: "/app/static/"
+                  name: static
+                - mountPath: "/app/media/"
+                  name: media
+              envFrom:
+                - configMapRef:
+                    name: billing-django-test-conf
+                - secretRef:
+                    name: billing-db-test-creds
+                  prefix: "DB_"
+                - secretRef:
+                    name: billing-django-test-secret
+                - secretRef:
+                    name: billing-test-keycloak
+                  prefix: "KEYCLOAK_"
+                - secretRef:
+                    name: billing-stripe-test-secret
+                - secretRef:
+                    name: billing-monzo-test-secret
+                - secretRef:
+                    name: billing-open-exchange-secret
+                - secretRef:
+                    name: billing-webpush
+                - secretRef:
+                    name: billing-test-email
+                  prefix: "EMAIL_"
+          restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-django-test
+  labels:
+    app: billing-test
+    part: django
+spec:
+  selector:
+    app: billing-test
+    part: django
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: gunicorn

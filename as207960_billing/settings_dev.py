@@ -164,3 +164,5 @@ CRISPY_FAIL_SILENTLY = not DEBUG
 
 with open(os.path.join(BASE_DIR, "secrets/vapid_private.der")) as f:
     PUSH_PRIV_KEY = f.read()
+
+IS_TEST = False

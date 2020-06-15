@@ -35,6 +35,7 @@ urlpatterns = [
     path('sw.js', views.sw),
     path('accounts/', views.view_accounts, name='view_accounts'),
     path('accounts/<account_id>/', views.view_account, name='view_account'),
+    path('accounts/edit_item/<item_id>/', views.edit_ledger_item, name='edit_ledger_item'),
     path('accounts/<account_id>/charge/', views.charge_account, name='charge_account'),
     path('accounts/<account_id>/top_up/', views.manual_top_up_account, name='manual_top_up_account'),
 ]

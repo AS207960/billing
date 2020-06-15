@@ -197,14 +197,18 @@ def top_up_bacs(request):
         descriptor="Top-up by bank transfer",
         amount=amount,
         type=models.LedgerItem.TYPE_BACS,
-        type_id=ref
+        type_id=ref,
+        state=models.LedgerItem.STATE_COMPLETED if settings.IS_TEST else models.LedgerItem.STATE_PENDING
     )
     ledger_item.save()
 
-    return render(request, "billing/top_up_bacs.html", {
-        "ref": ref,
-        "amount": amount
-    })
+    if settings.IS_TEST:
+        return redirect('dashboard')
+    else:
+        return render(request, "billing/top_up_bacs.html", {
+            "ref": ref,
+            "amount": amount
+        })
 
 
 @login_required
@@ -1267,9 +1271,22 @@ def view_account(request, account_id):
             type="card"
         ).auto_paging_iter()
 
+    def map_mandate(m):
+        mandate = stripe.Mandate.retrieve(m.mandate_id)
+        payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
+        return {
+            "id": m.id,
+            "mandate_obj": m,
+            "mandate": mandate,
+            "payment_method": payment_method
+        }
+
+    mandates = list(map(map_mandate, models.BACSMandate.objects.filter(account=account)))
+
     return render(request, "billing/account.html", {
         "account": account,
-        "cards": cards
+        "cards": cards,
+        "mandates": mandates
     })
 
 
@@ -1330,3 +1347,16 @@ def manual_top_up_account(request, account_id):
         "account": account,
         "form": form
     })
+
+
+@login_required
+@permission_required('billing.change_ledgeritem', raise_exception=True)
+def edit_ledger_item(request, item_id):
+    ledger_item = get_object_or_404(models.LedgerItem, pk=item_id)
+
+    if request.method == "POST":
+        if request.POST.get("paid") == "true" and ledger_item.type == ledger_item.TYPE_BACS:
+            ledger_item.state = ledger_item.STATE_COMPLETED
+            ledger_item.save()
+
+    return redirect('view_account', ledger_item.account.id)

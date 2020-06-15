@@ -178,9 +178,11 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", False)
 EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", False)
-DEFAULT_FROM_EMAIL = "AS207960 Billing <billing@as207960.net>"
+DEFAULT_FROM_EMAIL = os.getenv("EMAIL_FROM", "AS207960 Billing <billing@as207960.net>")
 
 PUSH_PRIV_KEY = os.getenv("PUSH_PRIV_KEY")
+
+IS_TEST = bool(os.getenv("IS_TEST", False))
 
 XFF_TRUSTED_PROXY_DEPTH = 2
 XFF_STRICT = True
