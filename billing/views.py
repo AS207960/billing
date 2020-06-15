@@ -627,7 +627,7 @@ def fail_top_up(request, item_id):
 
     if ledger_item.type == ledger_item.TYPE_CARD:
         stripe.PaymentIntent.cancel(ledger_item.type_id)
-    elif ledger_item.type == ledger_item.TYPE_BACS:
+    elif ledger_item.type == ledger_item.TYPE_CHECKOUT:
         session = stripe.checkout.Session.retrieve(ledger_item.type_id)
         stripe.PaymentIntent.cancel(session["payment_intent"])
 
