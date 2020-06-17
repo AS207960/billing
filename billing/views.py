@@ -1360,4 +1360,4 @@ def edit_ledger_item(request, item_id):
             ledger_item.state = ledger_item.STATE_COMPLETED
             ledger_item.save()
 
-    return redirect('view_account', ledger_item.account.id)
+    return redirect('view_account', ledger_item.account.user.username)
