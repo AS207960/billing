@@ -28,6 +28,7 @@ urlpatterns = [
     path('stripe_webhook/', views.stripe_webhook),
     path('monzo_webhook/<secret_key>/', views.monzo_webhook),
     path('charge_user/<user_id>/', views.charge_user),
+    path('reverse_charge/', views.reverse_charge),
     path('subscribe_user/<user_id>/', views.subscribe_user),
     path('log_usage/<subscription_id>/', views.log_usage),
     path('convert_currency/', views.convert_currency),

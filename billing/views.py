@@ -1115,6 +1115,40 @@ def charge_user(request, user_id):
 
 @csrf_exempt
 @require_POST
+def reverse_charge(request):
+    auth_error = check_api_auth(request)
+    if auth_error:
+        return auth_error
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest()
+
+    if "id" not in data:
+        return HttpResponseBadRequest()
+
+    ledger_item = models.LedgerItem.objects.filter(
+        type=models.LedgerItem.TYPE_CHARGE,
+        type_id=data["id"]
+    ).first()  # type: models.LedgerItem
+    if ledger_item:
+        new_ledger_item = models.LedgerItem(
+            account=ledger_item.account,
+            descriptor=f"{ledger_item.descriptor} reversal",
+            amount=-ledger_item.amount,
+            type=models.LedgerItem.TYPE_CHARGE,
+            type_id=ledger_item.type_id,
+            timestamp=timezone.now(),
+            state=ledger_item.STATE_COMPLETED,
+        )
+        new_ledger_item.save()
+
+    return HttpResponse(status=200)
+
+
+@csrf_exempt
+@require_POST
 def subscribe_user(request, user_id):
     auth_error = check_api_auth(request)
     if auth_error:
