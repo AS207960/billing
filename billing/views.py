@@ -1491,12 +1491,14 @@ def view_account(request, account_id):
             "payment_method": payment_method
         }
 
-    mandates = list(map(map_mandate, models.BACSMandate.objects.filter(account=account)))
+    bacs_mandates = list(map(map_mandate, models.BACSMandate.objects.filter(account=account)))
+    sepa_mandates = list(map(map_mandate, models.SEPAMandate.objects.filter(account=account)))
 
     return render(request, "billing/account.html", {
         "account": account,
         "cards": cards,
-        "mandates": mandates
+        "bacs_mandates": bacs_mandates,
+        "sepa_mandates": sepa_mandates,
     })
 
 
