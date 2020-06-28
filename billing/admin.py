@@ -5,6 +5,8 @@ from . import models
 admin.site.register(models.Account)
 admin.site.register(models.LedgerItem)
 admin.site.register(models.ExchangeRate)
+admin.site.register(models.SEPAMandate)
+admin.site.register(models.BACSMandate)
 
 
 class RecurringPlanTierInline(admin.TabularInline):

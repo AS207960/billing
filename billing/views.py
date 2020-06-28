@@ -987,6 +987,9 @@ def stripe_webhook(request):
     elif event.type == 'source.chargeable':
         source = event.data.object
         source_chargeable(source)
+    elif event.type == 'charge.pending':
+        charge = event.data.object
+        charge_pending(charge)
     elif event.type == 'charge.succeeded':
         charge = event.data.object
         charge_succeeded(charge)
@@ -1093,6 +1096,14 @@ def source_failed(source):
 
     ledger_item.state = models.LedgerItem.STATE_FAILED
     ledger_item.save()
+
+
+def charge_pending(charge):
+    if charge["payment_method_details"]["type"] == "sepa_debit":
+        models.SEPAMandate.sync_mandate(
+            charge["payment_method_details"]["sepa_debit"]["mandate"],
+            models.Account.objects.filter(stripe_customer_id=charge["customer"]).first()
+        )
 
 
 def charge_succeeded(charge):
