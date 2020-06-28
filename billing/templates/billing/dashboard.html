@@ -106,6 +106,11 @@
                                             <a href="{% url 'complete_top_up_bacs' item.id %}" class="btn btn-success btn-sm">Complete</a>
                                             <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">Cancel</a>
                                         </div>
+                                    {% elif item.state == "P" and item.type == "E" %}
+                                        <div class="btn-group">
+                                            <a href="{% url 'complete_top_up_sepa_direct_debit' item.id %}" class="btn btn-success btn-sm">Complete</a>
+                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">Cancel</a>
+                                        </div>
                                     {% elif item.state == "P" and item.type == "S" %}
                                         <div class="btn-group">
                                             <a href="{% url 'complete_top_up_sources' item.id %}" class="btn btn-success btn-sm">Complete</a>

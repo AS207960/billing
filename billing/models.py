@@ -93,6 +93,7 @@ class LedgerItem(models.Model):
     TYPE_CHARGE = "B"
     TYPE_CARD = "C"
     TYPE_BACS = "F"
+    TYPE_SEPA = "E"
     TYPE_SOURCES = "S"
     TYPE_CHECKOUT = "H"
     TYPE_MANUAL = "M"
@@ -100,6 +101,7 @@ class LedgerItem(models.Model):
         (TYPE_CHARGE, "Charge"),
         (TYPE_CARD, "Card"),
         (TYPE_BACS, "BACS/Faster payments/SEPA"),
+        (TYPE_SEPA, "SEPA Direct Debit"),
         (TYPE_SOURCES, "Sources"),
         (TYPE_CHECKOUT, "Checkout"),
         (TYPE_MANUAL, "Manual"),
@@ -132,7 +134,7 @@ class LedgerItem(models.Model):
             .get('balance') or decimal.Decimal(0)
 
 
-class BACSMandate(models.Model):
+class Mandate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
     mandate_id = models.CharField(max_length=255)
@@ -159,6 +161,17 @@ class BACSMandate(models.Model):
                 mandate_obj.account.default_stripe_payment_method_id = None
                 mandate_obj.account.save()
             mandate_obj.save()
+
+    class Meta:
+        abstract = True
+
+
+class BACSMandate(Mandate):
+    pass
+
+
+class SEPAMandate(Mandate):
+    pass
 
 
 class ExchangeRate(models.Model):

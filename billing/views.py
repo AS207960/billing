@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, reverse, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Q
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -43,6 +44,8 @@ def top_up(request):
                 return redirect(reverse("top_up_bacs") + f"?amount={form.cleaned_data['amount']}")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_BACS_DIRECT_DEBIT:
                 return redirect(reverse("top_up_bacs_direct_debit") + f"?amount={form.cleaned_data['amount']}")
+            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_SEPA_DIRECT_DEBIT:
+                return redirect(reverse("top_up_sepa_direct_debit") + f"?amount={form.cleaned_data['amount']}")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_SOFORT:
                 return redirect(reverse("top_up_sofort") + f"?amount={form.cleaned_data['amount']}")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_GIROPAY:
@@ -343,6 +346,114 @@ def complete_top_up_checkout(request, item_id):
 
 
 @login_required
+def top_up_sepa_direct_debit(request):
+    account = request.user.account  # type: models.Account
+
+    mandates = list(models.SEPAMandate.objects.filter(account=account, active=True))
+
+    if request.method != "POST" and mandates:
+        def map_mandate(m):
+            mandate = stripe.Mandate.retrieve(m.mandate_id)
+            payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
+            return {
+                "id": m.id,
+                "mandate": mandate,
+                "payment_method": payment_method
+            }
+
+        return render(request, "billing/top_up_sepa_direct_debit.html", {
+            "is_new": False,
+            "mandates": list(map(map_mandate, mandates))
+        })
+    else:
+        amount = decimal.Decimal(request.GET.get("amount"))
+        amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
+        amount_int = int(amount_eur * decimal.Decimal(100))
+
+        if request.POST.get("mandate") == "new" or not mandates:
+            payment_intent = stripe.PaymentIntent.create(
+                amount=amount_int,
+                currency='eur',
+                description='Top-up',
+                setup_future_usage='off_session',
+                customer=account.get_stripe_id(),
+                payment_method_types=['sepa_debit'],
+                receipt_email=request.user.email,
+            )
+
+            ledger_item = models.LedgerItem(
+                account=account,
+                descriptor="Top-up by SEPA Direct Debit",
+                amount=amount,
+                type=models.LedgerItem.TYPE_SEPA,
+                type_id=payment_intent["id"]
+            )
+            ledger_item.save()
+
+            return render(request, "billing/top_up_sepa_direct_debit.html", {
+                "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
+                "client_secret": payment_intent["client_secret"],
+                "is_new": True
+            })
+        else:
+            mandate_id = request.POST.get("mandate")
+            mandate = get_object_or_404(models.BACSMandate, id=mandate_id, active=True)
+
+            if mandate.account != request.user.account:
+                return HttpResponseForbidden()
+
+            payment_intent = stripe.PaymentIntent.create(
+                payment_method_types=['sepa_debit'],
+                payment_method=mandate.payment_method,
+                customer=account.get_stripe_id(),
+                description='Top-up',
+                confirm=True,
+                amount=amount_int,
+                receipt_email=request.user.email,
+                currency='eur',
+            )
+
+            ledger_item = models.LedgerItem(
+                account=account,
+                descriptor="Top-up by SEPA Direct Debit",
+                amount=amount,
+                type=models.LedgerItem.TYPE_SEPA,
+                type_id=payment_intent['id'],
+                state=models.LedgerItem.STATE_PROCESSING
+            )
+            ledger_item.save()
+
+            return redirect('dashboard')
+
+
+@login_required
+def complete_top_up_sepa_direct_debit(request, item_id):
+    ledger_item = get_object_or_404(models.LedgerItem, id=item_id)
+
+    if ledger_item.account != request.user.account:
+        return HttpResponseForbidden
+
+    if ledger_item.state != ledger_item.STATE_PENDING:
+        return redirect('dashboard')
+
+    if ledger_item.type != ledger_item.TYPE_SEPA:
+        return HttpResponseBadRequest
+
+    payment_intent = stripe.PaymentIntent.retrieve(ledger_item.type_id)
+
+    if payment_intent["status"] == "succeeded":
+        ledger_item.state = ledger_item.STATE_COMPLETED
+        ledger_item.save()
+        return redirect('dashboard')
+
+    return render(request, "billing/top_up_sepa_direct_debit.html", {
+        "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
+        "client_secret": payment_intent["client_secret"],
+        "is_new": True
+    })
+
+
+@login_required
 def top_up_sofort(request):
     account = request.user.account
 
@@ -621,11 +732,17 @@ def fail_top_up(request, item_id):
         return redirect('dashboard')
 
     if ledger_item.type not in (
-            ledger_item.TYPE_CARD, ledger_item.TYPE_BACS, ledger_item.TYPE_SOURCES, ledger_item.TYPE_CHECKOUT
+            ledger_item.TYPE_CARD, ledger_item.TYPE_BACS, ledger_item.TYPE_SOURCES, ledger_item.TYPE_CHECKOUT,
+            ledger_item.TYPE_SEPA
     ):
         return HttpResponseBadRequest
 
-    if ledger_item.type == ledger_item.TYPE_CARD:
+    if ledger_item.type in (ledger_item.TYPE_CARD, ledger_item.TYPE_SEPA):
+        payment_intent = stripe.PaymentIntent.retrieve(ledger_item.type_id)
+        if payment_intent["status"] == "succeeded":
+            ledger_item.state = ledger_item.STATE_COMPLETED
+            ledger_item.save()
+            return redirect('dashboard')
         stripe.PaymentIntent.cancel(ledger_item.type_id)
     elif ledger_item.type == ledger_item.TYPE_CHECKOUT:
         session = stripe.checkout.Session.retrieve(ledger_item.type_id)
@@ -658,14 +775,16 @@ def account_details(request):
             "payment_method": payment_method
         }
 
-    mandates = list(map(map_mandate, models.BACSMandate.objects.filter(account=account)))
+    bacs_mandates = list(map(map_mandate, models.BACSMandate.objects.filter(account=account)))
+    sepa_mandates = list(map(map_mandate, models.SEPAMandate.objects.filter(account=account)))
 
     subscriptions = request.user.account.subscription_set.all()
 
     return render(request, "billing/account_details.html", {
         "account": account,
         "cards": cards,
-        "mandates": mandates,
+        "bacs_mandates": bacs_mandates,
+        "sepa_mandates": sepa_mandates,
         "subscriptions": subscriptions
     })
 
@@ -800,6 +919,44 @@ def edit_bacs_mandate(request, m_id):
     return redirect('account_details')
 
 
+@login_required
+def add_sepa_mandate(request):
+    account = request.user.account
+
+    setup_intent = stripe.SetupIntent.create(
+        payment_method_types=['sepa_debit'],
+        customer=account.get_stripe_id(),
+    )
+
+    return render(request, "billing/top_up_sepa_direct_debit.html", {
+        "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
+        "client_secret": setup_intent["client_secret"],
+        "is_new": True,
+        "is_setup": True
+    })
+
+
+@login_required
+@require_POST
+def edit_sepa_mandate(request, m_id):
+    mandate = get_object_or_404(models.SEPAMandate, id=m_id)
+
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
+
+    action = request.POST.get("action")
+
+    if action == "delete":
+        stripe.PaymentMethod.detach(mandate.payment_method)
+        mandate.delete()
+
+    elif action == "default" and mandate.active:
+        request.user.account.default_stripe_payment_method_id = mandate.payment_method
+        request.user.account.save()
+
+    return redirect('account_details')
+
+
 @csrf_exempt
 @require_POST
 def stripe_webhook(request):
@@ -842,6 +999,9 @@ def stripe_webhook(request):
     elif event.type == "checkout.session.async_payment_succeeded":
         session = event.data.object
         checkout_session_async_succeeded(session)
+    elif event.type == "setup_intent.succeeded":
+        session = event.data.object
+        setup_intent_succeeded(session)
     elif event.type == "mandate.updated":
         mandate = event.data.object
         mandate_update(mandate)
@@ -853,12 +1013,20 @@ def stripe_webhook(request):
 
 def payment_intent_succeeded(payment_intent):
     ledger_item = models.LedgerItem.objects.filter(
-        type=models.LedgerItem.TYPE_CARD,
-        type_id=payment_intent['id']
+        Q(type=models.LedgerItem.TYPE_CARD) | Q(type=models.LedgerItem.TYPE_SEPA) &
+        Q(type_id=payment_intent['id'])
     ).first()
 
     if not ledger_item:
         return
+
+    for charge in payment_intent["charges"]["data"]:
+        if charge["payment_method_details"]["type"] == "sepa_debit":
+            models.SEPAMandate.sync_mandate(
+                charge["payment_method_details"]["sepa_debit"]["mandate"],
+                ledger_item.account if ledger_item else
+                models.Account.objects.filter(stripe_customer_id=payment_intent["customer"]).first()
+            )
 
     amount = decimal.Decimal(payment_intent["amount_received"]) / decimal.Decimal(100)
     amount = models.ExchangeRate.get_rate(payment_intent['currency'], 'gbp') * amount
@@ -869,8 +1037,8 @@ def payment_intent_succeeded(payment_intent):
 
 def payment_intent_failed(payment_intent):
     ledger_item = models.LedgerItem.objects.filter(
-        type=models.LedgerItem.TYPE_CARD,
-        type_id=payment_intent['id']
+        Q(type=models.LedgerItem.TYPE_CARD) | Q(type=models.LedgerItem.TYPE_SEPA) &
+        Q(type_id=payment_intent['id'])
     ).first()
 
     if not ledger_item:
@@ -882,8 +1050,8 @@ def payment_intent_failed(payment_intent):
 
 def payment_intent_processing(payment_intent):
     ledger_item = models.LedgerItem.objects.filter(
-        type=models.LedgerItem.TYPE_CARD,
-        type_id=payment_intent['id']
+        Q(type=models.LedgerItem.TYPE_CARD) | Q(type=models.LedgerItem.TYPE_SEPA) &
+        Q(type_id=payment_intent['id'])
     ).first()
 
     if not ledger_item:
@@ -991,6 +1159,14 @@ def checkout_session_async_failed(session):
 
     ledger_item.state = models.LedgerItem.STATE_FAILED
     ledger_item.save()
+
+
+def setup_intent_succeeded(setup_intent):
+    if "sepa_debit" in setup_intent["payment_method_types"]:
+        models.SEPAMandate.sync_mandate(
+            setup_intent["mandate"],
+            models.Account.objects.filter(stripe_customer_id=setup_intent["customer"]).first()
+        )
 
 
 def mandate_update(mandate):

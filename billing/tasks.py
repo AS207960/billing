@@ -106,7 +106,7 @@ def attempt_charge_account(account: models.Account, amount: decimal.Decimal):
                 receipt_email=account.user.email,
                 statement_descriptor_suffix="Top-up",
                 payment_method=account.default_stripe_payment_method_id,
-                payment_method_types=["card", "bacs_debit"],
+                payment_method_types=["card", "bacs_debit", "sepa_debit"],
                 confirm=True,
                 off_session=True,
             )
