@@ -1375,6 +1375,7 @@ def subscribe_user(request, user_id):
         account=account,
         last_billed=now,
         last_bill_attempted=now,
+        state=models.Subscription.STATE_ACTIVE
     )
     subscription.save()
     subscription_usage = models.SubscriptionUsage(
