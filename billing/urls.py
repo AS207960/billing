@@ -30,6 +30,7 @@ urlpatterns = [
     path('edit_bacs_direct_debit/<uuid:m_id>/', views.edit_bacs_mandate, name='edit_bacs_mandate'),
     path('add_sepa_direct_debit/', views.add_sepa_mandate, name='add_sepa_mandate'),
     path('edit_sepa_direct_debit/<uuid:m_id>/', views.edit_sepa_mandate, name='edit_sepa_mandate'),
+    path('edit_subscription/<uuid:s_id>/', views.edit_subscription, name='edit_subscription'),
     path('stripe_webhook/', views.stripe_webhook),
     path('monzo_webhook/<secret_key>/', views.monzo_webhook),
     path('charge_user/<user_id>/', views.charge_user),

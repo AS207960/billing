@@ -1,13 +1,13 @@
 Hello {{ name }},
 
-Your account balance with us is currently negative. We tried to bring that balance back up to 0, however that charge failed.
+Your account balance with us is currently negative. We tried to bring that back up to a positive balance, however that charge failed.
 
 The reason for the failure is: {{ reason }}
 
 If your account balance continues to stay negative services associated with your account will be placed on hold/deleted.
-Please to go <a href="https://billing.as207960.net">billing.as207960.net</a> to top-up your account or add a default
+Please to go https://billing.as207960.net to top-up your account or add a default
 card for future payments.
 
 Thanks,
-The AS207960 Team
-https://as207960.net
+The Glauca Team
+https://glau.ca

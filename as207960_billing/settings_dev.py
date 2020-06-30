@@ -131,6 +131,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
 
+EXTERNAL_URL_BASE = "http://localhost:8001"
 STATIC_URL = '/static/'
 
 with open(os.path.join(BASE_DIR, "secrets/keycloak.json")) as f:

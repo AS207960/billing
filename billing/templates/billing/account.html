@@ -67,86 +67,90 @@
                 </tbody>
             </table>
         </div>
-        <hr>
-        <h2>BACS Direct Debit Mandates</h2>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="thead-dark">
-                <tr>
-                    <th>Account number</th>
-                    <th>Sort code</th>
-                    <th>Reference</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% if bacs_mandates %}
-                    {% for mandate in sepa_mandates %}
-                        <tr>
-                            <td>
-                                **** {{ mandate.payment_method.bacs_debit.last4 }}
-                                {% if mandate.mandate.payment_method_details.bacs_debit.network_status == "pending" %}
-                                    <span class="badge badge-warning">Pending</span>
-                                {% elif mandate.mandate.payment_method_details.bacs_debit.network_status == "revoked" %}
-                                    <span class="badge badge-danger">Revoked</span>
-                                {% elif mandate.mandate.payment_method_details.bacs_debit.network_status == "refused" %}
-                                    <span class="badge badge-danger">Refused</span>
-                                {% endif %}
-                                {% if mandate.mandate_obj.payment_method == user.account.default_stripe_payment_method_id %}
-                                    <span class="badge badge-info">Default</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ mandate.payment_method.bacs_debit.sort_code }}</td>
-                            <td>{{ mandate.mandate.payment_method_details.bacs_debit.reference }}</td>
-                        </tr>
-                    {% endfor %}
-                {% else %}
+        {% if perms.billing.view_bacsmandate %}
+            <hr>
+            <h2>BACS Direct Debit Mandates</h2>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-dark">
                     <tr>
-                        <td colspan="4">No mandates</td>
+                        <th>Account number</th>
+                        <th>Sort code</th>
+                        <th>Reference</th>
                     </tr>
-                {% endif %}
-                </tbody>
-            </table>
-        </div>
-        <hr>
-        <h2>SEPA Direct Debit Mandates</h2>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="thead-dark">
-                <tr>
-                    <th>Account country</th>
-                    <th>Account number</th>
-                    <th>Sort code</th>
-                    <th>Bank code</th>
-                    <th>Reference</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% if sepa_mandates %}
-                    {% for mandate in sepa_mandates %}
+                    </thead>
+                    <tbody>
+                    {% if bacs_mandates %}
+                        {% for mandate in sepa_mandates %}
+                            <tr>
+                                <td>
+                                    **** {{ mandate.payment_method.bacs_debit.last4 }}
+                                    {% if mandate.mandate.payment_method_details.bacs_debit.network_status == "pending" %}
+                                        <span class="badge badge-warning">Pending</span>
+                                    {% elif mandate.mandate.payment_method_details.bacs_debit.network_status == "revoked" %}
+                                        <span class="badge badge-danger">Revoked</span>
+                                    {% elif mandate.mandate.payment_method_details.bacs_debit.network_status == "refused" %}
+                                        <span class="badge badge-danger">Refused</span>
+                                    {% endif %}
+                                    {% if mandate.mandate_obj.payment_method == user.account.default_stripe_payment_method_id %}
+                                        <span class="badge badge-info">Default</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ mandate.payment_method.bacs_debit.sort_code }}</td>
+                                <td>{{ mandate.mandate.payment_method_details.bacs_debit.reference }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
                         <tr>
-                            <td>{{ mandate.payment_method.sepa_debit.country }}</td>
-                            <td>
-                                **** {{ mandate.payment_method.sepa_debit.last4 }}
-                                {% if not mandate.mandate_obj.active %}
-                                    <span class="badge badge-danger">Inactive</span>
-                                {% endif %}
-                                {% if mandate.mandate_obj.payment_method == user.account.default_stripe_payment_method_id %}
-                                    <span class="badge badge-info">Default</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ mandate.payment_method.sepa_debit.branch_code }}</td>
-                            <td>{{ mandate.payment_method.sepa_debit.bank_code }}</td>
-                            <td>{{ mandate.mandate.payment_method_details.sepa_debit.reference }}</td>
+                            <td colspan="4">No mandates</td>
                         </tr>
-                    {% endfor %}
-                {% else %}
+                    {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+        {% if perms.billing.view_sepamandate %}
+            <hr>
+            <h2>SEPA Direct Debit Mandates</h2>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-dark">
                     <tr>
-                        <td colspan="6">No mandates</td>
+                        <th>Account country</th>
+                        <th>Account number</th>
+                        <th>Sort code</th>
+                        <th>Bank code</th>
+                        <th>Reference</th>
                     </tr>
-                {% endif %}
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                    {% if sepa_mandates %}
+                        {% for mandate in sepa_mandates %}
+                            <tr>
+                                <td>{{ mandate.payment_method.sepa_debit.country }}</td>
+                                <td>
+                                    **** {{ mandate.payment_method.sepa_debit.last4 }}
+                                    {% if not mandate.mandate_obj.active %}
+                                        <span class="badge badge-danger">Inactive</span>
+                                    {% endif %}
+                                    {% if mandate.mandate_obj.payment_method == user.account.default_stripe_payment_method_id %}
+                                        <span class="badge badge-info">Default</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ mandate.payment_method.sepa_debit.branch_code }}</td>
+                                <td>{{ mandate.payment_method.sepa_debit.bank_code }}</td>
+                                <td>{{ mandate.mandate.payment_method_details.sepa_debit.reference }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6">No mandates</td>
+                        </tr>
+                    {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
         {% if perms.billing.view_subscription %}
             <hr>
             <h2>Subscriptions</h2>
@@ -160,6 +164,7 @@
                         <th>Next charge</th>
                         <th>Last billed</th>
                         <th>Last bill attempted</th>
+                        <th>Amount unpaid</th>
                         <th>Next bill</th>
                     </tr>
                     </thead>
@@ -177,10 +182,11 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ subscription.plan.name }}</td>
-                                <td>{{ subscription.usage_in_period }} {{ subscription.plan.unit_label }}</td>
+                                <td>{{ subscription.usage_in_period_label }}</td>
                                 <td>&pound;{{ subscription.next_charge|floatformat:2 }}</td>
                                 <td>{{ subscription.last_billed }}</td>
                                 <td>{{ subscription.last_bill_attempted }}</td>
+                                <td>&pound;{{ subscription.amount_unpaid|floatformat:2 }}</td>
                                 <td>{{ subscription.next_bill }}</td>
                             </tr>
                         {% endfor %}

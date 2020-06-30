@@ -5,8 +5,8 @@ This was the last attempt.
 
 The reason for the failure is: {{ reason }}
 
-The subscription has been cancelled, and the resources associated with it placed on hold/deleted.
+The subscription has been cancelled, and the resources associated with it will placed on hold/deleted.
 
 Thanks,
-The AS207960 Team
-https://as207960.net
+The Glauca
+https://glau.ca

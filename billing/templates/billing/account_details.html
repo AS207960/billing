@@ -3,6 +3,12 @@
 {% block content %}
     <div class="container my-3">
         <h1>Account details</h1>
+        {% if error %}
+            <div class="alert alert-danger">
+                <h4 class="alert-heading">Oh no!</h4>
+                <p>{{ error }}</p>
+            </div>
+        {% endif %}
         <h2>Saved cards</h2>
         <div class="table-responsive table-striped table-hover table-striped">
             <table class="table">
@@ -197,7 +203,9 @@
                     <th>Next charge</th>
                     <th>Last billed</th>
                     <th>Last bill attempted</th>
+                    <th>Amount unpaid</th>
                     <th>Next bill</th>
+                    <th></th>
                 </tr>
                 </thead>
                 <tbody>
@@ -214,11 +222,24 @@
                                 {% endif %}
                             </td>
                             <td>{{ subscription.plan.name }}</td>
-                            <td>{{ subscription.usage_in_period }} {{ subscription.plan.unit_label }}</td>
+                            <td>{{ subscription.usage_in_period_label }}</td>
                             <td>&pound;{{ subscription.next_charge|floatformat:2 }}</td>
                             <td>{{ subscription.last_billed }}</td>
                             <td>{{ subscription.last_bill_attempted }}</td>
+                            <td>&pound;{{ subscription.amount_unpaid|floatformat:2 }}</td>
                             <td>{{ subscription.next_bill }}</td>
+                            <td>
+                                <form action="{% url 'edit_subscription' subscription.id %}" method="post">
+                                    {% csrf_token %}
+                                    <div class="btn-group">
+                                        {% if subscription.state == "P" %}
+                                            <button type="submit" class="btn btn-success btn-sm" name="action" value="retry">
+                                                Retry now
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </form>
+                            </td>
                         </tr>
                     {% endfor %}
                 {% else %}

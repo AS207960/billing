@@ -11,3 +11,4 @@ django-phonenumber-field[phonenumbers]
 python-dateutil
 pywebpush
 django-xff
+inflect

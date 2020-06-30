@@ -63,6 +63,11 @@
                                 <td>{{ item.timestamp }}</td>
                                 <td>
                                     {{ item.descriptor }}
+                                    {% if item.is_reversal %}
+                                        <span class="badge badge-primary">
+                                            Reversal
+                                        </span>
+                                    {% endif %}
                                     {% if item.state == "P" %}
                                         <span class="badge badge-warning">
                                             Pending

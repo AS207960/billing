@@ -9,6 +9,9 @@ import datetime
 import stripe
 import decimal
 import uuid
+import inflect
+
+p = inflect.engine()
 
 
 class Account(models.Model):
@@ -115,6 +118,7 @@ class LedgerItem(models.Model):
     state = models.CharField(max_length=1, choices=STATES, default=STATE_PENDING)
     type = models.CharField(max_length=1, choices=TYPES, default=TYPE_CHARGE)
     type_id = models.CharField(max_length=255, blank=True, null=True)
+    is_reversal = models.BooleanField(default=False, blank=True)
 
     class Meta:
         ordering = ['-timestamp']
@@ -305,11 +309,17 @@ class Subscription(models.Model):
     last_billed = models.DateTimeField()
     last_bill_attempted = models.DateTimeField()
     state = models.CharField(max_length=1, choices=STATES)
+    amount_unpaid = models.DecimalField(decimal_places=2, max_digits=9, default="0")
 
     @property
     def next_bill(self):
         billing_interval = self.plan.billing_interval
         return self.last_billed + billing_interval
+
+    @property
+    def usage_in_period_label(self):
+        usage = self.usage_in_period
+        return f"{usage} {p.plural(self.plan.unit_label, usage)}"
 
     @property
     def usage_in_period(self):

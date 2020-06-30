@@ -9,5 +9,5 @@ We'll retry the payment, however if it consistently fails the subscription will 
 and the resources associated with it placed on hold/deleted.
 
 Thanks,
-The AS207960 Team
-https://as207960.net
+The Glauca Team
+https://glau.ca

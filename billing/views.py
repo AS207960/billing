@@ -4,6 +4,7 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest
+from django.core.exceptions import SuspiciousOperation
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -38,28 +39,29 @@ def top_up(request):
     if request.method == "POST":
         form = forms.TopUpForm(request.POST)
         if form.is_valid():
+            request.session["amount"] = str(form.cleaned_data["amount"])
             if form.cleaned_data['method'] == forms.TopUpForm.METHOD_CARD:
-                return redirect(reverse("top_up_card") + f"?amount={form.cleaned_data['amount']}")
+                return redirect("top_up_card")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_BACS:
-                return redirect(reverse("top_up_bacs") + f"?amount={form.cleaned_data['amount']}")
+                return redirect("top_up_bacs")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_BACS_DIRECT_DEBIT:
-                return redirect(reverse("top_up_bacs_direct_debit") + f"?amount={form.cleaned_data['amount']}")
+                return redirect("top_up_bacs_direct_debit")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_SEPA_DIRECT_DEBIT:
-                return redirect(reverse("top_up_sepa_direct_debit") + f"?amount={form.cleaned_data['amount']}")
+                return redirect("top_up_sepa_direct_debit")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_SOFORT:
-                return redirect(reverse("top_up_sofort") + f"?amount={form.cleaned_data['amount']}")
+                return redirect("top_up_sofort")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_GIROPAY:
-                return redirect(reverse("top_up_giropay") + f"?amount={form.cleaned_data['amount']}")
+                return redirect("top_up_giropay")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_BANCONTACT:
-                return redirect(reverse("top_up_bancontact") + f"?amount={form.cleaned_data['amount']}")
+                return redirect("top_up_bancontact")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_EPS:
-                return redirect(reverse("top_up_eps") + f"?amount={form.cleaned_data['amount']}")
+                return redirect("top_up_eps")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_IDEAL:
-                return redirect(reverse("top_up_ideal") + f"?amount={form.cleaned_data['amount']}")
+                return redirect("top_up_ideal")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_MULTIBANCO:
-                return redirect(reverse("top_up_multibanco") + f"?amount={form.cleaned_data['amount']}")
+                return redirect("top_up_multibanco")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_P24:
-                return redirect(reverse("top_up_p24") + f"?amount={form.cleaned_data['amount']}")
+                return redirect("top_up_p24")
     else:
         form = forms.TopUpForm()
 
@@ -85,7 +87,7 @@ def top_up_card(request):
             "cards": cards
         })
     else:
-        amount = decimal.Decimal(request.GET.get("amount"))
+        amount = decimal.Decimal(request.session.pop("amount"))
         charge_currency = request.POST.get("currency")
         if charge_currency not in ("eur", "gbp"):
             return HttpResponseBadRequest()
@@ -192,7 +194,7 @@ def complete_top_up_card(request, item_id):
 @login_required
 def top_up_bacs(request):
     account = request.user.account
-    amount = decimal.Decimal(request.GET.get("amount"))
+    amount = decimal.Decimal(request.session.pop("amount"))
     ref = secrets.token_hex(9).upper()
 
     ledger_item = models.LedgerItem(
@@ -254,7 +256,7 @@ def top_up_bacs_direct_debit(request):
             "mandates": list(map(map_mandate, mandates))
         })
     else:
-        amount = decimal.Decimal(request.GET.get("amount"))
+        amount = decimal.Decimal(request.session.pop("amount"))
         amount_int = int(amount * decimal.Decimal(100))
 
         if request.POST.get("mandate") == "new" or not mandates:
@@ -366,7 +368,7 @@ def top_up_sepa_direct_debit(request):
             "mandates": list(map(map_mandate, mandates))
         })
     else:
-        amount = decimal.Decimal(request.GET.get("amount"))
+        amount = decimal.Decimal(request.session.pop("amount"))
         amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
         amount_int = int(amount_eur * decimal.Decimal(100))
 
@@ -460,7 +462,7 @@ def top_up_sofort(request):
     if request.method == "POST":
         form = forms.SOFORTForm(request.POST)
         if form.is_valid():
-            amount = decimal.Decimal(request.GET.get("amount"))
+            amount = decimal.Decimal(request.session.pop("amount"))
 
             amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
             amount_int = int(amount_eur * decimal.Decimal(100))
@@ -503,7 +505,7 @@ def top_up_sofort(request):
 def top_up_giropay(request):
     account = request.user.account
 
-    amount = decimal.Decimal(request.GET.get("amount"))
+    amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
     source = stripe.Source.create(
@@ -536,7 +538,7 @@ def top_up_giropay(request):
 def top_up_bancontact(request):
     account = request.user.account
 
-    amount = decimal.Decimal(request.GET.get("amount"))
+    amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
     source = stripe.Source.create(
@@ -572,7 +574,7 @@ def top_up_bancontact(request):
 def top_up_eps(request):
     account = request.user.account
 
-    amount = decimal.Decimal(request.GET.get("amount"))
+    amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
     source = stripe.Source.create(
@@ -605,7 +607,7 @@ def top_up_eps(request):
 def top_up_ideal(request):
     account = request.user.account
 
-    amount = decimal.Decimal(request.GET.get("amount"))
+    amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
     source = stripe.Source.create(
@@ -638,7 +640,7 @@ def top_up_ideal(request):
 def top_up_multibanco(request):
     account = request.user.account
 
-    amount = decimal.Decimal(request.GET.get("amount"))
+    amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
     source = stripe.Source.create(
@@ -671,7 +673,7 @@ def top_up_multibanco(request):
 def top_up_p24(request):
     account = request.user.account
 
-    amount = decimal.Decimal(request.GET.get("amount"))
+    amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
     source = stripe.Source.create(
@@ -785,7 +787,8 @@ def account_details(request):
         "cards": cards,
         "bacs_mandates": bacs_mandates,
         "sepa_mandates": sepa_mandates,
-        "subscriptions": subscriptions
+        "subscriptions": subscriptions,
+        "error": request.session.pop("error", None)
     })
 
 
@@ -953,6 +956,49 @@ def edit_sepa_mandate(request, m_id):
     elif action == "default" and mandate.active:
         request.user.account.default_stripe_payment_method_id = mandate.payment_method
         request.user.account.save()
+
+    return redirect('account_details')
+
+
+@login_required
+def edit_subscription(request, s_id):
+    subscription = get_object_or_404(models.Subscription, id=s_id)
+
+    if subscription.account != request.user.account:
+        return HttpResponseForbidden()
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "retry":
+            try:
+                tasks.charge_account(
+                    subscription.account, subscription.amount_unpaid, subscription.plan.name, f"sb_{subscription.id}",
+                    off_session=False, return_uri=request.build_absolute_uri(request.get_full_path())
+                )
+            except tasks.ChargeError as e:
+                request.session["error"] = e.message
+                return redirect('account_details')
+            except tasks.RequiresActionError as e:
+                request.session["ledger_item_id"] = str(e.ledger_item_id)
+                return redirect(e.redirect_url)
+
+            subscription.state = subscription.STATE_ACTIVE
+            subscription.last_billed = timezone.now()
+            subscription.amount_unpaid = decimal.Decimal("0")
+            subscription.save()
+    else:
+        if request.GET.get("payment_intent"):
+            try:
+                tasks.confirm_payment(request.GET.get("payment_intent"), request.session.pop("ledger_item_id"))
+            except tasks.ChargeError as e:
+                request.session["error"] = e.message
+                return redirect('account_details')
+
+            subscription.state = subscription.STATE_ACTIVE
+            subscription.last_billed = timezone.now()
+            subscription.amount_unpaid = decimal.Decimal("0")
+            subscription.save()
 
     return redirect('account_details')
 
@@ -1183,9 +1229,14 @@ def setup_intent_succeeded(setup_intent):
 def mandate_update(mandate):
     payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
     account = models.Account.objects.filter(stripe_customer_id=payment_method["customer"]).first()
-    models.BACSMandate.sync_mandate(
-        mandate["id"], account
-    )
+    if mandate["payment_method_details"]["type"] == "bacs_debit":
+        models.BACSMandate.sync_mandate(
+            mandate["id"], account
+        )
+    elif mandate["payment_method_details"]["type"] == "sepa_debit":
+        models.BACSMandate.sync_mandate(
+            mandate["id"], account
+        )
 
 
 @csrf_exempt
@@ -1317,19 +1368,28 @@ def reverse_charge(request):
 
     ledger_item = models.LedgerItem.objects.filter(
         type=models.LedgerItem.TYPE_CHARGE,
-        type_id=data["id"]
-    ).first()  # type: models.LedgerItem
+        type_id=data["id"],
+        is_reversal=False
+    ).first()
     if ledger_item:
-        new_ledger_item = models.LedgerItem(
-            account=ledger_item.account,
-            descriptor=f"{ledger_item.descriptor} reversal",
-            amount=-ledger_item.amount,
+        reversal_ledger_item = models.LedgerItem.objects.filter(
             type=models.LedgerItem.TYPE_CHARGE,
-            type_id=ledger_item.type_id,
-            timestamp=timezone.now(),
-            state=ledger_item.STATE_COMPLETED,
-        )
-        new_ledger_item.save()
+            type_id=data["id"],
+            is_reversal=True
+        ).first()  # type: models.LedgerItem
+        if not (reversal_ledger_item and reversal_ledger_item.timestamp >= ledger_item.item):
+
+            new_ledger_item = models.LedgerItem(
+                account=ledger_item.account,
+                descriptor=ledger_item.descriptor,
+                amount=-ledger_item.amount,
+                type=models.LedgerItem.TYPE_CHARGE,
+                type_id=ledger_item.type_id,
+                timestamp=timezone.now(),
+                state=ledger_item.STATE_COMPLETED,
+                is_reversal=True
+            )
+            new_ledger_item.save()
 
     return HttpResponse(status=200)
 
@@ -1417,9 +1477,19 @@ def log_usage(request, subscription_id):
 
     if subscription.plan.billing_type == models.RecurringPlan.TYPE_RECURRING:
         if subscription.state != subscription.STATE_ACTIVE:
-            return HttpResponse(json.dumps({
-                "message": "Error with subscription payment"
-            }), content_type='application/json', status=402)
+            try:
+                tasks.charge_account(
+                    subscription.account,
+                    subscription.amount_unpaid,
+                    f"{subscription.plan.name} unpaid amount",
+                    f"sb_{subscription.id}"
+                )
+            except tasks.ChargeError as e:
+                return HttpResponse(json.dumps({
+                    "message": e.message
+                }), content_type='application/json', status=402)
+            subscription.state = subscription.STATE_ACTIVE
+            subscription.save()
 
         charge_diff = subscription.plan.calculate_charge(
             usage_units
@@ -1428,7 +1498,9 @@ def log_usage(request, subscription_id):
         )
 
         try:
-            tasks.charge_account(subscription.account, charge_diff, subscription.plan.name, f"su_{subscription_usage_id}")
+            tasks.charge_account(
+                subscription.account, charge_diff, subscription.plan.name, f"su_{subscription_usage_id}"
+            )
         except tasks.ChargeError as e:
             return HttpResponse(json.dumps({
                 "message": e.message

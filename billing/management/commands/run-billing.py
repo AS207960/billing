@@ -102,9 +102,9 @@ class Command(BaseCommand):
                 except tasks.ChargeError as e:
                     print(f"Failed to bill subscription {subscription.id}: {e.message}")
                     subscription.state = subscription.STATE_PAST_DUE
+                    subscription.amount_unpaid = charge
 
                     subscription_fail = next_bill + RETRY_TIME
-                    print(subscription_fail)
                     if subscription_fail <= now:
                         print(f"Retry time exceeded on subscription {subscription.id}: cancelling subscription")
                         subscription.state = subscription.STATE_CANCELLED
@@ -119,5 +119,6 @@ class Command(BaseCommand):
                 print(f"Successfully charged subscription {subscription.id}")
                 subscription.state = subscription.STATE_ACTIVE
                 subscription.last_billed = now
+                subscription.amount_unpaid = decimal.Decimal("0")
                 subscription.save()
                 mail_success(subscription, charge)
