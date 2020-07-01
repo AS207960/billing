@@ -91,8 +91,15 @@ class RequiresActionError(Exception):
 
 
 def attempt_charge_account(account: models.Account, amount_gbp: decimal.Decimal, off_session=True, return_uri=None):
-    if account.default_stripe_payment_method_id:
+    if not account.default_stripe_payment_method_id:
+        cards = list(stripe.PaymentMethod.list(
+            customer=account.get_stripe_id(),
+            type="card"
+        ).auto_paging_iter())
+        if len(cards):
+            account.default_stripe_payment_method_id = cards[0]["id"]
 
+    if account.default_stripe_payment_method_id:
         payment_method = stripe.PaymentMethod.retrieve(account.default_stripe_payment_method_id)
         currency = "gbp"
         if payment_method["type"] == "sepa_debit":
@@ -145,7 +152,7 @@ def attempt_charge_account(account: models.Account, amount_gbp: decimal.Decimal,
         ledger_item.type_id = payment_intent['id']
         ledger_item.save()
     else:
-        raise ChargeError("No default card available to charge")
+        raise ChargeError("No default payment method available to charge")
 
 
 def confirm_payment(payment_intent_id, ledger_item_id=None):

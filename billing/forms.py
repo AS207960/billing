@@ -79,6 +79,33 @@ class SOFORTForm(forms.Form):
         self.helper.add_input(crispy_forms.layout.Submit('submit', 'Next'))
 
 
+class StatementExportForm(forms.Form):
+    FORMAT_CSV = "C"
+    FORMAT_QIF = "Q"
+    FORMATS = (
+        (FORMAT_CSV, "CSV"),
+        (FORMAT_QIF, "QIF"),
+    )
+
+    date_from = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    date_to = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    format = forms.ChoiceField(choices=FORMATS, widget=forms.RadioSelect())
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.layout = crispy_forms.layout.Layout(
+            crispy_forms.layout.Div(
+                crispy_forms.layout.Div('date_from', css_class='col-sm-6'),
+                crispy_forms.layout.Div('date_to', css_class='col-sm-6'),
+                css_class='row'
+            ),
+            'format'
+        )
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Export'))
+
+
 class AccountChargeForm(forms.Form):
     amount = forms.DecimalField(decimal_places=2, max_digits=9, label="Amount (GBP)", min_value=0)
     descriptor = forms.CharField(max_length=255)

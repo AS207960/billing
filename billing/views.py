@@ -8,12 +8,14 @@ from django.core.exceptions import SuspiciousOperation
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.template import loader
 import decimal
 import stripe
 import stripe.error
 import secrets
 import json
 import uuid
+import csv
 import django_keycloak_auth.clients
 import keycloak.exceptions
 import datetime
@@ -1001,6 +1003,58 @@ def edit_subscription(request, s_id):
             subscription.save()
 
     return redirect('account_details')
+
+
+@login_required
+def statement_epoxrt(request):
+    if request.method == "POST":
+        form = forms.StatementExportForm(request.POST)
+        if form.is_valid():
+            from_date = form.cleaned_data["date_from"]
+            to_date = form.cleaned_data["date_to"]
+            items = models.LedgerItem.objects.filter(
+                account=request.user.account,
+                timestamp__gte=from_date,
+                timestamp__lte=to_date,
+            )
+            if form.cleaned_data["format"] == forms.StatementExportForm.FORMAT_CSV:
+                response = HttpResponse(content_type='text/csv; charset=utf-8')
+                response['Content-Disposition'] =\
+                    f"attachment; filename=\"glauca-transactions-{from_date}-{to_date}.csv\""
+
+                fieldnames = ["Transaction ID", "Date", "Time", "Description", "Amount", "Currency"]
+                writer = csv.DictWriter(response, fieldnames=fieldnames)
+                writer.writeheader()
+
+                writer.writerows(map(lambda i: {
+                    "Transaction ID": i.id,
+                    "Date": i.timestamp.date(),
+                    "Time": i.timestamp.time(),
+                    "Description": i.descriptor,
+                    "Amount": i.amount,
+                    "Currency": "GBP"
+                }, items))
+
+                return response
+            elif form.cleaned_data["format"] == forms.StatementExportForm.FORMAT_QIF:
+                response = HttpResponse(content_type='application/qif ; charset=utf-8')
+                response['Content-Disposition'] = \
+                    f"attachment; filename=\"glauca-transactions-{from_date}-{to_date}.qif\""
+
+                t = loader.get_template("billing/statement_export_qif.txt")
+                response.write(t.render({
+                    "account": request.user.account,
+                    "items": items
+                }))
+
+                return response
+            print(form.cleaned_data)
+    else:
+        form = forms.StatementExportForm()
+
+    return render(request, "billing/statement_export.html", {
+        "form": form
+    })
 
 
 @csrf_exempt

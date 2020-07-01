@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
     path('account/', views.account_details, name='account_details'),
+    path('account/export/', views.statement_epoxrt, name='statement_export'),
     path('top_up/', views.top_up, name='top_up'),
     path('top_up_card/', views.top_up_card, name='top_up_card'),
     path('top_up_bacs/', views.top_up_bacs, name='top_up_bacs'),

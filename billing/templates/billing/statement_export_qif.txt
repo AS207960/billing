@@ -1,0 +1,11 @@
+!Account
+N{{ account.user.first_name }} {{ account.user.last_name }} Glauca Account
+TCash
+L0.00
+^
+!Type:Cash{% for item in items %}
+D{{ item.timestamp.day }}/{{ item.timestamp.month }}/{{ item.timestamp.year }}
+T{{ item.amount|floatformat:2 }}
+C{% if item.state == item.STATE_COMPLETED %}*{% endif %}
+P{{ item.descriptor }}
+^{% endfor %}

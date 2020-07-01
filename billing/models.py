@@ -149,17 +149,20 @@ class Mandate(models.Model):
     def sync_mandate(cls, mandate_id, account):
         mandate_obj = cls.objects.filter(mandate_id=mandate_id).first()
         mandate = stripe.Mandate.retrieve(mandate_id)
+        is_active = mandate["status"] == "active"
+        if is_active and not account.default_stripe_payment_method_id:
+            account.default_stripe_payment_method_id = mandate["payment_method"]
+            account.save()
         if not mandate_obj:
             if account:
                 mandate_obj = cls(
                     mandate_id=mandate_id,
-                    active=mandate["status"] == "active",
+                    active=is_active,
                     payment_method=mandate["payment_method"],
                     account=account
                 )
                 mandate_obj.save()
         else:
-            is_active = mandate["status"] == "active"
             mandate_obj.active = is_active
             if not is_active and mandate_obj.payment_method == mandate_obj.account.default_stripe_payment_method_id:
                 mandate_obj.account.default_stripe_payment_method_id = None
