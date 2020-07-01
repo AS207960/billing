@@ -1,0 +1,83 @@
+{% load mathfilters %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Glauca Statement</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://as207960.net/assets/css/bootstrap.css">
+    <style>
+        body {
+            background: none;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="row mt-5">
+        <div class="col">
+            <img src="https://as207960.net/assets/img/logo.svg" height="75" alt="">
+            <span class="navbar-brand mb-0 h1">Glauca</span>
+        </div>
+        <div class="col">
+            <h1>Account statement</h1>
+            <h2>For {{ account.user.first_name }} {{ account.user.last_name }}</h2>
+            <p class="lead">
+                {{ from_date }} - {{ to_date }}
+            </p>
+        </div>
+    </div>
+
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Time</th>
+            <th>Description</th>
+            <th>In (GBP)</th>
+            <th>Out (GBP)</th>
+            <th>Balance (GBP)</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in items %}
+            <tr>
+                <td>{{ item.timestamp }}</td>
+                <td>
+                    {{ item.descriptor }}
+                    {% if item.is_reversal %}
+                        <span class="badge badge-primary">Reversal</span>
+                    {% endif %}
+                </td>
+                {% if item.amount >= 0 %}
+                    <td>{{ item.amount|abs|floatformat:2 }}</td>
+                    <td></td>
+                {% else %}
+                    <td></td>
+                    <td>-{{ item.amount|abs|floatformat:2 }}</td>
+                {% endif %}
+                <td>
+                    {% if item.balance_at >= 0 %}
+                        {{ item.balance_at|floatformat:2 }}
+                    {% else %}
+                        -{{ item.balance_at|abs|floatformat:2 }}
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <div class="alert alert-info">
+        All times are in UTC.
+    </div>
+
+    <p class="mb-5">
+        AS207960 Cyfyngedig, trading as Glauca, is a limited company registered in Wales under company number 12417574
+    </p>
+</div>
+<script>
+    window.addEventListener('load', function () {
+       window.print();
+    });
+</script>
+</body>
+</html>

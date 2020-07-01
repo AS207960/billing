@@ -1016,6 +1016,7 @@ def statement_epoxrt(request):
                 account=request.user.account,
                 timestamp__gte=from_date,
                 timestamp__lte=to_date,
+                state=models.LedgerItem.STATE_COMPLETED
             )
             if form.cleaned_data["format"] == forms.StatementExportForm.FORMAT_CSV:
                 response = HttpResponse(content_type='text/csv; charset=utf-8')
@@ -1048,7 +1049,13 @@ def statement_epoxrt(request):
                 }))
 
                 return response
-            print(form.cleaned_data)
+            elif form.cleaned_data["format"] == forms.StatementExportForm.FORMAT_PDF:
+                return render(request, "billing/statement_export_pdf.html", {
+                    "account": request.user.account,
+                    "items": items,
+                    "from_date": from_date,
+                    "to_date": to_date
+                })
     else:
         form = forms.StatementExportForm()
 

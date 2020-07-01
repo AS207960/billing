@@ -82,9 +82,11 @@ class SOFORTForm(forms.Form):
 class StatementExportForm(forms.Form):
     FORMAT_CSV = "C"
     FORMAT_QIF = "Q"
+    FORMAT_PDF = "P"
     FORMATS = (
         (FORMAT_CSV, "CSV"),
         (FORMAT_QIF, "QIF"),
+        (FORMAT_PDF, "PDF"),
     )
 
     date_from = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
