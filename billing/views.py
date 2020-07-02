@@ -48,8 +48,8 @@ def top_up(request):
                 return redirect("top_up_bacs")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_BACS_DIRECT_DEBIT:
                 return redirect("top_up_bacs_direct_debit")
-            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_SEPA_DIRECT_DEBIT:
-                return redirect("top_up_sepa_direct_debit")
+            # elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_SEPA_DIRECT_DEBIT:
+            #     return redirect("top_up_sepa_direct_debit")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_SOFORT:
                 return redirect("top_up_sofort")
             elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_GIROPAY:
@@ -981,8 +981,8 @@ def edit_subscription(request, s_id):
             except tasks.ChargeError as e:
                 request.session["error"] = e.message
                 return redirect('account_details')
-            except tasks.RequiresActionError as e:
-                request.session["ledger_item_id"] = str(e.ledger_item_id)
+            except tasks.ChargeStateRequiresActionError as e:
+                request.session["charge_state_id"] = str(e.charge_state.id)
                 return redirect(e.redirect_url)
 
             subscription.state = subscription.STATE_ACTIVE
@@ -990,9 +990,9 @@ def edit_subscription(request, s_id):
             subscription.amount_unpaid = decimal.Decimal("0")
             subscription.save()
     else:
-        if request.GET.get("payment_intent"):
+        if "charge_state_id" in request.session:
             try:
-                tasks.confirm_payment(request.GET.get("payment_intent"), request.session.pop("ledger_item_id"))
+                tasks.confirm_payment(request.session.pop("charge_state_id"))
             except tasks.ChargeError as e:
                 request.session["error"] = e.message
                 return redirect('account_details')
@@ -1006,7 +1006,7 @@ def edit_subscription(request, s_id):
 
 
 @login_required
-def statement_epoxrt(request):
+def statement_export(request):
     if request.method == "POST":
         form = forms.StatementExportForm(request.POST)
         if form.is_valid():
@@ -1079,36 +1079,19 @@ def stripe_webhook(request):
     except stripe.error.SignatureVerificationError:
         return HttpResponseBadRequest()
 
-    if event.type == 'payment_intent.succeeded':
+    if event.type in ('payment_intent.succeeded', 'payment_intent.payment_failed', 'payment_intent.processing'):
         payment_intent = event.data.object
-        payment_intent_succeeded(payment_intent)
-    elif event.type == 'payment_intent.payment_failed':
-        payment_intent = event.data.object
-        payment_intent_failed(payment_intent)
-    elif event.type == 'payment_intent.processing':
-        payment_intent = event.data.object
-        payment_intent_processing(payment_intent)
-    elif event.type == 'source.failed' or event.type == 'source.canceled':
+        update_from_payment_intent(payment_intent)
+    elif event.type in ('source.failed', 'source.chargeable', 'source.cancelled'):
         source = event.data.object
-        source_failed(source)
-    elif event.type == 'source.chargeable':
-        source = event.data.object
-        source_chargeable(source)
-    elif event.type == 'charge.pending':
+        update_from_source(source)
+    elif event.type in ('charge.pending', 'charge.succeeded'):
         charge = event.data.object
-        charge_pending(charge)
-    elif event.type == 'charge.succeeded':
-        charge = event.data.object
-        charge_succeeded(charge)
-    elif event.type == "checkout.session.completed":
+        update_from_charge(charge)
+    elif event.type in ("checkout.session.completed", "checkout.session.async_payment_failed",
+                        "checkout.session.async_payment_succeeded"):
         session = event.data.object
-        checkout_session_completed(session)
-    elif event.type == "checkout.session.async_payment_failed":
-        session = event.data.object
-        checkout_session_async_failed(session)
-    elif event.type == "checkout.session.async_payment_succeeded":
-        session = event.data.object
-        checkout_session_async_succeeded(session)
+        update_from_checkout_session(session)
     elif event.type == "setup_intent.succeeded":
         session = event.data.object
         setup_intent_succeeded(session)
@@ -1121,11 +1104,11 @@ def stripe_webhook(request):
     return HttpResponse(status=200)
 
 
-def payment_intent_succeeded(payment_intent):
+def update_from_payment_intent(payment_intent, ledger_item=None):
     ledger_item = models.LedgerItem.objects.filter(
         Q(type=models.LedgerItem.TYPE_CARD) | Q(type=models.LedgerItem.TYPE_SEPA) &
         Q(type_id=payment_intent['id'])
-    ).first()
+    ).first() if not ledger_item else ledger_item
 
     if not ledger_item:
         return
@@ -1138,145 +1121,112 @@ def payment_intent_succeeded(payment_intent):
                 models.Account.objects.filter(stripe_customer_id=payment_intent["customer"]).first()
             )
 
-    amount = decimal.Decimal(payment_intent["amount_received"]) / decimal.Decimal(100)
-    amount = models.ExchangeRate.get_rate(payment_intent['currency'], 'gbp') * amount
-    ledger_item.amount = amount
-    ledger_item.state = models.LedgerItem.STATE_COMPLETED
-    ledger_item.save()
+    if payment_intent["status"] == "succeeded":
+        amount = decimal.Decimal(payment_intent["amount_received"]) / decimal.Decimal(100)
+        amount = models.ExchangeRate.get_rate(payment_intent['currency'], 'gbp') * amount
+        ledger_item.amount = amount
+        ledger_item.state = models.LedgerItem.STATE_COMPLETED
+        ledger_item.save()
+    elif payment_intent["status"] == "processing":
+        ledger_item.state = models.LedgerItem.STATE_PROCESSING
+        ledger_item.save()
+    elif payment_intent["status"] == "requires_payment_method" and payment_intent["last_payment_error"]:
+        ledger_item.state = models.LedgerItem.STATE_FAILED
+        ledger_item.save()
 
 
-def payment_intent_failed(payment_intent):
-    ledger_item = models.LedgerItem.objects.filter(
-        Q(type=models.LedgerItem.TYPE_CARD) | Q(type=models.LedgerItem.TYPE_SEPA) &
-        Q(type_id=payment_intent['id'])
-    ).first()
-
-    if not ledger_item:
-        return
-
-    ledger_item.state = models.LedgerItem.STATE_FAILED
-    ledger_item.save()
-
-
-def payment_intent_processing(payment_intent):
-    ledger_item = models.LedgerItem.objects.filter(
-        Q(type=models.LedgerItem.TYPE_CARD) | Q(type=models.LedgerItem.TYPE_SEPA) &
-        Q(type_id=payment_intent['id'])
-    ).first()
-
-    if not ledger_item:
-        return
-
-    ledger_item.state = models.LedgerItem.STATE_PROCESSING
-    ledger_item.save()
-
-
-def source_chargeable(source):
+def update_from_source(source, ledger_item=None):
     ledger_item = models.LedgerItem.objects.filter(
         type=models.LedgerItem.TYPE_SOURCES,
         type_id=source['id']
-    ).first()
+    ).first() if not ledger_item else ledger_item
 
     if not ledger_item:
         return
 
-    charge = stripe.Charge.create(
-        amount=source['amount'],
-        currency=source['currency'],
-        source=source['id'],
-        customer=ledger_item.account.get_stripe_id(),
-        receipt_email=ledger_item.account.user.email,
-    )
-    ledger_item.type_id = charge['id']
-    ledger_item.state = models.LedgerItem.STATE_PROCESSING
-    ledger_item.save()
+    if source["status"] == "chargeable":
+        charge = stripe.Charge.create(
+            amount=source['amount'],
+            currency=source['currency'],
+            source=source['id'],
+            customer=ledger_item.account.get_stripe_id(),
+            receipt_email=ledger_item.account.user.email,
+        )
+        ledger_item.type_id = charge['id']
+        ledger_item.type = models.LedgerItem.TYPE_CHARGES
+        ledger_item.state = models.LedgerItem.STATE_PROCESSING
+        ledger_item.save()
+    elif source["status"] in ("failed", "cancelled"):
+        ledger_item.state = models.LedgerItem.STATE_FAILED
+        ledger_item.save()
 
 
-def source_failed(source):
-    ledger_item = models.LedgerItem.objects.filter(
-        type=models.LedgerItem.TYPE_SOURCES,
-        type_id=source['id']
-    ).first()
-
-    if not ledger_item:
-        return
-
-    ledger_item.state = models.LedgerItem.STATE_FAILED
-    ledger_item.save()
-
-
-def charge_pending(charge):
+def update_from_charge(charge, ledger_item=None):
     if charge["payment_method_details"]["type"] == "sepa_debit":
         models.SEPAMandate.sync_mandate(
             charge["payment_method_details"]["sepa_debit"]["mandate"],
             models.Account.objects.filter(stripe_customer_id=charge["customer"]).first()
         )
 
-
-def charge_succeeded(charge):
     ledger_item = models.LedgerItem.objects.filter(
-        type=models.LedgerItem.TYPE_SOURCES,
+        type=models.LedgerItem.TYPE_CHARGES,
         type_id=charge['id']
-    ).first()
+    ).first() if not ledger_item else ledger_item
 
     if not ledger_item:
         return
 
-    ledger_item.state = models.LedgerItem.STATE_COMPLETED
-    ledger_item.save()
+    if charge["status"] == "succeeded":
+        ledger_item.state = models.LedgerItem.STATE_COMPLETED
+        ledger_item.save()
+    elif charge["status"] == "pending":
+        ledger_item.state = models.LedgerItem.STATE_PROCESSING
+        ledger_item.save()
+    elif charge["status"] == "failed":
+        ledger_item.state = models.LedgerItem.STATE_FAILED
+        ledger_item.save()
 
 
-def checkout_session_completed(session):
+def update_from_checkout_session(session, ledger_item=None):
     ledger_item = models.LedgerItem.objects.filter(
         type=models.LedgerItem.TYPE_CHECKOUT,
         type_id=session['id']
-    ).first()
-
-    if session["mode"] == "payment":
-        payment_intent = stripe.PaymentIntent.retrieve(session["payment_intent"])
-        for charge in payment_intent["charges"]["data"]:
-            if charge["payment_method_details"]["type"] == "bacs_debit":
-                models.BACSMandate.sync_mandate(
-                    charge["payment_method_details"]["bacs_debit"]["mandate"],
-                    ledger_item.account if ledger_item else
-                    models.Account.objects.filter(stripe_customer_id=payment_intent["customer"]).first()
-                )
-    elif session["mode"] == "setup":
-        setup_intent = stripe.SetupIntent.retrieve(session["setup_intent"])
-        models.BACSMandate.sync_mandate(
-            setup_intent["mandate"], ledger_item.account if ledger_item else
-            models.Account.objects.filter(stripe_customer_id=setup_intent["customer"]).first()
-        )
+    ).first() if not ledger_item else ledger_item
 
     if ledger_item:
         ledger_item.state = models.LedgerItem.STATE_PROCESSING
         ledger_item.save()
 
+    if session["mode"] == "payment":
+        payment_intent = stripe.PaymentIntent.retrieve(session["payment_intent"])
+        for charge in payment_intent["charges"]["data"]:
+            account = ledger_item.account if ledger_item else models.Account.objects.filter(
+                stripe_customer_id=payment_intent["customer"]
+            ).first()
+            if charge["payment_method_details"]["type"] == "bacs_debit":
+                models.BACSMandate.sync_mandate(
+                    charge["payment_method_details"]["bacs_debit"]["mandate"],
+                    account
+                )
+            elif charge["payment_method_details"]["type"] == "sepa_debit":
+                models.SEPAMandate.sync_mandate(
+                    charge["payment_method_details"]["bacs_debit"]["mandate"],
+                    account
+                )
 
-def checkout_session_async_succeeded(session):
-    ledger_item = models.LedgerItem.objects.filter(
-        type=models.LedgerItem.TYPE_CHECKOUT,
-        type_id=session['id']
-    ).first()
-
-    if not ledger_item:
-        return
-
-    ledger_item.state = models.LedgerItem.STATE_COMPLETED
-    ledger_item.save()
-
-
-def checkout_session_async_failed(session):
-    ledger_item = models.LedgerItem.objects.filter(
-        type=models.LedgerItem.TYPE_CHECKOUT,
-        type_id=session['id']
-    ).first()
-
-    if not ledger_item:
-        return
-
-    ledger_item.state = models.LedgerItem.STATE_FAILED
-    ledger_item.save()
+        update_from_payment_intent(payment_intent, ledger_item)
+    elif session["mode"] == "setup":
+        setup_intent = stripe.SetupIntent.retrieve(session["setup_intent"])
+        if "bacs_debit" in session["payment_method_types"]:
+            models.BACSMandate.sync_mandate(
+                setup_intent["mandate"], ledger_item.account if ledger_item else
+                models.Account.objects.filter(stripe_customer_id=setup_intent["customer"]).first()
+            )
+        if "sepa_debit" in session["payment_method_types"]:
+            models.SEPAMandate.sync_mandate(
+                setup_intent["mandate"], ledger_item.account if ledger_item else
+                models.Account.objects.filter(stripe_customer_id=setup_intent["customer"]).first()
+            )
 
 
 def setup_intent_succeeded(setup_intent):
@@ -1396,6 +1346,7 @@ def charge_user(request, user_id):
         return HttpResponseBadRequest()
 
     can_reject = data.get("can_reject", True)
+    off_session = data.get("off_session", True)
 
     try:
         amount = decimal.Decimal(data["amount"]) / decimal.Decimal(100)

@@ -7,6 +7,7 @@ admin.site.register(models.LedgerItem)
 admin.site.register(models.ExchangeRate)
 admin.site.register(models.SEPAMandate)
 admin.site.register(models.BACSMandate)
+admin.site.register(models.ChargeState)
 
 
 class RecurringPlanTierInline(admin.TabularInline):

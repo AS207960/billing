@@ -161,20 +161,20 @@
                             <td>{{ mandate.payment_method.sepa_debit.bank_code }}</td>
                             <td>{{ mandate.mandate.payment_method_details.sepa_debit.reference }}</td>
                             <td>
-                                <form action="{% url 'edit_sepa_mandate' mandate.id %}" method="post">
-                                    {% csrf_token %}
-                                    <div class="btn-group">
-                                        <a href="{{ mandate.mandate.payment_method_details.sepa_debit.url }}" class="btn btn-info btn-sm">View mandate</a>
-                                        {% if mandate.mandate_obj.payment_method != user.account.default_stripe_payment_method_id and mandate.mandate_obj.active %}
-                                            <button type="submit" class="btn btn-primary btn-sm" name="action" value="default">
-                                                Make default
-                                            </button>
-                                        {% endif %}
-                                        <button type="submit" class="btn btn-danger btn-sm" name="action" value="delete">
-                                            Delete
-                                        </button>
-                                    </div>
-                                </form>
+{#                                <form action="{% url 'edit_sepa_mandate' mandate.id %}" method="post">#}
+{#                                    {% csrf_token %}#}
+{#                                    <div class="btn-group">#}
+{#                                        <a href="{{ mandate.mandate.payment_method_details.sepa_debit.url }}" class="btn btn-info btn-sm">View mandate</a>#}
+{#                                        {% if mandate.mandate_obj.payment_method != user.account.default_stripe_payment_method_id and mandate.mandate_obj.active %}#}
+{#                                            <button type="submit" class="btn btn-primary btn-sm" name="action" value="default">#}
+{#                                                Make default#}
+{#                                            </button>#}
+{#                                        {% endif %}#}
+{#                                        <button type="submit" class="btn btn-danger btn-sm" name="action" value="delete">#}
+{#                                            Delete#}
+{#                                        </button>#}
+{#                                    </div>#}
+{#                                </form>#}
                             </td>
                         </tr>
                     {% endfor %}
@@ -183,11 +183,11 @@
                         <td colspan="6">No mandates</td>
                     </tr>
                 {% endif %}
-                <tr>
-                    <td colspan="6" class="text-center">
-                        <a href="{% url 'add_sepa_mandate' %}" class="btn btn-success btn-sm">New mandate</a>
-                    </td>
-                </tr>
+{#                <tr>#}
+{#                    <td colspan="6" class="text-center">#}
+{#                        <a href="{% url 'add_sepa_mandate' %}" class="btn btn-success btn-sm">New mandate</a>#}
+{#                    </td>#}
+{#                </tr>#}
                 </tbody>
             </table>
         </div>

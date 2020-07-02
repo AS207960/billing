@@ -1,15 +1,16 @@
-from django.db import models
-from django.conf import settings
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from django.db.models import Q, F
-from django.core.exceptions import ValidationError
-from dateutil import relativedelta
 import datetime
-import stripe
 import decimal
 import uuid
+
 import inflect
+import stripe
+from dateutil import relativedelta
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.db.models import F, Q
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 p = inflect.engine()
 
@@ -24,24 +25,30 @@ class Account(models.Model):
 
     @property
     def balance(self):
-        return self.ledgeritem_set\
-            .filter(state=LedgerItem.STATE_COMPLETED)\
-            .aggregate(balance=models.Sum('amount'))\
-            .get('balance') or decimal.Decimal(0)
+        return (
+            self.ledgeritem_set
+           .filter(state=LedgerItem.STATE_COMPLETED)
+           .aggregate(balance=models.Sum('amount'))
+           .get('balance') or decimal.Decimal(0)
+        ).quantize(decimal.Decimal('1.00'))
 
     @property
     def processing_and_completed_balance(self):
-        return self.ledgeritem_set\
-            .filter(Q(state=LedgerItem.STATE_COMPLETED) | Q(state=LedgerItem.STATE_PROCESSING))\
-            .aggregate(balance=models.Sum('amount'))\
+        return (
+            self.ledgeritem_set
+            .filter(Q(state=LedgerItem.STATE_COMPLETED) | Q(state=LedgerItem.STATE_PROCESSING))
+            .aggregate(balance=models.Sum('amount'))
             .get('balance') or decimal.Decimal(0)
+        ).quantize(decimal.Decimal('1.00'))
 
     @property
     def pending_balance(self):
-        return self.ledgeritem_set\
-            .filter(Q(state=LedgerItem.STATE_PENDING) | Q(state=LedgerItem.STATE_PROCESSING))\
-            .aggregate(balance=models.Sum('amount'))\
+        return (
+            self.ledgeritem_set
+            .filter(Q(state=LedgerItem.STATE_PENDING) | Q(state=LedgerItem.STATE_PROCESSING))
+            .aggregate(balance=models.Sum('amount'))
             .get('balance') or decimal.Decimal(0)
+        ).quantize(decimal.Decimal('1.00'))
 
     def get_stripe_id(self):
         if self.stripe_customer_id:
@@ -98,6 +105,7 @@ class LedgerItem(models.Model):
     TYPE_BACS = "F"
     TYPE_SEPA = "E"
     TYPE_SOURCES = "S"
+    TYPE_CHARGES = "A"
     TYPE_CHECKOUT = "H"
     TYPE_MANUAL = "M"
     TYPES = (
@@ -106,6 +114,7 @@ class LedgerItem(models.Model):
         (TYPE_BACS, "BACS/Faster payments/SEPA"),
         (TYPE_SEPA, "SEPA Direct Debit"),
         (TYPE_SOURCES, "Sources"),
+        (TYPE_CHARGES, "Charges"),
         (TYPE_CHECKOUT, "Checkout"),
         (TYPE_MANUAL, "Manual"),
     )
@@ -133,9 +142,11 @@ class LedgerItem(models.Model):
         else:
             queryset = queryset.filter(state__in=(self.STATE_COMPLETED, self.STATE_PENDING, self.STATE_PROCESSING))
 
-        return queryset \
-            .aggregate(balance=models.Sum('amount')) \
-            .get('balance') or decimal.Decimal(0)
+        return (
+            queryset
+           .aggregate(balance=models.Sum('amount'))
+           .get('balance') or decimal.Decimal(0)
+        ).quantize(decimal.Decimal('1.00'))
 
 
 class Mandate(models.Model):
@@ -179,6 +190,18 @@ class BACSMandate(Mandate):
 
 class SEPAMandate(Mandate):
     pass
+
+
+class ChargeState(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
+    payment_ledger_item = models.ForeignKey(
+        LedgerItem, on_delete=models.SET_NULL, blank=True, null=True, related_name='charge_state_payment_set'
+    )
+    ledger_item = models.ForeignKey(
+        LedgerItem, on_delete=models.SET_NULL, blank=True, null=True, related_name='charge_state_set'
+    )
+    return_uri = models.URLField(blank=True, null=True)
 
 
 class ExchangeRate(models.Model):
@@ -264,7 +287,7 @@ class RecurringPlan(models.Model):
 
     def calculate_charge(self, units: int) -> decimal.Decimal:
         if self.tiers_type == self.TIERS_VOLUME:
-            tier = self.recurringplantier_set.filter(last_unit__lte=units)\
+            tier = self.recurringplantier_set.filter(last_unit__lte=units) \
                 .order_by(F('last_unit').desc(nulls_last=True)).first()
             return (tier.price_per_unit * decimal.Decimal(units)) + tier.flat_fee
         elif self.tiers_type == self.TIERS_GRADUATED:
@@ -346,12 +369,12 @@ class Subscription(models.Model):
                 else:
                     return last_usage.usage_units
             elif self.plan.aggregation_type == RecurringPlan.AGGREGATION_SUM:
-                last_usage = self.subscriptionusage_set.filter(timestamp__gt=self.last_billed)\
+                last_usage = self.subscriptionusage_set.filter(timestamp__gt=self.last_billed) \
                                  .aggregate(usage=models.Sum('usage_units')) \
                                  .get('usage') or 0
                 return last_usage
             elif self.plan.aggregation_type == RecurringPlan.AGGREGATION_MAX:
-                last_usage = self.subscriptionusage_set.filter(timestamp__gt=self.last_billed)\
+                last_usage = self.subscriptionusage_set.filter(timestamp__gt=self.last_billed) \
                                  .aggregate(usage=models.Max('usage_units')) \
                                  .get('usage') or 0
                 return last_usage

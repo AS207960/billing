@@ -81,7 +81,7 @@
                     </thead>
                     <tbody>
                     {% if bacs_mandates %}
-                        {% for mandate in sepa_mandates %}
+                        {% for mandate in bacs_mandates %}
                             <tr>
                                 <td>
                                     **** {{ mandate.payment_method.bacs_debit.last4 }}

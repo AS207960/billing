@@ -20,7 +20,7 @@ class TopUpForm(forms.Form):
     METHODS = (
         (METHOD_BACS, "BACS/Faster payments/SEPA"),
         (METHOD_BACS_DIRECT_DEBIT, "BACS Direct Debit"),
-        (METHOD_SEPA_DIRECT_DEBIT, "SEPA Direct Debit"),
+        # (METHOD_SEPA_DIRECT_DEBIT, "SEPA Direct Debit"),
         (METHOD_SOFORT, "SOFORT"),
         (METHOD_GIROPAY, "giropay"),
         (METHOD_BANCONTACT, "Bancontact"),
