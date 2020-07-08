@@ -19,11 +19,11 @@
             <div class="col-md-3">
                 <div class="card {% if account.balance < 0 %}border-danger{% elif account.balance < 5 %}border-warning{% else %}border-success{% endif %}">
                     <div class="card-header">
-                        Balance
+                        Balance &#x1f3e6;
                     </div>
                     <div class="card-body">
                         <p class="card-text">
-                            Available balance:<br/>
+                            &#x1f4b0; Available balance:<br/>
                             {% if account.balance >= 0 %}
                                 &pound;{{ account.balance|floatformat:2 }}
                             {% else %}
@@ -31,7 +31,7 @@
                             {% endif %}
                         </p>
                         <p class="card-text">
-                            Pending balance:<br/>
+                            &#x1f4b8; Pending balance:<br/>
                             {% if account.pending_balance >= 0 %}
                                 &pound;{{ account.pending_balance|floatformat:2 }}
                             {% else %}
@@ -40,17 +40,17 @@
                             <br>
                             <small>Your pending balance is the sum of the amounts not available to spend.</small>
                         </p>
-                        <a href="{% url 'top_up' %}" class="card-link">Top-up</a>
+                        <a href="{% url 'top_up' %}" class="btn btn-primary btn-block">&#x1f4b7; Top-up &#x1f4b7;</a>
                     </div>
                 </div>
                 <div class="card mt-3">
                     <div class="card-body">
-                        <a href="{% url 'statement_export' %}" class="btn btn-primary btn-block">Statement export</a>
+                        <a href="{% url 'statement_export' %}" class="btn btn-primary btn-block">&#x1f9fe; Statement export &#x1f9fe;</a>
                     </div>
                 </div>
             </div>
             <div class="col-md-9">
-                <h2>Transactions</h2>
+                <h2>Transactions &#x1f4dc;</h2>
                 <div class="table-responsive table-striped table-hover table-striped">
                     <table class="table">
                         <thead class="thead-dark">
@@ -75,15 +75,15 @@
                                     {% endif %}
                                     {% if item.state == "P" %}
                                         <span class="badge badge-warning">
-                                            Pending
+                                            &#x23f3; Pending
                                         </span>
                                     {% elif item.state == "S" %}
                                         <span class="badge badge-info">
-                                            Processing
+                                            &#x1f4c7; Processing
                                         </span>
                                     {% elif item.state == "F" %}
                                         <span class="badge badge-danger">
-                                            Failed
+                                             &#x1f645; Failed
                                         </span>
                                     {% endif %}
                                 </td>
@@ -108,28 +108,33 @@
                                 <td>
                                     {% if item.state == "P" and item.type == "C" %}
                                         <div class="btn-group">
-                                            <a href="{% url 'complete_top_up_card' item.id %}" class="btn btn-success btn-sm">Complete</a>
-                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">Cancel</a>
+                                            <a href="{% url 'complete_top_up_card' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
+                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
                                         </div>
                                     {% elif item.state == "P" and item.type == "F" %}
                                         <div class="btn-group">
-                                            <a href="{% url 'complete_top_up_bacs' item.id %}" class="btn btn-success btn-sm">Complete</a>
-                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">Cancel</a>
+                                            <a href="{% url 'complete_top_up_bacs' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
+                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
                                         </div>
                                     {% elif item.state == "P" and item.type == "E" %}
                                         <div class="btn-group">
-                                            <a href="{% url 'complete_top_up_sepa_direct_debit' item.id %}" class="btn btn-success btn-sm">Complete</a>
-                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">Cancel</a>
+                                            <a href="{% url 'complete_top_up_sepa_direct_debit' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
+                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
                                         </div>
                                     {% elif item.state == "P" and item.type == "S" %}
                                         <div class="btn-group">
-                                            <a href="{% url 'complete_top_up_sources' item.id %}" class="btn btn-success btn-sm">Complete</a>
-                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">Cancel</a>
+                                            <a href="{% url 'complete_top_up_sources' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
+                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
                                         </div>
                                     {% elif item.state == "P" and item.type == "H" %}
                                         <div class="btn-group">
-                                            <a href="{% url 'complete_top_up_checkout' item.id %}" class="btn btn-success btn-sm">Complete</a>
-                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">Cancel</a>
+                                            <a href="{% url 'complete_top_up_checkout' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
+                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
+                                        </div>
+                                    {% elif item.state == "S" and item.type == "B" and item.charge_state_set.count %}
+                                        <div class="btn-group">
+                                            <a href="{% url 'complete_charge' item.charge_state_set.first.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
+                                            <a href="{% url 'fail_charge' item.charge_state_set.first.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
                                         </div>
                                     {% endif %}
                                 </td>

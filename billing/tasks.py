@@ -67,7 +67,7 @@ def alert_account(account: models.Account, ledger_item: models.LedgerItem, new=F
 
 
 @receiver(pre_save, sender=models.LedgerItem)
-def send_item_notif(sender, instance, **kwargs):
+def send_item_notif(sender, instance: models.LedgerItem, **kwargs):
     old_instance = models.LedgerItem.objects.filter(id=instance.id).first()
     if not old_instance:
         p = multiprocessing.Process(target=alert_account, args=(instance.account, instance), kwargs={"new": True})
@@ -77,11 +77,22 @@ def send_item_notif(sender, instance, **kwargs):
         return
     p.start()
 
+    if instance.type == instance.TYPE_CHARGE and \
+            instance.state in (instance.STATE_COMPLETED, instance.STATE_PROCESSING) and \
+            instance.type_id.startswith("sb_"):
+        subscription = models.Subscription.objects.filter(id=instance.type_id[3:]).first()
+        if subscription:
+            subscription.state = subscription.STATE_ACTIVE
+            subscription.last_billed = timezone.now()
+            subscription.amount_unpaid = decimal.Decimal("0")
+            subscription.save()
+
 
 class ChargeError(Exception):
     def __init__(self, payment_ledger_item, message):
         self.payment_ledger_item = payment_ledger_item
         self.message = message
+        self.charge_state = None
 
 
 class RequiresActionError(Exception):
@@ -140,10 +151,13 @@ def attempt_charge_account(account: models.Account, amount_gbp: decimal.Decimal,
             )
         except (stripe.error.CardError, stripe.error.InvalidRequestError) as e:
             err = e.error
+            message = err.message
+            if isinstance(e, stripe.error.InvalidRequestError):
+                message = "Payment failed"
             ledger_item.type_id = err.payment_intent['id']
             ledger_item.state = ledger_item.STATE_FAILED
             ledger_item.save()
-            raise ChargeError(err.payment_intent, err.message)
+            raise ChargeError(err.payment_intent, message)
 
         ledger_item.state = ledger_item.STATE_PROCESSING
         ledger_item.type_id = payment_intent['id']
@@ -166,65 +180,6 @@ def attempt_charge_account(account: models.Account, amount_gbp: decimal.Decimal,
         raise ChargeError(None, "No default payment method available to charge")
 
 
-def confirm_payment(charge_state_id):
-    charge_state = models.ChargeState.objects.get(pk=charge_state_id)
-    payment_intent = stripe.PaymentIntent.retrieve(charge_state.payment_ledger_item.type_id) \
-        if (charge_state.payment_ledger_item and charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CARD)\
-        else None
-
-    if payment_intent:
-        if payment_intent.get("last_payment_error"):
-            charge_state.payment_ledger_item.state = models.LedgerItem.STATE_FAILED
-            charge_state.payment_ledger_item.save()
-            if charge_state.ledger_item:
-                charge_state.ledger_item.state = charge_state.ledger_item.STATE_FAILED
-                charge_state.ledger_item.save()
-            raise ChargeError(charge_state.payment_ledger_item, payment_intent["last_payment_error"]["message"])
-        else:
-            try:
-                payment_intent.confirm()
-            except (stripe.error.CardError, stripe.error.InvalidRequestError) as e:
-                charge_state.payment_ledger_item.state = models.LedgerItem.STATE_FAILED
-                charge_state.payment_ledger_item.save()
-                if charge_state.ledger_item:
-                    charge_state.ledger_item.state = models.LedgerItem.STATE_FAILED
-                    charge_state.ledger_item.save()
-                raise ChargeError(charge_state.payment_ledger_item, e.error.message)
-
-    if charge_state.payment_ledger_item:
-        if charge_state.payment_ledger_item.type in (
-            models.LedgerItem.TYPE_CARD, models.LedgerItem.TYPE_SEPA
-        ):
-            payment_intent = stripe.PaymentIntent.retrieve(charge_state.payment_ledger_item.type_id)
-            views.update_from_payment_intent(payment_intent, charge_state.payment_ledger_item)
-        elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_SOURCES:
-            source = stripe.Source.retrieve(charge_state.payment_ledger_item.type_id)
-            views.update_from_source(source, charge_state.payment_ledger_item)
-        elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CHARGES:
-            charge = stripe.Charge.retrieve(charge_state.payment_ledger_item.type_id)
-            views.update_from_charge(charge, charge_state.payment_ledger_item)
-        elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CHECKOUT:
-            session = stripe.checkout.Session.retrieve(charge_state.payment_ledger_item.type_id)
-            views.update_from_charge(session, charge_state.payment_ledger_item)
-
-        if charge_state.payment_ledger_item.state in (
-                models.LedgerItem.STATE_COMPLETED, models.LedgerItem.STATE_PROCESSING
-        ):
-            if charge_state.ledger_item:
-                charge_state.ledger_item.state = charge_state.ledger_item.STATE_COMPLETED
-                charge_state.ledger_item.save()
-        elif charge_state.ledger_item:
-            charge_state.ledger_item.state = charge_state.ledger_item.STATE_FAILED
-            charge_state.ledger_item.save()
-            raise ChargeError(None, "Payment failed")
-    elif charge_state.ledger_item:
-        if charge_state.account.balance >= charge_state.ledger_item.amount:
-            charge_state.ledger_item.state = charge_state.ledger_item.STATE_COMPLETED
-            charge_state.ledger_item.save()
-        else:
-            raise ChargeError(None, "Insufficient funds in your account")
-
-
 def charge_account(account: models.Account, amount: decimal.Decimal, descriptor: str, type_id: str, can_reject=True,
                    off_session=True, return_uri=None):
     ledger_item = models.LedgerItem(
@@ -232,7 +187,8 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
         descriptor=descriptor,
         amount=-amount,
         type=models.LedgerItem.TYPE_CHARGE,
-        type_id=type_id
+        type_id=type_id,
+        timestamp=timezone.now(),
     )
     charge_state = models.ChargeState(
         account=account,
@@ -240,34 +196,54 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
         return_uri=return_uri
     )
 
+    if not account:
+        if off_session:
+            raise ChargeError(None, "Account does not exist")
+
+        ledger_item.save()
+        charge_state.save()
+        raise ChargeStateRequiresActionError(
+            charge_state, settings.EXTERNAL_URL_BASE + reverse('complete_charge', args=(charge_state.id,))
+        )
+
     payment_ledger_item = None
     if account.balance - amount < 0:
         charge_amount = -(account.balance - amount)
         try:
             payment_ledger_item = attempt_charge_account(
-                account, charge_amount, off_session=off_session, return_uri=return_uri
+                account, charge_amount, off_session=off_session,
+                return_uri=settings.EXTERNAL_URL_BASE + reverse('complete_charge', args=(charge_state.id,))
             )
         except ChargeError as e:
             payment_ledger_item = e.payment_ledger_item
             if can_reject:
-                ledger_item.timestamp = timezone.now()
-                ledger_item.state = ledger_item.STATE_FAILED
-                ledger_item.save()
-                charge_state.payment_ledger_item = payment_ledger_item
-                charge_state.save()
-                raise e
+                if off_session:
+                    ledger_item.state = ledger_item.STATE_FAILED
+                    ledger_item.save()
+                    charge_state.payment_ledger_item = payment_ledger_item
+                    charge_state.save()
+                    e.charge_state = charge_state
+                    raise e
+                else:
+                    ledger_item.state = ledger_item.STATE_PROCESSING
+                    ledger_item.save()
+                    charge_state.payment_ledger_item = payment_ledger_item
+                    charge_state.last_error = e.message
+                    charge_state.save()
+                    raise ChargeStateRequiresActionError(
+                        charge_state, settings.EXTERNAL_URL_BASE + reverse('complete_charge', args=(charge_state.id,))
+                    )
         except RequiresActionError as e:
             payment_ledger_item = e.payment_ledger_item
             if can_reject:
-                ledger_item.timestamp = timezone.now()
                 ledger_item.state = ledger_item.STATE_PROCESSING
                 ledger_item.save()
                 charge_state.payment_ledger_item = payment_ledger_item
                 charge_state.save()
                 raise ChargeStateRequiresActionError(charge_state, e.redirect_url)
 
-    ledger_item.timestamp = timezone.now()
     ledger_item.state = ledger_item.STATE_COMPLETED
     ledger_item.save()
     charge_state.payment_ledger_item = payment_ledger_item
     charge_state.save()
+    return charge_state

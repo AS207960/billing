@@ -18,7 +18,7 @@
                     <select class="form-control" id="card_select" name="card">
                         <option value="new">New card</option>
                         {% for card in cards %}
-                            <option value="{{ card.id }}">*** *** *** {{ card.card.last4 }} ({{ card.card.exp_month|stringformat:"02d" }} / {{ card.card.exp_year }})</option>
+                            <option value="{{ card.id }}">{{ card.billing_details.name }} *** *** *** {{ card.card.last4 }} ({{ card.card.exp_month|stringformat:"02d" }} / {{ card.card.exp_year }})</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -97,7 +97,7 @@
                         loading.style.display = "none";
                         error.innerText = result.error.message;
                     } else {
-                        document.location = "{% url 'dashboard' %}";
+                        document.location = "{{ redirect_uri }}";
                     }
                 });
             });
@@ -122,7 +122,7 @@
                                 loading.style.display = "none";
                                 error.innerText = result.error.message;
                             } else {
-                                document.location = "{% url 'dashboard' %}";
+                                document.location = "{{ redirect_uri }}";
                             }
                         });
                     }

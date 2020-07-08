@@ -16,6 +16,7 @@ import secrets
 import json
 import uuid
 import csv
+import urllib.parse
 import django_keycloak_auth.clients
 import keycloak.exceptions
 import datetime
@@ -41,6 +42,8 @@ def top_up(request):
     if request.method == "POST":
         form = forms.TopUpForm(request.POST)
         if form.is_valid():
+            if "charge_state_id" in request.session:
+                request.session.pop("charge_state_id")
             request.session["amount"] = str(form.cleaned_data["amount"])
             if form.cleaned_data['method'] == forms.TopUpForm.METHOD_CARD:
                 return redirect("top_up_card")
@@ -75,6 +78,11 @@ def top_up(request):
 @login_required
 def top_up_card(request):
     account = request.user.account
+
+    if "charge_state_id" in request.session:
+        charge_state = get_object_or_404(models.ChargeState, id=request.session["charge_state_id"])
+    else:
+        charge_state = None
 
     cards = []
     if account.stripe_customer_id:
@@ -120,6 +128,12 @@ def top_up_card(request):
                 type_id=payment_intent['id']
             )
             ledger_item.save()
+            if charge_state:
+                charge_state.payment_ledger_item = ledger_item
+                charge_state.save()
+                redirect_uri = reverse('complete_charge', args=(charge_state.id,))
+            else:
+                redirect_uri = reverse('dashboard')
 
             return render(request, "billing/top_up_card.html", {
                 "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
@@ -127,6 +141,7 @@ def top_up_card(request):
                 "customer_name": f"{request.user.first_name} {request.user.last_name}",
                 "amount": amount_int,
                 "currency": charge_currency,
+                "redirect_uri": redirect_uri,
                 "is_new": True
             })
         else:
@@ -135,6 +150,8 @@ def top_up_card(request):
 
             if payment_method['customer'] != request.user.account.stripe_customer_id:
                 return HttpResponseForbidden()
+
+            redirect_uri = reverse('complete_charge', args=(charge_state.id,)) if charge_state else reverse('dashboard')
 
             payment_intent = stripe.PaymentIntent.create(
                 amount=amount_int,
@@ -145,7 +162,7 @@ def top_up_card(request):
                 statement_descriptor_suffix="Top-up",
                 payment_method=card_id,
                 confirm=True,
-                return_url=request.build_absolute_uri(reverse('dashboard'))
+                return_url=request.build_absolute_uri(redirect_uri)
             )
 
             ledger_item = models.LedgerItem(
@@ -156,11 +173,14 @@ def top_up_card(request):
                 type_id=payment_intent['id']
             )
             ledger_item.save()
+            if charge_state:
+                charge_state.payment_ledger_item = ledger_item
+                charge_state.save()
 
             if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
                 return redirect(payment_intent["next_action"]["redirect_to_url"]["url"])
 
-            return redirect('dashboard')
+            return redirect(redirect_uri)
 
 
 @login_required
@@ -507,9 +527,17 @@ def top_up_sofort(request):
 def top_up_giropay(request):
     account = request.user.account
 
+    if "charge_state_id" in request.session:
+        charge_state = get_object_or_404(models.ChargeState, id=request.session.pop("charge_state_id"))
+    else:
+        charge_state = None
+
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
+
+    redirect_uri = reverse('complete_charge', args=(charge_state.id,)) if charge_state else reverse('dashboard')
+
     source = stripe.Source.create(
         type='giropay',
         amount=amount_int,
@@ -519,7 +547,7 @@ def top_up_giropay(request):
             "name": f"{request.user.first_name} {request.user.last_name}"
         },
         redirect={
-            "return_url": request.build_absolute_uri(reverse('dashboard')),
+            "return_url": request.build_absolute_uri(redirect_uri),
         },
         statement_descriptor="AS207960 Top-up"
     )
@@ -532,6 +560,9 @@ def top_up_giropay(request):
         type_id=source['id']
     )
     ledger_item.save()
+    if charge_state:
+        charge_state.payment_ledger_item = ledger_item
+        charge_state.save()
 
     return redirect(source["redirect"]["url"])
 
@@ -540,9 +571,17 @@ def top_up_giropay(request):
 def top_up_bancontact(request):
     account = request.user.account
 
+    if "charge_state_id" in request.session:
+        charge_state = get_object_or_404(models.ChargeState, id=request.session.pop("charge_state_id"))
+    else:
+        charge_state = None
+
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
+
+    redirect_uri = reverse('complete_charge', args=(charge_state.id,)) if charge_state else reverse('dashboard')
+
     source = stripe.Source.create(
         type='bancontact',
         amount=amount_int,
@@ -555,7 +594,7 @@ def top_up_bancontact(request):
             "preferred_language": "en"
         },
         redirect={
-            "return_url": request.build_absolute_uri(reverse('dashboard')),
+            "return_url": request.build_absolute_uri(redirect_uri),
         },
         statement_descriptor="AS207960 Top-up"
     )
@@ -568,6 +607,9 @@ def top_up_bancontact(request):
         type_id=source['id']
     )
     ledger_item.save()
+    if charge_state:
+        charge_state.payment_ledger_item = ledger_item
+        charge_state.save()
 
     return redirect(source["redirect"]["url"])
 
@@ -576,9 +618,17 @@ def top_up_bancontact(request):
 def top_up_eps(request):
     account = request.user.account
 
+    if "charge_state_id" in request.session:
+        charge_state = get_object_or_404(models.ChargeState, id=request.session.pop("charge_state_id"))
+    else:
+        charge_state = None
+
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
+
+    redirect_uri = reverse('complete_charge', args=(charge_state.id,)) if charge_state else reverse('dashboard')
+
     source = stripe.Source.create(
         type='eps',
         amount=amount_int,
@@ -588,7 +638,7 @@ def top_up_eps(request):
             "name": f"{request.user.first_name} {request.user.last_name}"
         },
         redirect={
-            "return_url": request.build_absolute_uri(reverse('dashboard')),
+            "return_url": request.build_absolute_uri(redirect_uri),
         },
         statement_descriptor="AS207960 Top-up"
     )
@@ -601,6 +651,9 @@ def top_up_eps(request):
         type_id=source['id']
     )
     ledger_item.save()
+    if charge_state:
+        charge_state.payment_ledger_item = ledger_item
+        charge_state.save()
 
     return redirect(source["redirect"]["url"])
 
@@ -609,9 +662,17 @@ def top_up_eps(request):
 def top_up_ideal(request):
     account = request.user.account
 
+    if "charge_state_id" in request.session:
+        charge_state = get_object_or_404(models.ChargeState, id=request.session.pop("charge_state_id"))
+    else:
+        charge_state = None
+
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
+
+    redirect_uri = reverse('complete_charge', args=(charge_state.id,)) if charge_state else reverse('dashboard')
+
     source = stripe.Source.create(
         type='ideal',
         amount=amount_int,
@@ -621,7 +682,7 @@ def top_up_ideal(request):
             "name": f"{request.user.first_name} {request.user.last_name}"
         },
         redirect={
-            "return_url": request.build_absolute_uri(reverse('dashboard')),
+            "return_url": request.build_absolute_uri(redirect_uri),
         },
         statement_descriptor="AS207960 Top-up"
     )
@@ -634,6 +695,9 @@ def top_up_ideal(request):
         type_id=source['id']
     )
     ledger_item.save()
+    if charge_state:
+        charge_state.payment_ledger_item = ledger_item
+        charge_state.save()
 
     return redirect(source["redirect"]["url"])
 
@@ -675,9 +739,17 @@ def top_up_multibanco(request):
 def top_up_p24(request):
     account = request.user.account
 
+    if "charge_state_id" in request.session:
+        charge_state = get_object_or_404(models.ChargeState, id=request.session.pop("charge_state_id"))
+    else:
+        charge_state = None
+
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
+
+    redirect_uri = reverse('complete_charge', args=(charge_state.id,)) if charge_state else reverse('dashboard')
+
     source = stripe.Source.create(
         type='p24',
         amount=amount_int,
@@ -687,7 +759,7 @@ def top_up_p24(request):
             "name": f"{request.user.first_name} {request.user.last_name}"
         },
         redirect={
-            "return_url": request.build_absolute_uri(reverse('dashboard')),
+            "return_url": request.build_absolute_uri(redirect_uri),
         },
         statement_descriptor="AS207960 Top-up"
     )
@@ -700,6 +772,9 @@ def top_up_p24(request):
         type_id=source['id']
     )
     ledger_item.save()
+    if charge_state:
+        charge_state.payment_ledger_item = ledger_item
+        charge_state.save()
 
     return redirect(source["redirect"]["url"])
 
@@ -756,6 +831,132 @@ def fail_top_up(request, item_id):
     ledger_item.save()
 
     return redirect('dashboard')
+
+
+@login_required
+def fail_charge(request, charge_id):
+    charge_state = get_object_or_404(models.ChargeState, id=charge_id)
+
+    if charge_state.account != request.user.account:
+        return HttpResponseForbidden
+
+    if charge_state.ledger_item and charge_state.ledger_item.state != models.LedgerItem.STATE_COMPLETED:
+        charge_state.ledger_item.state = models.LedgerItem.STATE_FAILED
+        charge_state.ledger_item.save()
+
+    return redirect('dashboard')
+
+
+@login_required
+def complete_charge(request, charge_id):
+    charge_state = get_object_or_404(models.ChargeState, id=charge_id)
+
+    if not charge_state.account:
+        charge_state.account = request.user.account
+        charge_state.save()
+    if not charge_state.ledger_item.account:
+        charge_state.ledger_item.account = request.user.account
+        charge_state.ledger_item.save()
+    if not charge_state.payment_ledger_item.account:
+        charge_state.payment_ledger_item.account = request.user.account
+        charge_state.payment_ledger_item.save()
+
+    if charge_state.account != request.user.account:
+        return HttpResponseForbidden
+
+    if request.method == "POST":
+        if request.POST.get("action") == "cancel":
+            if charge_state.ledger_item and charge_state.ledger_item.state != models.LedgerItem.STATE_COMPLETED:
+                charge_state.ledger_item.state = models.LedgerItem.STATE_FAILED
+                charge_state.ledger_item.save()
+
+            return redirect(charge_state.full_redirect_uri())
+
+        form = forms.CompleteChargeForm(request.POST)
+        if form.is_valid():
+            request.session["charge_state_id"] = str(charge_state.id)
+            request.session["amount"] = str((charge_state.account.balance + charge_state.ledger_item.amount) * -1)
+            if form.cleaned_data['method'] == forms.TopUpForm.METHOD_CARD:
+                return redirect("top_up_card")
+            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_GIROPAY:
+                return redirect("top_up_giropay")
+            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_BANCONTACT:
+                return redirect("top_up_bancontact")
+            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_EPS:
+                return redirect("top_up_eps")
+            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_IDEAL:
+                return redirect("top_up_ideal")
+            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_P24:
+                return redirect("top_up_p24")
+    else:
+        if charge_state.ledger_item and charge_state.account.balance >= (-charge_state.ledger_item.amount):
+            charge_state.ledger_item.state = charge_state.ledger_item.STATE_COMPLETED
+            charge_state.ledger_item.save()
+
+            return redirect(charge_state.full_redirect_uri())
+
+        payment_intent = stripe.PaymentIntent.retrieve(charge_state.payment_ledger_item.type_id) \
+            if (charge_state.payment_ledger_item and
+                charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CARD) \
+            else None
+
+        has_error = False
+        if payment_intent:
+            if payment_intent.get("last_payment_error"):
+                charge_state.last_error = payment_intent["last_payment_error"]["message"] \
+                    if payment_intent["last_payment_error"]["type"] == "card_error" else "Payment failed"
+                charge_state.save()
+                has_error = True
+            else:
+                try:
+                    payment_intent.confirm()
+                except (stripe.error.CardError, stripe.error.InvalidRequestError) as e:
+                    charge_state.last_error = e["error"]["message"]
+                    charge_state.save()
+
+        if charge_state.ledger_item:
+            if charge_state.ledger_item.state in (
+                    models.LedgerItem.STATE_FAILED
+            ):
+                return redirect(charge_state.full_redirect_uri())
+
+        if charge_state.payment_ledger_item:
+            if charge_state.payment_ledger_item.type in (
+                    models.LedgerItem.TYPE_CARD, models.LedgerItem.TYPE_SEPA
+            ):
+                payment_intent = stripe.PaymentIntent.retrieve(charge_state.payment_ledger_item.type_id)
+                update_from_payment_intent(payment_intent, charge_state.payment_ledger_item)
+            elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_SOURCES:
+                source = stripe.Source.retrieve(charge_state.payment_ledger_item.type_id)
+                update_from_source(source, charge_state.payment_ledger_item)
+            elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CHARGES:
+                charge = stripe.Charge.retrieve(charge_state.payment_ledger_item.type_id)
+                update_from_charge(charge, charge_state.payment_ledger_item)
+            elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CHECKOUT:
+                session = stripe.checkout.Session.retrieve(charge_state.payment_ledger_item.type_id)
+                update_from_charge(session, charge_state.payment_ledger_item)
+
+            if charge_state.payment_ledger_item.state in (
+                    models.LedgerItem.STATE_COMPLETED, models.LedgerItem.STATE_PROCESSING
+            ):
+                if charge_state.ledger_item:
+                    charge_state.ledger_item.state = charge_state.ledger_item.STATE_COMPLETED
+                    charge_state.ledger_item.save()
+
+                return redirect(charge_state.full_redirect_uri())
+            elif charge_state.ledger_item and not has_error:
+                charge_state.last_error = "Payment failed"
+                charge_state.save()
+        elif charge_state.ledger_item and not has_error:
+            charge_state.last_error = "Insufficient funds in your account"
+            charge_state.save()
+
+        form = forms.CompleteChargeForm()
+
+    return render(request, "billing/complete_charge.html", {
+        "charge": charge_state,
+        "form": form
+    })
 
 
 @login_required
@@ -990,17 +1191,11 @@ def edit_subscription(request, s_id):
             subscription.amount_unpaid = decimal.Decimal("0")
             subscription.save()
     else:
-        if "charge_state_id" in request.session:
-            try:
-                tasks.confirm_payment(request.session.pop("charge_state_id"))
-            except tasks.ChargeError as e:
-                request.session["error"] = e.message
+        if "charge_state_id" in request.GET:
+            charge_state = get_object_or_404(models.ChargeState, id=request.GET.get("charge_state_id"))
+            if not charge_state.is_complete():
+                request.session["error"] = charge_state.last_error
                 return redirect('account_details')
-
-            subscription.state = subscription.STATE_ACTIVE
-            subscription.last_billed = timezone.now()
-            subscription.amount_unpaid = decimal.Decimal("0")
-            subscription.save()
 
     return redirect('account_details')
 
@@ -1085,7 +1280,7 @@ def stripe_webhook(request):
     elif event.type in ('source.failed', 'source.chargeable', 'source.cancelled'):
         source = event.data.object
         update_from_source(source)
-    elif event.type in ('charge.pending', 'charge.succeeded'):
+    elif event.type in ('charge.pending', 'charge.succeeded', 'charge.failed', 'charge.succeeded'):
         charge = event.data.object
         update_from_charge(charge)
     elif event.type in ("checkout.session.completed", "checkout.session.async_payment_failed",
@@ -1156,6 +1351,7 @@ def update_from_source(source, ledger_item=None):
         ledger_item.type = models.LedgerItem.TYPE_CHARGES
         ledger_item.state = models.LedgerItem.STATE_PROCESSING
         ledger_item.save()
+        update_from_charge(charge, ledger_item)
     elif source["status"] in ("failed", "cancelled"):
         ledger_item.state = models.LedgerItem.STATE_FAILED
         ledger_item.save()
@@ -1334,8 +1530,8 @@ def charge_user(request, user_id):
     if auth_error:
         return auth_error
 
-    user = get_object_or_404(get_user_model(), username=user_id)
-    account = user.account  # type: models.Account
+    user = get_user_model().objects.filter(username=user_id).first()
+    account = user.account if user else None  # type: models.Account
 
     try:
         data = json.loads(request.body)
@@ -1354,13 +1550,58 @@ def charge_user(request, user_id):
         return HttpResponseBadRequest()
 
     try:
-        tasks.charge_account(account, amount, data["descriptor"], data["id"], can_reject)
+        charge_state = tasks.charge_account(
+            account, amount, data["descriptor"], data["id"], can_reject=can_reject, off_session=off_session
+        )
     except tasks.ChargeError as e:
         return HttpResponse(json.dumps({
-            "message": e.message
+            "message": e.message,
+            "charge_state_id": e.charge_state.id
         }), content_type='application/json', status=402)
+    except tasks.ChargeStateRequiresActionError as e:
+        return HttpResponse(json.dumps({
+            "redirect_uri": e.redirect_url,
+            "charge_state_id": e.charge_state.id
+        }), content_type='application/json', status=302)
 
-    return HttpResponse(status=200)
+    return HttpResponse(json.dumps({
+        "charge_state_id": charge_state.id
+    }), content_type='application/json', status=200)
+
+
+@csrf_exempt
+@require_POST
+def get_charge_state(request, charge_state_id):
+    auth_error = check_api_auth(request)
+    if auth_error:
+        return auth_error
+
+    charge_state = get_object_or_404(models.ChargeState, id=charge_state_id)
+
+    if charge_state.ledger_item:
+        status = charge_state.ledger_item.state
+    elif charge_state.payment_ledger_item:
+        status = charge_state.payment_ledger_item.state
+    else:
+        status = ""
+
+    if status == models.LedgerItem.STATE_PENDING:
+        status = "pending"
+    elif status == models.LedgerItem.STATE_PROCESSING:
+        status = "processing"
+    elif status == models.LedgerItem.STATE_FAILED:
+        status = "failed"
+    elif status == models.LedgerItem.STATE_COMPLETED:
+        status = "completed"
+    else:
+        status = "unknown"
+
+    return HttpResponse(json.dumps({
+        "status": status,
+        "redirect_uri": settings.EXTERNAL_URL_BASE + reverse('complete_charge', args=(charge_state.id,)),
+        "account": charge_state.account.user.username if charge_state.account else None,
+        "last_error": charge_state.last_error
+    }), content_type='application/json', status=200)
 
 
 @csrf_exempt
@@ -1413,8 +1654,8 @@ def subscribe_user(request, user_id):
     if auth_error:
         return auth_error
 
-    user = get_object_or_404(get_user_model(), username=user_id)
-    account = user.account  # type: models.Account
+    user = get_user_model().objects.filter(username=user_id).first()
+    account = user.account if user else None  # type: models.Account
 
     try:
         data = json.loads(request.body)
@@ -1424,6 +1665,8 @@ def subscribe_user(request, user_id):
     if "plan_id" not in data or "initial_usage" not in data:
         return HttpResponseBadRequest()
 
+    can_reject = data.get("can_reject", True)
+    off_session = data.get("off_session", True)
     plan = get_object_or_404(models.RecurringPlan, id=data["plan_id"])
 
     existing_subscription = models.Subscription.objects.filter(plan=plan, account=account).first()
@@ -1436,11 +1679,20 @@ def subscribe_user(request, user_id):
     now = timezone.now()
 
     try:
-        tasks.charge_account(account, initial_charge, plan.name, f"su_{subscription_usage_id}", True)
+        charge_state = tasks.charge_account(
+            account, initial_charge, plan.name, f"su_{subscription_usage_id}",
+            can_reject=can_reject, off_session=off_session
+        )
     except tasks.ChargeError as e:
         return HttpResponse(json.dumps({
-            "message": e.message
+            "message": e.message,
+            "charge_state_id": e.charge_state.id
         }), content_type='application/json', status=402)
+    except tasks.ChargeStateRequiresActionError as e:
+        return HttpResponse(json.dumps({
+            "redirect_uri": e.redirect_url,
+            "charge_state_id": e.charge_state.id
+        }), content_type='application/json', status=302)
 
     subscription = models.Subscription(
         plan=plan,
@@ -1459,7 +1711,8 @@ def subscribe_user(request, user_id):
     subscription_usage.save()
 
     return HttpResponse(json.dumps({
-        "id": str(subscription.id)
+        "id": str(subscription.id),
+        "charge_state_id": charge_state.id
     }), content_type='application/json', status=200)
 
 
@@ -1478,6 +1731,8 @@ def log_usage(request, subscription_id):
     if "usage" not in data:
         return HttpResponseBadRequest()
 
+    can_reject = data.get("can_reject", True)
+    off_session = data.get("off_session", True)
     subscription = get_object_or_404(models.Subscription, id=subscription_id)
     old_usage = subscription.subscriptionusage_set.first()
     subscription_usage_id = uuid.uuid4()
@@ -1488,35 +1743,30 @@ def log_usage(request, subscription_id):
         now = datetime.datetime.utcfromtimestamp(data["timestamp"])
 
     if subscription.plan.billing_type == models.RecurringPlan.TYPE_RECURRING:
-        if subscription.state != subscription.STATE_ACTIVE:
-            try:
-                tasks.charge_account(
-                    subscription.account,
-                    subscription.amount_unpaid,
-                    f"{subscription.plan.name} unpaid amount",
-                    f"sb_{subscription.id}"
-                )
-            except tasks.ChargeError as e:
-                return HttpResponse(json.dumps({
-                    "message": e.message
-                }), content_type='application/json', status=402)
-            subscription.state = subscription.STATE_ACTIVE
-            subscription.save()
-
         charge_diff = subscription.plan.calculate_charge(
             usage_units
         ) - subscription.plan.calculate_charge(
             old_usage.usage_units
         )
 
+        charge_diff += subscription.amount_unpaid
+
         try:
             tasks.charge_account(
-                subscription.account, charge_diff, subscription.plan.name, f"su_{subscription_usage_id}"
+                subscription.account, charge_diff, subscription.plan.name,
+                f"sb_{subscription.id}" if subscription.amount_unpaid else f"su_{subscription_usage_id}",
+                can_reject=can_reject,
+                off_session=off_session
             )
         except tasks.ChargeError as e:
             return HttpResponse(json.dumps({
                 "message": e.message
             }), content_type='application/json', status=402)
+        except tasks.ChargeStateRequiresActionError as e:
+            return HttpResponse(json.dumps({
+                "redirect_uri": e.redirect_url,
+                "charge_state_id": e.charge_state.id
+            }), content_type='application/json', status=302)
 
     subscription_usage = models.SubscriptionUsage(
         id=subscription_usage_id,

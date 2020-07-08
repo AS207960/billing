@@ -38,7 +38,32 @@ class TopUpForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Next'))
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Next', css_class='btn-block'))
+
+
+class CompleteChargeForm(forms.Form):
+    METHOD_CARD = 'C'
+    METHOD_GIROPAY = 'G'
+    METHOD_BANCONTACT = 'A'
+    METHOD_EPS = 'E'
+    METHOD_IDEAL = 'I'
+    METHOD_P24 = 'P'
+    METHODS = (
+        (METHOD_GIROPAY, "giropay"),
+        (METHOD_BANCONTACT, "Bancontact"),
+        (METHOD_EPS, "EPS"),
+        (METHOD_IDEAL, "iDEAL"),
+        (METHOD_P24, "Przelewy24"),
+        (METHOD_CARD, "Card"),
+    )
+
+    method = forms.ChoiceField(choices=METHODS)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Next', css_class='btn-block'))
 
 
 class EditCardForm(forms.Form):
@@ -57,7 +82,7 @@ class EditCardForm(forms.Form):
 
         self.helper = crispy_forms.helper.FormHelper()
         self.helper.add_input(crispy_forms.layout.Hidden("action", "edit"))
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Save'))
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Save', css_class='btn-block'))
 
 
 class SOFORTForm(forms.Form):
@@ -76,7 +101,7 @@ class SOFORTForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Next'))
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Next', css_class='btn-block'))
 
 
 class StatementExportForm(forms.Form):
@@ -105,7 +130,7 @@ class StatementExportForm(forms.Form):
             ),
             'format'
         )
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Export'))
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Export', css_class='btn-block'))
 
 
 class AccountChargeForm(forms.Form):
@@ -118,7 +143,7 @@ class AccountChargeForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Charge'))
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Charge', css_class='btn-block'))
 
 
 class ManualTopUpForm(forms.Form):
@@ -129,4 +154,4 @@ class ManualTopUpForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Top-up'))
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Top-up', css_class='btn-block'))

@@ -5,11 +5,11 @@
         <h1>Account details</h1>
         {% if error %}
             <div class="alert alert-danger">
-                <h4 class="alert-heading">Oh no!</h4>
+                <h4 class="alert-heading">Oh no! &#x1f631;</h4>
                 <p>{{ error }}</p>
             </div>
         {% endif %}
-        <h2>Saved cards</h2>
+        <h2>Saved cards &#x1f4b3;</h2>
         <div class="table-responsive table-striped table-hover table-striped">
             <table class="table">
                 <thead class="thead-dark">
@@ -39,15 +39,15 @@
                                     {% csrf_token %}
                                     <div class="btn-group">
                                         <a href="{% url 'edit_card' card.id %}" class="btn btn-info btn-sm">
-                                            Edit
+                                            &#x1f58a; Edit
                                         </a>
                                         {% if card.id != user.account.default_stripe_payment_method_id %}
                                             <button type="submit" class="btn btn-primary btn-sm" name="action" value="default">
-                                                Make default
+                                                &#x1f4b8; Make default
                                             </button>
                                         {% endif %}
                                         <button type="submit" class="btn btn-danger btn-sm" name="action" value="delete">
-                                            Delete
+                                            &#x1f5d1; Delete
                                         </button>
                                     </div>
                                 </form>
@@ -61,14 +61,14 @@
                 {% endif %}
                 <tr>
                     <td colspan="5" class="text-center">
-                        <a href="{% url 'add_card' %}" class="btn btn-success btn-sm">Add new card</a>
+                        <a href="{% url 'add_card' %}" class="btn btn-success btn-sm">&#x1f195; Add new card &#x1f195;</a>
                     </td>
                 </tr>
                 </tbody>
             </table>
         </div>
         <hr>
-        <h2>BACS Direct Debit Mandates</h2>
+        <h2>BACS Direct Debit Mandates &#x1f3e6;</h2>
         <div class="table-responsive">
             <table class="table table-striped table-hover">
                 <thead class="thead-dark">
@@ -102,14 +102,14 @@
                                 <form action="{% url 'edit_bacs_mandate' mandate.id %}" method="post">
                                     {% csrf_token %}
                                     <div class="btn-group">
-                                        <a href="{{ mandate.mandate.payment_method_details.bacs_debit.url }}" class="btn btn-info btn-sm">View mandate</a>
+                                        <a href="{{ mandate.mandate.payment_method_details.bacs_debit.url }}" class="btn btn-info btn-sm">&#x1f440; View mandate</a>
                                         {% if mandate.mandate_obj.payment_method != user.account.default_stripe_payment_method_id and mandate.mandate_obj.active %}
                                             <button type="submit" class="btn btn-primary btn-sm" name="action" value="default">
-                                                Make default
+                                                &#x1f4b8; Make default
                                             </button>
                                         {% endif %}
                                         <button type="submit" class="btn btn-danger btn-sm" name="action" value="delete">
-                                            Delete
+                                            &#x1f5d1; Delete
                                         </button>
                                     </div>
                                 </form>
@@ -123,14 +123,14 @@
                 {% endif %}
                 <tr>
                     <td colspan="4" class="text-center">
-                        <a href="{% url 'add_bacs_mandate' %}" class="btn btn-success btn-sm">New mandate</a>
+                        <a href="{% url 'add_bacs_mandate' %}" class="btn btn-success btn-sm">&#x1f195; New mandate &#x1f195;</a>
                     </td>
                 </tr>
                 </tbody>
             </table>
         </div>
         <hr>
-        <h2>SEPA Direct Debit Mandates</h2>
+        <h2>SEPA Direct Debit Mandates &#x1f3e6;</h2>
         <div class="table-responsive">
             <table class="table table-striped table-hover">
                 <thead class="thead-dark">
@@ -163,17 +163,17 @@
                             <td>
 {#                                <form action="{% url 'edit_sepa_mandate' mandate.id %}" method="post">#}
 {#                                    {% csrf_token %}#}
-{#                                    <div class="btn-group">#}
-{#                                        <a href="{{ mandate.mandate.payment_method_details.sepa_debit.url }}" class="btn btn-info btn-sm">View mandate</a>#}
+                                    <div class="btn-group">
+                                        <a href="{{ mandate.mandate.payment_method_details.sepa_debit.url }}" class="btn btn-info btn-sm">&#x1f440; View mandate</a>
 {#                                        {% if mandate.mandate_obj.payment_method != user.account.default_stripe_payment_method_id and mandate.mandate_obj.active %}#}
 {#                                            <button type="submit" class="btn btn-primary btn-sm" name="action" value="default">#}
-{#                                                Make default#}
+{#                                                &#x1f4b8; Make default#}
 {#                                            </button>#}
 {#                                        {% endif %}#}
 {#                                        <button type="submit" class="btn btn-danger btn-sm" name="action" value="delete">#}
-{#                                            Delete#}
+{#                                            &#x1f5d1; Delete#}
 {#                                        </button>#}
-{#                                    </div>#}
+                                    </div>
 {#                                </form>#}
                             </td>
                         </tr>
@@ -234,7 +234,7 @@
                                     <div class="btn-group">
                                         {% if subscription.state == "P" %}
                                             <button type="submit" class="btn btn-success btn-sm" name="action" value="retry">
-                                                Retry now
+                                                &#x1f501; Retry now
                                             </button>
                                         {% endif %}
                                     </div>

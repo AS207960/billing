@@ -1,7 +1,7 @@
 import datetime
 import decimal
 import uuid
-
+import urllib.parse
 import inflect
 import stripe
 from dateutil import relativedelta
@@ -120,7 +120,7 @@ class LedgerItem(models.Model):
     )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
     descriptor = models.CharField(max_length=255)
     amount = models.DecimalField(decimal_places=2, max_digits=9, default=0)
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -137,10 +137,7 @@ class LedgerItem(models.Model):
         queryset = self.account.ledgeritem_set \
             .filter(timestamp__lte=self.timestamp)
 
-        if self.state not in (self.STATE_PENDING, self.STATE_PROCESSING):
-            queryset = queryset.filter(state=self.STATE_COMPLETED)
-        else:
-            queryset = queryset.filter(state__in=(self.STATE_COMPLETED, self.STATE_PENDING, self.STATE_PROCESSING))
+        queryset = queryset.filter(Q(state=self.STATE_COMPLETED) | Q(id=self.id))
 
         return (
             queryset
@@ -202,6 +199,28 @@ class ChargeState(models.Model):
         LedgerItem, on_delete=models.SET_NULL, blank=True, null=True, related_name='charge_state_set'
     )
     return_uri = models.URLField(blank=True, null=True)
+    last_error = models.TextField(blank=True, null=True)
+
+    def full_redirect_uri(self):
+        url_parts = list(urllib.parse.urlparse(self.return_uri))
+        query = dict(urllib.parse.parse_qsl(url_parts[4]))
+        query.update({
+            "charge_state_id": self.id
+        })
+        url_parts[4] = urllib.parse.urlencode(query)
+        return urllib.parse.urlunparse(url_parts)
+
+    def is_complete(self):
+        if self.payment_ledger_item:
+            if self.payment_ledger_item.state in (
+                    LedgerItem.STATE_COMPLETED, LedgerItem.STATE_PROCESSING
+            ):
+                return True
+        elif self.ledger_item:
+            if self.account and self.account.balance >= self.ledger_item.amount:
+                return True
+
+        return False
 
 
 class ExchangeRate(models.Model):
