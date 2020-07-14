@@ -854,10 +854,10 @@ def complete_charge(request, charge_id):
     if not charge_state.account:
         charge_state.account = request.user.account
         charge_state.save()
-    if not charge_state.ledger_item.account:
+    if charge_state.ledger_item and not charge_state.ledger_item.account:
         charge_state.ledger_item.account = request.user.account
         charge_state.ledger_item.save()
-    if not charge_state.payment_ledger_item.account:
+    if charge_state.payment_ledger_item and not charge_state.payment_ledger_item.account:
         charge_state.payment_ledger_item.account = request.user.account
         charge_state.payment_ledger_item.save()
 
