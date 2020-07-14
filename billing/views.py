@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
+from django.db import transaction
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest
 from django.core.exceptions import SuspiciousOperation
 from django.conf import settings
@@ -851,112 +852,113 @@ def fail_charge(request, charge_id):
 def complete_charge(request, charge_id):
     charge_state = get_object_or_404(models.ChargeState, id=charge_id)
 
-    if not charge_state.account:
-        charge_state.account = request.user.account
-        charge_state.save()
-    if charge_state.ledger_item and not charge_state.ledger_item.account:
-        charge_state.ledger_item.account = request.user.account
-        charge_state.ledger_item.save()
-    if charge_state.payment_ledger_item and not charge_state.payment_ledger_item.account:
-        charge_state.payment_ledger_item.account = request.user.account
-        charge_state.payment_ledger_item.save()
-
-    if charge_state.account != request.user.account:
-        return HttpResponseForbidden
-
-    if request.method == "POST":
-        if request.POST.get("action") == "cancel":
-            if charge_state.ledger_item and charge_state.ledger_item.state != models.LedgerItem.STATE_COMPLETED:
-                charge_state.ledger_item.state = models.LedgerItem.STATE_FAILED
-                charge_state.ledger_item.save()
-
-            return redirect(charge_state.full_redirect_uri())
-
-        form = forms.CompleteChargeForm(request.POST)
-        if form.is_valid():
-            request.session["charge_state_id"] = str(charge_state.id)
-            request.session["amount"] = str((charge_state.account.balance + charge_state.ledger_item.amount) * -1)
-            if form.cleaned_data['method'] == forms.TopUpForm.METHOD_CARD:
-                return redirect("top_up_card")
-            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_GIROPAY:
-                return redirect("top_up_giropay")
-            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_BANCONTACT:
-                return redirect("top_up_bancontact")
-            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_EPS:
-                return redirect("top_up_eps")
-            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_IDEAL:
-                return redirect("top_up_ideal")
-            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_P24:
-                return redirect("top_up_p24")
-    else:
-        if charge_state.ledger_item and charge_state.account.balance >= (-charge_state.ledger_item.amount):
-            charge_state.ledger_item.state = charge_state.ledger_item.STATE_COMPLETED
+    with transaction.atomic():
+        if not charge_state.account:
+            charge_state.account = request.user.account
+            charge_state.save()
+        if charge_state.ledger_item and not charge_state.ledger_item.account:
+            charge_state.ledger_item.account = request.user.account
             charge_state.ledger_item.save()
+        if charge_state.payment_ledger_item and not charge_state.payment_ledger_item.account:
+            charge_state.payment_ledger_item.account = request.user.account
+            charge_state.payment_ledger_item.save()
 
-            return redirect(charge_state.full_redirect_uri())
+        if charge_state.account != request.user.account:
+            return HttpResponseForbidden
 
-        payment_intent = stripe.PaymentIntent.retrieve(charge_state.payment_ledger_item.type_id) \
-            if (charge_state.payment_ledger_item and
-                charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CARD) \
-            else None
-
-        has_error = False
-        if payment_intent:
-            if payment_intent.get("last_payment_error"):
-                charge_state.last_error = payment_intent["last_payment_error"]["message"] \
-                    if payment_intent["last_payment_error"]["type"] == "card_error" else "Payment failed"
-                charge_state.save()
-                has_error = True
-            else:
-                try:
-                    payment_intent.confirm()
-                except (stripe.error.CardError, stripe.error.InvalidRequestError) as e:
-                    charge_state.last_error = e["error"]["message"]
-                    charge_state.save()
-
-        if charge_state.ledger_item:
-            if charge_state.ledger_item.state in (
-                    models.LedgerItem.STATE_FAILED
-            ):
-                return redirect(charge_state.full_redirect_uri())
-
-        if charge_state.payment_ledger_item:
-            if charge_state.payment_ledger_item.type in (
-                    models.LedgerItem.TYPE_CARD, models.LedgerItem.TYPE_SEPA
-            ):
-                payment_intent = stripe.PaymentIntent.retrieve(charge_state.payment_ledger_item.type_id)
-                update_from_payment_intent(payment_intent, charge_state.payment_ledger_item)
-            elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_SOURCES:
-                source = stripe.Source.retrieve(charge_state.payment_ledger_item.type_id)
-                update_from_source(source, charge_state.payment_ledger_item)
-            elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CHARGES:
-                charge = stripe.Charge.retrieve(charge_state.payment_ledger_item.type_id)
-                update_from_charge(charge, charge_state.payment_ledger_item)
-            elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CHECKOUT:
-                session = stripe.checkout.Session.retrieve(charge_state.payment_ledger_item.type_id)
-                update_from_charge(session, charge_state.payment_ledger_item)
-
-            if charge_state.payment_ledger_item.state in (
-                    models.LedgerItem.STATE_COMPLETED, models.LedgerItem.STATE_PROCESSING
-            ):
-                if charge_state.ledger_item:
-                    charge_state.ledger_item.state = charge_state.ledger_item.STATE_COMPLETED
+        if request.method == "POST":
+            if request.POST.get("action") == "cancel":
+                if charge_state.ledger_item and charge_state.ledger_item.state != models.LedgerItem.STATE_COMPLETED:
+                    charge_state.ledger_item.state = models.LedgerItem.STATE_FAILED
                     charge_state.ledger_item.save()
 
                 return redirect(charge_state.full_redirect_uri())
+
+            form = forms.CompleteChargeForm(request.POST)
+            if form.is_valid():
+                request.session["charge_state_id"] = str(charge_state.id)
+                request.session["amount"] = str((charge_state.account.balance + charge_state.ledger_item.amount) * -1)
+                if form.cleaned_data['method'] == forms.TopUpForm.METHOD_CARD:
+                    return redirect("top_up_card")
+                elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_GIROPAY:
+                    return redirect("top_up_giropay")
+                elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_BANCONTACT:
+                    return redirect("top_up_bancontact")
+                elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_EPS:
+                    return redirect("top_up_eps")
+                elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_IDEAL:
+                    return redirect("top_up_ideal")
+                elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_P24:
+                    return redirect("top_up_p24")
+        else:
+            if charge_state.ledger_item and charge_state.account.balance >= (-charge_state.ledger_item.amount):
+                charge_state.ledger_item.state = charge_state.ledger_item.STATE_COMPLETED
+                charge_state.ledger_item.save()
+
+                return redirect(charge_state.full_redirect_uri())
+
+            payment_intent = stripe.PaymentIntent.retrieve(charge_state.payment_ledger_item.type_id) \
+                if (charge_state.payment_ledger_item and
+                    charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CARD) \
+                else None
+
+            has_error = False
+            if payment_intent:
+                if payment_intent.get("last_payment_error"):
+                    charge_state.last_error = payment_intent["last_payment_error"]["message"] \
+                        if payment_intent["last_payment_error"]["type"] == "card_error" else "Payment failed"
+                    charge_state.save()
+                    has_error = True
+                else:
+                    try:
+                        payment_intent.confirm()
+                    except (stripe.error.CardError, stripe.error.InvalidRequestError) as e:
+                        charge_state.last_error = e["error"]["message"]
+                        charge_state.save()
+
+            if charge_state.ledger_item:
+                if charge_state.ledger_item.state in (
+                        models.LedgerItem.STATE_FAILED
+                ):
+                    return redirect(charge_state.full_redirect_uri())
+
+            if charge_state.payment_ledger_item:
+                if charge_state.payment_ledger_item.type in (
+                        models.LedgerItem.TYPE_CARD, models.LedgerItem.TYPE_SEPA
+                ):
+                    payment_intent = stripe.PaymentIntent.retrieve(charge_state.payment_ledger_item.type_id)
+                    update_from_payment_intent(payment_intent, charge_state.payment_ledger_item)
+                elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_SOURCES:
+                    source = stripe.Source.retrieve(charge_state.payment_ledger_item.type_id)
+                    update_from_source(source, charge_state.payment_ledger_item)
+                elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CHARGES:
+                    charge = stripe.Charge.retrieve(charge_state.payment_ledger_item.type_id)
+                    update_from_charge(charge, charge_state.payment_ledger_item)
+                elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CHECKOUT:
+                    session = stripe.checkout.Session.retrieve(charge_state.payment_ledger_item.type_id)
+                    update_from_charge(session, charge_state.payment_ledger_item)
+
+                if charge_state.payment_ledger_item.state in (
+                        models.LedgerItem.STATE_COMPLETED, models.LedgerItem.STATE_PROCESSING
+                ):
+                    if charge_state.ledger_item:
+                        charge_state.ledger_item.state = charge_state.ledger_item.STATE_COMPLETED
+                        charge_state.ledger_item.save()
+
+                    return redirect(charge_state.full_redirect_uri())
+                elif charge_state.ledger_item and not has_error:
+                    charge_state.last_error = "Payment failed."
+                    charge_state.save()
             elif charge_state.ledger_item and not has_error:
-                charge_state.last_error = "Payment failed."
+                charge_state.last_error = "Insufficient funds in your account."
                 charge_state.save()
-        elif charge_state.ledger_item and not has_error:
-            charge_state.last_error = "Insufficient funds in your account."
-            charge_state.save()
 
-        form = forms.CompleteChargeForm()
+            form = forms.CompleteChargeForm()
 
-    return render(request, "billing/complete_charge.html", {
-        "charge": charge_state,
-        "form": form
-    })
+        return render(request, "billing/complete_charge.html", {
+            "charge": charge_state,
+            "form": form
+        })
 
 
 @login_required
@@ -1274,29 +1276,30 @@ def stripe_webhook(request):
     except stripe.error.SignatureVerificationError:
         return HttpResponseBadRequest()
 
-    if event.type in ('payment_intent.succeeded', 'payment_intent.payment_failed', 'payment_intent.processing'):
-        payment_intent = event.data.object
-        update_from_payment_intent(payment_intent)
-    elif event.type in ('source.failed', 'source.chargeable', 'source.cancelled'):
-        source = event.data.object
-        update_from_source(source)
-    elif event.type in ('charge.pending', 'charge.succeeded', 'charge.failed', 'charge.succeeded'):
-        charge = event.data.object
-        update_from_charge(charge)
-    elif event.type in ("checkout.session.completed", "checkout.session.async_payment_failed",
-                        "checkout.session.async_payment_succeeded"):
-        session = event.data.object
-        update_from_checkout_session(session)
-    elif event.type == "setup_intent.succeeded":
-        session = event.data.object
-        setup_intent_succeeded(session)
-    elif event.type == "mandate.updated":
-        mandate = event.data.object
-        mandate_update(mandate)
-    else:
-        return HttpResponseBadRequest()
+    with transaction.atomic():
+        if event.type in ('payment_intent.succeeded', 'payment_intent.payment_failed', 'payment_intent.processing'):
+            payment_intent = event.data.object
+            update_from_payment_intent(payment_intent)
+        elif event.type in ('source.failed', 'source.chargeable', 'source.cancelled'):
+            source = event.data.object
+            update_from_source(source)
+        elif event.type in ('charge.pending', 'charge.succeeded', 'charge.failed', 'charge.succeeded'):
+            charge = event.data.object
+            update_from_charge(charge)
+        elif event.type in ("checkout.session.completed", "checkout.session.async_payment_failed",
+                            "checkout.session.async_payment_succeeded"):
+            session = event.data.object
+            update_from_checkout_session(session)
+        elif event.type == "setup_intent.succeeded":
+            session = event.data.object
+            setup_intent_succeeded(session)
+        elif event.type == "mandate.updated":
+            mandate = event.data.object
+            mandate_update(mandate)
+        else:
+            return HttpResponseBadRequest()
 
-    return HttpResponse(status=200)
+        return HttpResponse(status=200)
 
 
 def update_from_payment_intent(payment_intent, ledger_item=None):
@@ -1549,25 +1552,27 @@ def charge_user(request, user_id):
     except decimal.InvalidOperation:
         return HttpResponseBadRequest()
 
-    try:
-        charge_state = tasks.charge_account(
-            account, amount, data["descriptor"], data["id"], can_reject=can_reject, off_session=off_session,
-            return_uri=data.get("return_uri")
-        )
-    except tasks.ChargeError as e:
-        return HttpResponse(json.dumps({
-            "message": e.message,
-            "charge_state_id": str(e.charge_state.id)
-        }), content_type='application/json', status=402)
-    except tasks.ChargeStateRequiresActionError as e:
-        return HttpResponse(json.dumps({
-            "redirect_uri": e.redirect_url,
-            "charge_state_id": str(e.charge_state.id)
-        }), content_type='application/json', status=302)
 
-    return HttpResponse(json.dumps({
-        "charge_state_id": str(charge_state.id)
-    }), content_type='application/json', status=200)
+    with transaction.atomic():
+        try:
+            charge_state = tasks.charge_account(
+                account, amount, data["descriptor"], data["id"], can_reject=can_reject, off_session=off_session,
+                return_uri=data.get("return_uri")
+            )
+        except tasks.ChargeError as e:
+            return HttpResponse(json.dumps({
+                "message": e.message,
+                "charge_state_id": str(e.charge_state.id)
+            }), content_type='application/json', status=402)
+        except tasks.ChargeStateRequiresActionError as e:
+            return HttpResponse(json.dumps({
+                "redirect_uri": e.redirect_url,
+                "charge_state_id": str(e.charge_state.id)
+            }), content_type='application/json', status=302)
+
+        return HttpResponse(json.dumps({
+            "charge_state_id": str(charge_state.id)
+        }), content_type='application/json', status=200)
 
 
 @csrf_exempt
@@ -1619,32 +1624,34 @@ def reverse_charge(request):
     if "id" not in data:
         return HttpResponseBadRequest()
 
-    ledger_item = models.LedgerItem.objects.filter(
-        type=models.LedgerItem.TYPE_CHARGE,
-        type_id=data["id"],
-        is_reversal=False
-    ).first()
-    if ledger_item:
-        reversal_ledger_item = models.LedgerItem.objects.filter(
+
+    with transaction.atomic():
+        ledger_item = models.LedgerItem.objects.filter(
             type=models.LedgerItem.TYPE_CHARGE,
             type_id=data["id"],
-            is_reversal=True
-        ).first()  # type: models.LedgerItem
-        if not (reversal_ledger_item and reversal_ledger_item.timestamp >= ledger_item.item):
-
-            new_ledger_item = models.LedgerItem(
-                account=ledger_item.account,
-                descriptor=ledger_item.descriptor,
-                amount=-ledger_item.amount,
+            is_reversal=False
+        ).first()
+        if ledger_item:
+            reversal_ledger_item = models.LedgerItem.objects.filter(
                 type=models.LedgerItem.TYPE_CHARGE,
-                type_id=ledger_item.type_id,
-                timestamp=timezone.now(),
-                state=ledger_item.STATE_COMPLETED,
+                type_id=data["id"],
                 is_reversal=True
-            )
-            new_ledger_item.save()
+            ).first()  # type: models.LedgerItem
+            if not (reversal_ledger_item and reversal_ledger_item.timestamp >= ledger_item.item):
 
-    return HttpResponse(status=200)
+                new_ledger_item = models.LedgerItem(
+                    account=ledger_item.account,
+                    descriptor=ledger_item.descriptor,
+                    amount=-ledger_item.amount,
+                    type=models.LedgerItem.TYPE_CHARGE,
+                    type_id=ledger_item.type_id,
+                    timestamp=timezone.now(),
+                    state=ledger_item.STATE_COMPLETED,
+                    is_reversal=True
+                )
+                new_ledger_item.save()
+
+        return HttpResponse(status=200)
 
 
 @csrf_exempt
@@ -1678,43 +1685,44 @@ def subscribe_user(request, user_id):
     subscription_usage_id = uuid.uuid4()
     now = timezone.now()
 
-    try:
-        charge_state = tasks.charge_account(
-            account, initial_charge, plan.name, f"su_{subscription_usage_id}",
-            can_reject=can_reject, off_session=off_session,
-            return_uri=data.get("return_uri")
+    with transaction.atomic():
+        try:
+            charge_state = tasks.charge_account(
+                account, initial_charge, plan.name, f"su_{subscription_usage_id}",
+                can_reject=can_reject, off_session=off_session,
+                return_uri=data.get("return_uri")
+            )
+        except tasks.ChargeError as e:
+            return HttpResponse(json.dumps({
+                "message": e.message,
+                "charge_state_id": str(e.charge_state.id)
+            }), content_type='application/json', status=402)
+        except tasks.ChargeStateRequiresActionError as e:
+            return HttpResponse(json.dumps({
+                "redirect_uri": e.redirect_url,
+                "charge_state_id": str(e.charge_state.id)
+            }), content_type='application/json', status=302)
+
+        subscription = models.Subscription(
+            plan=plan,
+            account=account,
+            last_billed=now,
+            last_bill_attempted=now,
+            state=models.Subscription.STATE_ACTIVE
         )
-    except tasks.ChargeError as e:
-        return HttpResponse(json.dumps({
-            "message": e.message,
-            "charge_state_id": str(e.charge_state.id)
-        }), content_type='application/json', status=402)
-    except tasks.ChargeStateRequiresActionError as e:
-        return HttpResponse(json.dumps({
-            "redirect_uri": e.redirect_url,
-            "charge_state_id": str(e.charge_state.id)
-        }), content_type='application/json', status=302)
+        subscription.save()
+        subscription_usage = models.SubscriptionUsage(
+            id=subscription_usage_id,
+            subscription=subscription,
+            timestamp=now,
+            usage_units=initial_units
+        )
+        subscription_usage.save()
 
-    subscription = models.Subscription(
-        plan=plan,
-        account=account,
-        last_billed=now,
-        last_bill_attempted=now,
-        state=models.Subscription.STATE_ACTIVE
-    )
-    subscription.save()
-    subscription_usage = models.SubscriptionUsage(
-        id=subscription_usage_id,
-        subscription=subscription,
-        timestamp=now,
-        usage_units=initial_units
-    )
-    subscription_usage.save()
-
-    return HttpResponse(json.dumps({
-        "id": str(subscription.id),
-        "charge_state_id": str(charge_state.id)
-    }), content_type='application/json', status=200)
+        return HttpResponse(json.dumps({
+            "id": str(subscription.id),
+            "charge_state_id": str(charge_state.id)
+        }), content_type='application/json', status=200)
 
 
 @csrf_exempt
@@ -1743,40 +1751,41 @@ def log_usage(request, subscription_id):
     if "timestamp" in data:
         now = datetime.datetime.utcfromtimestamp(data["timestamp"])
 
-    subscription_usage = models.SubscriptionUsage(
-        id=subscription_usage_id,
-        subscription=subscription,
-        timestamp=now,
-        usage_units=usage_units
-    )
-    subscription_usage.save()
-
-    if subscription.plan.billing_type == models.RecurringPlan.TYPE_RECURRING:
-        charge_diff = subscription.plan.calculate_charge(
-            usage_units
-        ) - subscription.plan.calculate_charge(
-            old_usage.usage_units
+    with transaction.atomic():
+        subscription_usage = models.SubscriptionUsage(
+            id=subscription_usage_id,
+            subscription=subscription,
+            timestamp=now,
+            usage_units=usage_units
         )
+        subscription_usage.save()
 
-        charge_diff += subscription.amount_unpaid
-
-        try:
-            tasks.charge_account(
-                subscription.account, charge_diff, subscription.plan.name,
-                f"sb_{subscription.id}" if subscription.amount_unpaid else f"su_{subscription_usage_id}",
-                can_reject=can_reject, off_session=off_session, return_uri=data.get("return_uri")
+        if subscription.plan.billing_type == models.RecurringPlan.TYPE_RECURRING:
+            charge_diff = subscription.plan.calculate_charge(
+                usage_units
+            ) - subscription.plan.calculate_charge(
+                old_usage.usage_units
             )
-        except tasks.ChargeError as e:
-            return HttpResponse(json.dumps({
-                "message": e.message
-            }), content_type='application/json', status=402)
-        except tasks.ChargeStateRequiresActionError as e:
-            return HttpResponse(json.dumps({
-                "redirect_uri": e.redirect_url,
-                "charge_state_id": str(e.charge_state.id)
-            }), content_type='application/json', status=302)
 
-    return HttpResponse(status=200)
+            charge_diff += subscription.amount_unpaid
+
+            try:
+                tasks.charge_account(
+                    subscription.account, charge_diff, subscription.plan.name,
+                    f"sb_{subscription.id}" if subscription.amount_unpaid else f"su_{subscription_usage_id}",
+                    can_reject=can_reject, off_session=off_session, return_uri=data.get("return_uri")
+                )
+            except tasks.ChargeError as e:
+                return HttpResponse(json.dumps({
+                    "message": e.message
+                }), content_type='application/json', status=402)
+            except tasks.ChargeStateRequiresActionError as e:
+                return HttpResponse(json.dumps({
+                    "redirect_uri": e.redirect_url,
+                    "charge_state_id": str(e.charge_state.id)
+                }), content_type='application/json', status=302)
+
+        return HttpResponse(status=200)
 
 
 @csrf_exempt
