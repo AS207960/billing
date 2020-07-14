@@ -157,7 +157,7 @@ def attempt_charge_account(account: models.Account, amount_gbp: decimal.Decimal,
             ledger_item.type_id = err.payment_intent['id']
             ledger_item.state = ledger_item.STATE_FAILED
             ledger_item.save()
-            raise ChargeError(err.payment_intent, message)
+            raise ChargeError(ledger_item, message)
 
         ledger_item.state = ledger_item.STATE_PROCESSING
         ledger_item.type_id = payment_intent['id']

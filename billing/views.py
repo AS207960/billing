@@ -945,10 +945,10 @@ def complete_charge(request, charge_id):
 
                 return redirect(charge_state.full_redirect_uri())
             elif charge_state.ledger_item and not has_error:
-                charge_state.last_error = "Payment failed"
+                charge_state.last_error = "Payment failed."
                 charge_state.save()
         elif charge_state.ledger_item and not has_error:
-            charge_state.last_error = "Insufficient funds in your account"
+            charge_state.last_error = "Insufficient funds in your account."
             charge_state.save()
 
         form = forms.CompleteChargeForm()
@@ -1551,26 +1551,26 @@ def charge_user(request, user_id):
 
     try:
         charge_state = tasks.charge_account(
-            account, amount, data["descriptor"], data["id"], can_reject=can_reject, off_session=off_session
+            account, amount, data["descriptor"], data["id"], can_reject=can_reject, off_session=off_session,
+            return_uri=data.get("return_uri")
         )
     except tasks.ChargeError as e:
         return HttpResponse(json.dumps({
             "message": e.message,
-            "charge_state_id": e.charge_state.id
+            "charge_state_id": str(e.charge_state.id)
         }), content_type='application/json', status=402)
     except tasks.ChargeStateRequiresActionError as e:
         return HttpResponse(json.dumps({
             "redirect_uri": e.redirect_url,
-            "charge_state_id": e.charge_state.id
+            "charge_state_id": str(e.charge_state.id)
         }), content_type='application/json', status=302)
 
     return HttpResponse(json.dumps({
-        "charge_state_id": charge_state.id
+        "charge_state_id": str(charge_state.id)
     }), content_type='application/json', status=200)
 
 
 @csrf_exempt
-@require_POST
 def get_charge_state(request, charge_state_id):
     auth_error = check_api_auth(request)
     if auth_error:
@@ -1681,17 +1681,18 @@ def subscribe_user(request, user_id):
     try:
         charge_state = tasks.charge_account(
             account, initial_charge, plan.name, f"su_{subscription_usage_id}",
-            can_reject=can_reject, off_session=off_session
+            can_reject=can_reject, off_session=off_session,
+            return_uri=data.get("return_uri")
         )
     except tasks.ChargeError as e:
         return HttpResponse(json.dumps({
             "message": e.message,
-            "charge_state_id": e.charge_state.id
+            "charge_state_id": str(e.charge_state.id)
         }), content_type='application/json', status=402)
     except tasks.ChargeStateRequiresActionError as e:
         return HttpResponse(json.dumps({
             "redirect_uri": e.redirect_url,
-            "charge_state_id": e.charge_state.id
+            "charge_state_id": str(e.charge_state.id)
         }), content_type='application/json', status=302)
 
     subscription = models.Subscription(
@@ -1712,7 +1713,7 @@ def subscribe_user(request, user_id):
 
     return HttpResponse(json.dumps({
         "id": str(subscription.id),
-        "charge_state_id": charge_state.id
+        "charge_state_id": str(charge_state.id)
     }), content_type='application/json', status=200)
 
 
@@ -1742,6 +1743,14 @@ def log_usage(request, subscription_id):
     if "timestamp" in data:
         now = datetime.datetime.utcfromtimestamp(data["timestamp"])
 
+    subscription_usage = models.SubscriptionUsage(
+        id=subscription_usage_id,
+        subscription=subscription,
+        timestamp=now,
+        usage_units=usage_units
+    )
+    subscription_usage.save()
+
     if subscription.plan.billing_type == models.RecurringPlan.TYPE_RECURRING:
         charge_diff = subscription.plan.calculate_charge(
             usage_units
@@ -1755,8 +1764,7 @@ def log_usage(request, subscription_id):
             tasks.charge_account(
                 subscription.account, charge_diff, subscription.plan.name,
                 f"sb_{subscription.id}" if subscription.amount_unpaid else f"su_{subscription_usage_id}",
-                can_reject=can_reject,
-                off_session=off_session
+                can_reject=can_reject, off_session=off_session, return_uri=data.get("return_uri")
             )
         except tasks.ChargeError as e:
             return HttpResponse(json.dumps({
@@ -1765,16 +1773,8 @@ def log_usage(request, subscription_id):
         except tasks.ChargeStateRequiresActionError as e:
             return HttpResponse(json.dumps({
                 "redirect_uri": e.redirect_url,
-                "charge_state_id": e.charge_state.id
+                "charge_state_id": str(e.charge_state.id)
             }), content_type='application/json', status=302)
-
-    subscription_usage = models.SubscriptionUsage(
-        id=subscription_usage_id,
-        subscription=subscription,
-        timestamp=now,
-        usage_units=usage_units
-    )
-    subscription_usage.save()
 
     return HttpResponse(status=200)
 
