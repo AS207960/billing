@@ -15,6 +15,7 @@ import json
 import stripe
 import logging
 import sentry_sdk
+from idempotency_key import status
 from sentry_sdk.integrations.django import DjangoIntegration
 
 logging.basicConfig(level=logging.INFO)
@@ -187,3 +188,35 @@ IS_TEST = bool(os.getenv("IS_TEST", False))
 
 XFF_TRUSTED_PROXY_DEPTH = 2
 XFF_STRICT = True
+
+IDEMPOTENCY_KEY = {
+    'ENCODER_CLASS': 'idempotency_key.encoders.BasicKeyEncoder',
+    'CONFLICT_STATUS_CODE': status.HTTP_409_CONFLICT,
+    'HEADER': 'HTTP_IDEMPOTENCY_KEY',
+    'STORAGE': {
+        'CLASS': 'idempotency_key.storage.MemoryKeyStorage',
+        'CACHE_NAME': 'default',
+        'STORE_ON_STATUSES': [
+            status.HTTP_200_OK,
+            status.HTTP_201_CREATED,
+            status.HTTP_202_ACCEPTED,
+            status.HTTP_203_NON_AUTHORITATIVE_INFORMATION,
+            status.HTTP_204_NO_CONTENT,
+            status.HTTP_205_RESET_CONTENT,
+            status.HTTP_206_PARTIAL_CONTENT,
+            status.HTTP_207_MULTI_STATUS,
+            status.HTTP_302_FOUND,
+        ]
+    },
+
+    'LOCK': {
+        'CLASS': 'idempotency_key.locks.basic.ThreadLock',
+        'LOCATION': 'localhost:6379',
+        'NAME': 'BillingLock',
+        'TTL': None,
+        'ENABLE': False,
+        'TIMEOUT': 0.1,
+    },
+
+}
+
