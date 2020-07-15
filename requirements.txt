@@ -12,3 +12,4 @@ python-dateutil
 pywebpush
 django-xff
 inflect
+django-idempotency-key
