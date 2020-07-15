@@ -10,6 +10,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.template import loader
+from idempotency_key.decorators import idempotency_key
 import decimal
 import stripe
 import stripe.error
@@ -1528,6 +1529,7 @@ def convert_currency(request):
 
 @csrf_exempt
 @require_POST
+@idempotency_key(optional=True)
 def charge_user(request, user_id):
     auth_error = check_api_auth(request)
     if auth_error:
@@ -1611,6 +1613,7 @@ def get_charge_state(request, charge_state_id):
 
 @csrf_exempt
 @require_POST
+@idempotency_key(optional=True)
 def reverse_charge(request):
     auth_error = check_api_auth(request)
     if auth_error:
@@ -1656,6 +1659,7 @@ def reverse_charge(request):
 
 @csrf_exempt
 @require_POST
+@idempotency_key(optional=True)
 def subscribe_user(request, user_id):
     auth_error = check_api_auth(request)
     if auth_error:
@@ -1727,6 +1731,7 @@ def subscribe_user(request, user_id):
 
 @csrf_exempt
 @require_POST
+@idempotency_key(optional=True)
 def log_usage(request, subscription_id):
     auth_error = check_api_auth(request)
     if auth_error:
