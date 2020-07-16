@@ -4,6 +4,7 @@ import uuid
 import urllib.parse
 import inflect
 import stripe
+import threading
 from dateutil import relativedelta
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -11,7 +12,6 @@ from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from . import tasks
 
 p = inflect.engine()
 
@@ -67,11 +67,12 @@ class Account(models.Model):
 
     def save(self, *args, **kwargs):
         if self.stripe_customer_id:
-            tasks.as_thread(stripe.Customer.modify)(
-                self.stripe_customer_id,
-                email=self.user.email,
-                name=f"{self.user.first_name} {self.user.last_name}"
-            )
+            t = threading.Thread(target=stripe.Customer.modify, args=(self.stripe_customer_id,), kwargs={
+                "email": self.user.email,
+                "name": f"{self.user.first_name} {self.user.last_name}"
+            })
+            t.setDaemon(True)
+            t.start()
         super().save(*args, **kwargs)
 
 
