@@ -11,6 +11,7 @@ from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from . import tasks
 
 p = inflect.engine()
 
@@ -66,7 +67,7 @@ class Account(models.Model):
 
     def save(self, *args, **kwargs):
         if self.stripe_customer_id:
-            stripe.Customer.modify(
+            tasks.as_thread(stripe.Customer.modify)(
                 self.stripe_customer_id,
                 email=self.user.email,
                 name=f"{self.user.first_name} {self.user.last_name}"

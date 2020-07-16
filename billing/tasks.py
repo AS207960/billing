@@ -9,9 +9,19 @@ import sentry_sdk
 import pywebpush
 import json
 import decimal
+import threading
 import stripe.error
 
 
+def as_thread(fun):
+    def new_fun(*args, **kwargs):
+        t = threading.Thread(target=fun, args=args, kwargs=kwargs)
+        t.setDaemon(True)
+        t.start()
+    return new_fun
+
+
+@as_thread
 def alert_account(account: models.Account, ledger_item: models.LedgerItem, new=False):
     extra = None
     if ledger_item.type == ledger_item.TYPE_CHARGE:
@@ -70,12 +80,11 @@ def alert_account(account: models.Account, ledger_item: models.LedgerItem, new=F
 def send_item_notif(sender, instance: models.LedgerItem, **kwargs):
     old_instance = models.LedgerItem.objects.filter(id=instance.id).first()
     if not old_instance:
-        p = multiprocessing.Process(target=alert_account, args=(instance.account, instance), kwargs={"new": True})
+        alert_account(instance.account, instance, new=True)
     elif old_instance.state != instance.state:
-        p = multiprocessing.Process(target=alert_account, args=(instance.account, instance))
+        alert_account(instance.account, instance)
     else:
         return
-    p.start()
 
     if instance.type == instance.TYPE_CHARGE and \
             instance.state in (instance.STATE_COMPLETED, instance.STATE_PROCESSING) and \

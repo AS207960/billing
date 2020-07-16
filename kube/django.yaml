@@ -109,7 +109,7 @@ spec:
         - name: gunicorn
           image: as207960/billing-django:(version)
           imagePullPolicy: Always
-          command: ["gunicorn", "-w", "8", "-b", "[::]:8000", "--forwarded-allow-ips", "*", "--access-logfile", "-", "as207960_billing.wsgi:application"]
+          command: ["gunicorn", "-w", "8", "-b", "[::]:8000", "--forwarded-allow-ips", "*", "--access-logfile", "-", "--timeout=90", "as207960_billing.wsgi:application"]
           ports:
             - containerPort: 8000
           volumeMounts:
