@@ -27,7 +27,7 @@ apiVersion: v1
 metadata:
   name: billing-django-test-conf
 data:
-  HOST: billing.test.as207960.net
+  HOST: "billing.test.as207960.net,billing-test-nginx"
   DJANGO_SETTINGS_MODULE: as207960_billing.settings
   EXTERNAL_URL: "https://billing.test.as207960.net"
   SENTRY_ENVIRONMENT: "test"

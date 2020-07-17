@@ -117,14 +117,6 @@ class ChargeStateRequiresActionError(Exception):
 
 
 def attempt_charge_account(account: models.Account, amount_gbp: decimal.Decimal, off_session=True, return_uri=None):
-    if not account.default_stripe_payment_method_id:
-        cards = list(stripe.PaymentMethod.list(
-            customer=account.get_stripe_id(),
-            type="card"
-        ).auto_paging_iter())
-        if len(cards):
-            account.default_stripe_payment_method_id = cards[0]["id"]
-
     if account.default_stripe_payment_method_id:
         payment_method = stripe.PaymentMethod.retrieve(account.default_stripe_payment_method_id)
         currency = "gbp"

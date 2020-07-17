@@ -1464,16 +1464,17 @@ def monzo_webhook(request, secret_key):
     if payload.get("type") == 'transaction.created':
         data = payload.get("data")
         ref = data.get("metadata", {}).get("notes")
-        ledger_item = models.LedgerItem.objects.filter(
-            type=models.LedgerItem.TYPE_BACS,
-            type_id__contains=ref,
-            state=models.LedgerItem.STATE_PENDING
-        ).first()
+        if ref:
+            ledger_item = models.LedgerItem.objects.filter(
+                type=models.LedgerItem.TYPE_BACS,
+                type_id__contains=ref,
+                state=models.LedgerItem.STATE_PENDING
+            ).first()
 
-        if ledger_item:
-            ledger_item.amount = decimal.Decimal(data.get("amount")) / decimal.Decimal(100)
-            ledger_item.state = models.LedgerItem.STATE_COMPLETED
-            ledger_item.save()
+            if ledger_item:
+                ledger_item.amount = decimal.Decimal(data.get("amount")) / decimal.Decimal(100)
+                ledger_item.state = models.LedgerItem.STATE_COMPLETED
+                ledger_item.save()
     else:
         return HttpResponseBadRequest()
 
@@ -1553,7 +1554,6 @@ def charge_user(request, user_id):
         amount = decimal.Decimal(data["amount"]) / decimal.Decimal(100)
     except decimal.InvalidOperation:
         return HttpResponseBadRequest()
-
 
     with transaction.atomic():
         try:
