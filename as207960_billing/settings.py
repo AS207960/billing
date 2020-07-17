@@ -187,7 +187,8 @@ PUSH_PRIV_KEY = os.getenv("PUSH_PRIV_KEY")
 IS_TEST = bool(os.getenv("IS_TEST", False))
 
 XFF_TRUSTED_PROXY_DEPTH = 2
-XFF_STRICT = True
+XFF_NO_SPOOFING = True
+XFF_HEADER_REQUIRED = True
 
 IDEMPOTENCY_KEY = {
     'ENCODER_CLASS': 'idempotency_key.encoders.BasicKeyEncoder',
