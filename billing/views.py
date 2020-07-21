@@ -1926,10 +1926,21 @@ def manual_top_up_account(request, account_id):
 def edit_ledger_item(request, item_id):
     ledger_item = get_object_or_404(models.LedgerItem, pk=item_id)
 
-    if request.method == "POST":
-        if request.POST.get("paid") == "true" and ledger_item.type == ledger_item.TYPE_BACS and \
-                ledger_item.state == ledger_item.STATE_PENDING:
-            ledger_item.state = ledger_item.STATE_COMPLETED
-            ledger_item.save()
+    if ledger_item.type == ledger_item.TYPE_BACS and ledger_item.state == ledger_item.STATE_PENDING:
+        if request.method == "POST":
+            form = forms.BACSMarkPaidForm(request.POST)
+            if form.is_valid():
+                ledger_item.amount = form.cleaned_data['amount']
+                ledger_item.state = ledger_item.STATE_COMPLETED
+                ledger_item.save()
+
+                return redirect('view_account', ledger_item.account.user.username)
+        else:
+            form = forms.BACSMarkPaidForm()
+
+        return render(request, "billing/account_bacs_mark_paid.html", {
+            "form": form,
+            "legder_item": ledger_item,
+        })
 
     return redirect('view_account', ledger_item.account.user.username)

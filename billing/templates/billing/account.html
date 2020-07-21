@@ -256,13 +256,9 @@
                             <td>
                                 {% if perms.billing.change_ledgeritem %}
                                     {% if item.type == "F" and item.state == "P" %}
-                                        <form action="{% url 'edit_ledger_item' item.id %}" method="post">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-primary btn-sm" name="paid"
-                                                    value="true">
-                                                Mark paid
-                                            </button>
-                                        </form>
+                                        <a href="{% url 'edit_ledger_item' item.id %}" class="btn btn-primary btn-sm">
+                                            Mark paid
+                                        </a>
                                     {% endif %}
                                 {% endif %}
                             </td>

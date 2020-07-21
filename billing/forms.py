@@ -155,3 +155,13 @@ class ManualTopUpForm(forms.Form):
 
         self.helper = crispy_forms.helper.FormHelper()
         self.helper.add_input(crispy_forms.layout.Submit('submit', 'Top-up', css_class='btn-block'))
+
+
+class BACSMarkPaidForm(forms.Form):
+    amount = forms.DecimalField(decimal_places=2, max_digits=9, label="Final amount (GBP)", min_value=0)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Mark paid', css_class='btn-block'))

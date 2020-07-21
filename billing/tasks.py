@@ -226,7 +226,7 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
                     e.charge_state = charge_state
                     raise e
                 else:
-                    ledger_item.state = ledger_item.STATE_PROCESSING
+                    ledger_item.state = ledger_item.STATE_PENDING
                     ledger_item.save()
                     charge_state.payment_ledger_item = payment_ledger_item
                     charge_state.last_error = e.message
@@ -237,7 +237,7 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
         except RequiresActionError as e:
             payment_ledger_item = e.payment_ledger_item
             if can_reject:
-                ledger_item.state = ledger_item.STATE_PROCESSING
+                ledger_item.state = ledger_item.STATE_PENDING
                 ledger_item.save()
                 charge_state.payment_ledger_item = payment_ledger_item
                 charge_state.save()

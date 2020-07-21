@@ -131,7 +131,7 @@
                                             <a href="{% url 'complete_top_up_checkout' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
                                             <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
                                         </div>
-                                    {% elif item.state == "S" and item.type == "B" and item.charge_state_set.count %}
+                                    {% elif item.state == "P" and item.type == "B" and item.charge_state_set.count %}
                                         <div class="btn-group">
                                             <a href="{% url 'complete_charge' item.charge_state_set.first.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
                                             <a href="{% url 'fail_charge' item.charge_state_set.first.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
