@@ -151,11 +151,12 @@ def attempt_charge_account(account: models.Account, amount_gbp: decimal.Decimal,
                 off_session=off_session,
             )
         except (stripe.error.CardError, stripe.error.InvalidRequestError) as e:
-            err = e.error
-            message = err.message
             if isinstance(e, stripe.error.InvalidRequestError):
                 message = "Payment failed"
-            ledger_item.type_id = err.payment_intent['id']
+            else:
+                err = e.error
+                message = err.message
+                ledger_item.type_id = err.payment_intent['id']
             ledger_item.state = ledger_item.STATE_FAILED
             ledger_item.save()
             raise ChargeError(ledger_item, message)

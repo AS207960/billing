@@ -865,7 +865,7 @@ def complete_charge(request, charge_id):
             charge_state.payment_ledger_item.save()
 
         if charge_state.account != request.user.account:
-            return HttpResponseForbidden
+            return HttpResponseForbidden()
 
         if request.method == "POST":
             if request.POST.get("action") == "cancel":
@@ -911,11 +911,16 @@ def complete_charge(request, charge_id):
                     charge_state.save()
                     has_error = True
                 else:
-                    try:
-                        payment_intent.confirm()
-                    except (stripe.error.CardError, stripe.error.InvalidRequestError) as e:
-                        charge_state.last_error = e["error"]["message"]
-                        charge_state.save()
+                    if payment_intent["state"] != "succeeded":
+                        try:
+                            payment_intent.confirm()
+                        except (stripe.error.CardError, stripe.error.InvalidRequestError) as e:
+                            if isinstance(e, stripe.error.InvalidRequestError):
+                                message = "Payment failed"
+                            else:
+                                message = e["error"]["message"]
+                            charge_state.last_error = e["error"]["message"]
+                            charge_state.save()
 
             if charge_state.ledger_item:
                 if charge_state.ledger_item.state in (
