@@ -11,7 +11,7 @@ def token_saver(token):
     pass
 
 
-if settings.DEBUG:
+if settings.IS_TEST:
     oauth_client = oauthlib.oauth2.BackendApplicationClient(client_id=settings.FLUX_CLIENT_ID)
     oauth_session = requests_oauthlib.OAuth2Session(
         client_id=settings.FLUX_CLIENT_ID,
@@ -31,7 +31,7 @@ if settings.DEBUG:
 
 
 def send_charge_state_notif(charge_state: models.ChargeState):
-    if not settings.DEBUG:
+    if not settings.IS_TEST:
         return
 
     if charge_state.payment_ledger_item and charge_state.ledger_item:
