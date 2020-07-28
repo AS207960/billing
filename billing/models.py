@@ -12,6 +12,7 @@ from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.shortcuts import reverse
 
 p = inflect.engine()
 
@@ -197,20 +198,23 @@ class ChargeState(models.Model):
     payment_ledger_item = models.ForeignKey(
         LedgerItem, on_delete=models.SET_NULL, blank=True, null=True, related_name='charge_state_payment_set'
     )
-    ledger_item = models.ForeignKey(
-        LedgerItem, on_delete=models.SET_NULL, blank=True, null=True, related_name='charge_state_set'
+    ledger_item = models.OneToOneField(
+        LedgerItem, on_delete=models.SET_NULL, blank=True, null=True, related_name='charge_state'
     )
     return_uri = models.URLField(blank=True, null=True)
     last_error = models.TextField(blank=True, null=True)
 
     def full_redirect_uri(self):
-        url_parts = list(urllib.parse.urlparse(self.return_uri))
-        query = dict(urllib.parse.parse_qsl(url_parts[4]))
-        query.update({
-            "charge_state_id": self.id
-        })
-        url_parts[4] = urllib.parse.urlencode(query)
-        return urllib.parse.urlunparse(url_parts)
+        if self.return_uri:
+            url_parts = list(urllib.parse.urlparse(self.return_uri))
+            query = dict(urllib.parse.parse_qsl(url_parts[4]))
+            query.update({
+                "charge_state_id": self.id
+            })
+            url_parts[4] = urllib.parse.urlencode(query)
+            return urllib.parse.urlunparse(url_parts)
+        else:
+            return reverse('dashboard')
 
     def is_complete(self):
         if self.payment_ledger_item:

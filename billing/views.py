@@ -911,7 +911,7 @@ def complete_charge(request, charge_id):
                     charge_state.save()
                     has_error = True
                 else:
-                    if payment_intent["state"] != "succeeded":
+                    if payment_intent["status"] != "succeeded":
                         try:
                             payment_intent.confirm()
                         except (stripe.error.CardError, stripe.error.InvalidRequestError) as e:
@@ -919,7 +919,7 @@ def complete_charge(request, charge_id):
                                 message = "Payment failed"
                             else:
                                 message = e["error"]["message"]
-                            charge_state.last_error = e["error"]["message"]
+                            charge_state.last_error = message
                             charge_state.save()
 
             if charge_state.ledger_item:

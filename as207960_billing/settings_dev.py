@@ -15,7 +15,7 @@ import json
 import stripe
 import logging
 
-# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -144,6 +144,10 @@ with open(os.path.join(BASE_DIR, "secrets/stripe.json")) as f:
     stripe_conf = json.load(f)
 with open(os.path.join(BASE_DIR, "secrets/open_exchange.json")) as f:
     open_exchange_conf = json.load(f)
+with open(os.path.join(BASE_DIR, "secrets/plaid.json")) as f:
+    plaid_conf = json.load(f)
+with open(os.path.join(BASE_DIR, "secrets/flux.json")) as f:
+    flux_conf = json.load(f)
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "AS207960 Billing <billing@as207960.net>"
@@ -158,6 +162,14 @@ stripe.api_key = stripe_conf["server_key"]
 stripe.api_version = "2020-03-02; identity_beta=v3"
 STRIPE_PUBLIC_KEY = stripe_conf["public_key"]
 STRIPE_ENDPOINT_SECRET = stripe_conf["endpoint_secret"]
+
+PLAID_CLIENT_ID = plaid_conf["client_id"]
+PLAID_PUBLIC_KEY = plaid_conf["public_key"]
+PLAID_SECRET = plaid_conf["client_secret"]
+PLAID_ENV = plaid_conf["env"]
+
+FLUX_CLIENT_ID = flux_conf["client_id"]
+FLUX_CLIENT_SECRET = flux_conf["client_secret"]
 
 OPEN_EXCHANGE_API_KEY = open_exchange_conf["key"]
 

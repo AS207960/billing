@@ -145,7 +145,7 @@ kind: CronJob
 metadata:
   name: billing-get-exchange
 spec:
-  schedule: "17 * * * *"
+  schedule: "17 */4 * * *"
   jobTemplate:
     spec:
       template:

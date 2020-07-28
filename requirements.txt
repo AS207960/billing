@@ -13,4 +13,5 @@ pywebpush
 django-xff
 inflect
 django_idempotency_key
-
+plaid-python
+requests-oauthlib

@@ -27,7 +27,7 @@ apiVersion: v1
 metadata:
   name: billing-django-test-conf
 data:
-  HOST: "billing.test.as207960.net,billing-test-nginx"
+  HOST: "billing.test.as207960.net,billing-nginx-test"
   DJANGO_SETTINGS_MODULE: as207960_billing.settings
   EXTERNAL_URL: "https://billing.test.as207960.net"
   SENTRY_ENVIRONMENT: "test"
@@ -59,6 +59,8 @@ spec:
       part: django
   template:
     metadata:
+      annotations:
+        cni.projectcalico.org/ipv6pools: "[\"default-ipv6-ippool\"]"
       labels:
         app: billing-test
         part: django
@@ -147,10 +149,13 @@ metadata:
     app: billing-test
     part: get-exchange
 spec:
-  schedule: "17 * * * *"
+  schedule: "17 */4 * * *"
   jobTemplate:
     spec:
       template:
+        metadata:
+          annotations:
+            cni.projectcalico.org/ipv6pools: "[\"default-ipv6-ippool\"]"
         spec:
           volumes:
             - name: static
@@ -205,6 +210,9 @@ spec:
   jobTemplate:
     spec:
       template:
+        metadata:
+          annotations:
+            cni.projectcalico.org/ipv6pools: "[\"default-ipv6-ippool\"]"
         spec:
           volumes:
             - name: static
@@ -259,6 +267,9 @@ spec:
   jobTemplate:
     spec:
       template:
+        metadata:
+          annotations:
+            cni.projectcalico.org/ipv6pools: "[\"default-ipv6-ippool\"]"
         spec:
           volumes:
             - name: static

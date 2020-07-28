@@ -1,4 +1,5 @@
-from . import models, views
+from . import models, views, flux
+import django.core.exceptions
 from django.shortcuts import reverse
 from django.utils import timezone
 from django.conf import settings
@@ -83,8 +84,6 @@ def send_item_notif(sender, instance: models.LedgerItem, **kwargs):
         alert_account(instance.account, instance, new=True)
     elif old_instance.state != instance.state:
         alert_account(instance.account, instance)
-    else:
-        return
 
     if instance.type == instance.TYPE_CHARGE and \
             instance.state in (instance.STATE_COMPLETED, instance.STATE_PROCESSING) and \
@@ -95,6 +94,15 @@ def send_item_notif(sender, instance: models.LedgerItem, **kwargs):
             subscription.last_billed = timezone.now()
             subscription.amount_unpaid = decimal.Decimal("0")
             subscription.save()
+
+    try:
+        # print(instance.charge_state)
+        as_thread(flux.send_charge_state_notif)(instance.charge_state)
+    except django.core.exceptions.ObjectDoesNotExist:
+        pass
+    for charge in instance.charge_state_payment_set.all():
+        # print(charge)
+        as_thread(flux.send_charge_state_notif)(charge)
 
 
 class ChargeError(Exception):
