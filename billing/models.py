@@ -312,7 +312,7 @@ class RecurringPlan(models.Model):
 
     def calculate_charge(self, units: int) -> decimal.Decimal:
         if self.tiers_type == self.TIERS_VOLUME:
-            tier = self.recurringplantier_set.filter(last_unit__lte=units) \
+            tier = self.recurringplantier_set.filter(Q(last_unit__lte=units) | Q(last_unit__isnull=True)) \
                 .order_by(F('last_unit').desc(nulls_last=True)).first()
             return (tier.price_per_unit * decimal.Decimal(units)) + tier.flat_fee
         elif self.tiers_type == self.TIERS_GRADUATED:
