@@ -103,6 +103,9 @@ spec:
             - secretRef:
                 name: billing-webpush
             - secretRef:
+                name: billing-flux
+              prefix: "FLUX_"
+            - secretRef:
                 name: billing-email
               prefix: "EMAIL_"
       containers:
@@ -136,6 +139,9 @@ spec:
                 name: billing-open-exchange-secret
             - secretRef:
                 name: billing-webpush
+            - secretRef:
+                name: billing-flux
+              prefix: "FLUX_"
             - secretRef:
                 name: billing-email
               prefix: "EMAIL_"
@@ -189,6 +195,9 @@ spec:
                     name: billing-open-exchange-secret
                 - secretRef:
                     name: billing-webpush
+                - secretRef:
+                    name: billing-flux
+                  prefix: "FLUX_"
                 - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
@@ -244,6 +253,9 @@ spec:
                 - secretRef:
                     name: billing-webpush
                 - secretRef:
+                    name: billing-flux
+                  prefix: "FLUX_"
+                - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
           restartPolicy: OnFailure
@@ -297,6 +309,9 @@ spec:
                     name: billing-open-exchange-secret
                 - secretRef:
                     name: billing-webpush
+                - secretRef:
+                    name: billing-flux
+                  prefix: "FLUX_"
                 - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"

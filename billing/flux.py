@@ -11,29 +11,25 @@ def token_saver(token):
     pass
 
 
-if settings.IS_TEST:
-    oauth_client = oauthlib.oauth2.BackendApplicationClient(client_id=settings.FLUX_CLIENT_ID)
-    oauth_session = requests_oauthlib.OAuth2Session(
-        client_id=settings.FLUX_CLIENT_ID,
-        client=oauth_client,
-        auto_refresh_url='https://api.test.tryflux.com/auth/oauth/token',
-        auto_refresh_kwargs={
-            "client_id": settings.FLUX_CLIENT_ID,
-            "client_secret": settings.FLUX_CLIENT_SECRET,
-        },
-        token_updater=token_saver
-    )
-    oauth_session.fetch_token(
-        token_url="https://api.test.tryflux.com/auth/oauth/token",
-        client_id=settings.FLUX_CLIENT_ID,
-        client_secret=settings.FLUX_CLIENT_SECRET
-    )
+oauth_client = oauthlib.oauth2.BackendApplicationClient(client_id=settings.FLUX_CLIENT_ID)
+oauth_session = requests_oauthlib.OAuth2Session(
+    client_id=settings.FLUX_CLIENT_ID,
+    client=oauth_client,
+    auto_refresh_url='https://api.test.tryflux.com/auth/oauth/token' if settings.IS_TEST else 'https://api.tryflux.com/auth/oauth/token',
+    auto_refresh_kwargs={
+        "client_id": settings.FLUX_CLIENT_ID,
+        "client_secret": settings.FLUX_CLIENT_SECRET,
+    },
+    token_updater=token_saver
+)
+oauth_session.fetch_token(
+    token_url='https://api.test.tryflux.com/auth/oauth/token' if settings.IS_TEST else 'https://api.tryflux.com/auth/oauth/token',
+    client_id=settings.FLUX_CLIENT_ID,
+    client_secret=settings.FLUX_CLIENT_SECRET
+)
 
 
 def send_charge_state_notif(charge_state: models.ChargeState):
-    if not settings.IS_TEST:
-        return
-
     if charge_state.payment_ledger_item and charge_state.ledger_item:
         payment_methods = []
         items = []
@@ -106,7 +102,7 @@ def send_charge_state_notif(charge_state: models.ChargeState):
             else "PENDING"
         }
 
-        oauth_session.post("https://webhooks.test.tryflux.com/merchant", json=[
+        oauth_session.post("https://webhooks.test.tryflux.com/merchant" if settings.IS_TEST else "https://webhooks.tryflux.com/merchant", json=[
             request_data
         ])
 
