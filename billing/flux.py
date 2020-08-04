@@ -89,7 +89,7 @@ def send_charge_state_notif(charge_state: models.ChargeState):
             "id": str(charge_state.id),
             "merchantId": "as207960_cyfyngedig",
             "storeId": "online",
-            "amount": -int(charge_state.payment_ledger_item.amount * decimal.Decimal(100)),
+            "amount": int(charge_state.payment_ledger_item.amount * decimal.Decimal(100)),
             "tax": -int(charge_state.ledger_item.amount * decimal.Decimal(20)),
             "currency": "GBP",
             "metadata": {
