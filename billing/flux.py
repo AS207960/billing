@@ -60,11 +60,11 @@ def send_charge_state_notif(charge_state: models.ChargeState):
             })
 
         items.append({
-            "sku": str(charge_state.ledger_item.type_id),
+            "sku": str(charge_state.ledger_item.id),
             "description": charge_state.ledger_item.descriptor,
             "category": charge_state.ledger_item.type,
             "quantity": 1,
-            "id": str(charge_state.ledger_item.type_id),
+            "id": str(charge_state.ledger_item.id),
             "price": -int(charge_state.ledger_item.amount * decimal.Decimal(100)),
             "tax": -int(charge_state.ledger_item.amount * decimal.Decimal(20))
         })
