@@ -1779,21 +1779,22 @@ def log_usage(request, subscription_id):
 
             charge_diff += subscription.amount_unpaid
 
-            try:
-                tasks.charge_account(
-                    subscription.account, charge_diff, subscription.plan.name,
-                    f"sb_{subscription.id}" if subscription.amount_unpaid else f"su_{subscription_usage_id}",
-                    can_reject=can_reject, off_session=off_session, return_uri=data.get("return_uri")
-                )
-            except tasks.ChargeError as e:
-                return HttpResponse(json.dumps({
-                    "message": e.message
-                }), content_type='application/json', status=402)
-            except tasks.ChargeStateRequiresActionError as e:
-                return HttpResponse(json.dumps({
-                    "redirect_uri": e.redirect_url,
-                    "charge_state_id": str(e.charge_state.id)
-                }), content_type='application/json', status=302)
+            if charge_diff != 0:
+                try:
+                    tasks.charge_account(
+                        subscription.account, charge_diff, subscription.plan.name,
+                        f"sb_{subscription.id}" if subscription.amount_unpaid else f"su_{subscription_usage_id}",
+                        can_reject=can_reject, off_session=off_session, return_uri=data.get("return_uri")
+                    )
+                except tasks.ChargeError as e:
+                    return HttpResponse(json.dumps({
+                        "message": e.message
+                    }), content_type='application/json', status=402)
+                except tasks.ChargeStateRequiresActionError as e:
+                    return HttpResponse(json.dumps({
+                        "redirect_uri": e.redirect_url,
+                        "charge_state_id": str(e.charge_state.id)
+                    }), content_type='application/json', status=302)
 
         return HttpResponse(status=200)
 
