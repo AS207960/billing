@@ -36,12 +36,12 @@ data:
   KEYCLOAK_SCOPES: "openid email profile"
   KEYCLOAK_CLIENT_ID: "billing"
   STRIPE_PUBLIC_KEY: "pk_test_HiLhXV0p2Gk4HzYr5S5vpmbi00pSy0cAVL"
-  DB_HOST: "postgres"
+  DB_HOST: "cockroachdb"
   DB_NAME: "billing-test"
   EMAIL_HOST: "mx.postal.as207960.net"
   EMAIL_HOST_USER: "apikey"
   EMAIL_PORT: "25"
-  EMAIL_FROM: "AS207960 Billing [test] <billing-test@as207960.net>"
+  EMAIL_FROM: "=?UTF-8?q?AS207960=20Billing=20[TEST]?= <billing-test@as207960.net>"
   IS_TEST: "true"
 ---
 apiVersion: apps/v1

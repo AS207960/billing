@@ -36,12 +36,12 @@ data:
   KEYCLOAK_SCOPES: "openid email profile"
   KEYCLOAK_CLIENT_ID: "billing"
   STRIPE_PUBLIC_KEY: "pk_live_VLsjEC8QBoN5rQWW0rfVccqW00VzaknDP3"
-  DB_HOST: "postgres"
+  DB_HOST: "cockroach"
   DB_NAME: "billing"
-  EMAIL_HOST: "smtp.sendgrid.net"
+  EMAIL_HOST: "mx.postal.as207960.net"
   EMAIL_HOST_USER: "apikey"
-  EMAIL_PORT: "587"
-  EMAIL_USE_TLS: "true"
+  EMAIL_PORT: "25"
+  EMAIL_FROM: "=?UTF-8?q?AS207960=20Billing?= <billing@as207960.net>"
 ---
 apiVersion: apps/v1
 kind: Deployment
