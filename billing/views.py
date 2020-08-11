@@ -101,7 +101,7 @@ def top_up_card(request):
     else:
         amount = decimal.Decimal(request.session.pop("amount"))
         charge_currency = request.POST.get("currency")
-        if charge_currency not in ("eur", "gbp"):
+        if charge_currency not in ("eur", "gbp", "usd"):
             return HttpResponseBadRequest()
 
         amount_currency = models.ExchangeRate.get_rate('gbp', charge_currency) * amount
