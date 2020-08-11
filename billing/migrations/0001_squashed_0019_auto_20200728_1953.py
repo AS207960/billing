@@ -8,9 +8,6 @@ import uuid
 
 
 class Migration(migrations.Migration):
-
-    replaces = [('billing', '0001_initial'), ('billing', '0002_ledgeritem_state'), ('billing', '0003_auto_20200430_1331'), ('billing', '0004_auto_20200430_1342'), ('billing', '0005_auto_20200430_1853'), ('billing', '0006_exchangerate'), ('billing', '0007_auto_20200514_1032'), ('billing', '0008_remove_recurringplan_descriptor'), ('billing', '0009_auto_20200515_1217'), ('billing', '0010_auto_20200516_1100'), ('billing', '0011_subscription_state'), ('billing', '0012_auto_20200518_1136'), ('billing', '0013_auto_20200612_1422'), ('billing', '0014_auto_20200628_1921'), ('billing', '0015_auto_20200630_1350'), ('billing', '0016_auto_20200702_1437'), ('billing', '0017_chargestate_last_error'), ('billing', '0018_auto_20200707_1255'), ('billing', '0019_auto_20200728_1953')]
-
     initial = True
 
     dependencies = [
