@@ -36,7 +36,7 @@ data:
   KEYCLOAK_SCOPES: "openid email profile"
   KEYCLOAK_CLIENT_ID: "billing"
   STRIPE_PUBLIC_KEY: "pk_live_VLsjEC8QBoN5rQWW0rfVccqW00VzaknDP3"
-  DB_HOST: "cockroach"
+  DB_HOST: "cockroachdb"
   DB_NAME: "billing"
   EMAIL_HOST: "mx.postal.as207960.net"
   EMAIL_HOST_USER: "apikey"

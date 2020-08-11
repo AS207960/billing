@@ -108,6 +108,9 @@ DATABASES = {
         "USER": os.getenv("DB_USER", "billing"),
         "PASSWORD": os.getenv("DB_PASS"),
         "PORT": '26257',
+        "OPTIONS": {
+            "application_name": os.getenv("APP_NAME", "billing")
+        }
     }
 }
 
