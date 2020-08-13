@@ -15,7 +15,8 @@ oauth_client = oauthlib.oauth2.BackendApplicationClient(client_id=settings.FLUX_
 oauth_session = requests_oauthlib.OAuth2Session(
     client_id=settings.FLUX_CLIENT_ID,
     client=oauth_client,
-    auto_refresh_url='https://api.test.tryflux.com/auth/oauth/token' if settings.IS_TEST else 'https://api.tryflux.com/auth/oauth/token',
+    auto_refresh_url='https://api.test.tryflux.com/auth/oauth/token' if settings.IS_TEST
+    else 'https://api.tryflux.com/auth/oauth/token',
     auto_refresh_kwargs={
         "client_id": settings.FLUX_CLIENT_ID,
         "client_secret": settings.FLUX_CLIENT_SECRET,
@@ -23,7 +24,8 @@ oauth_session = requests_oauthlib.OAuth2Session(
     token_updater=token_saver
 )
 oauth_session.fetch_token(
-    token_url='https://api.test.tryflux.com/auth/oauth/token' if settings.IS_TEST else 'https://api.tryflux.com/auth/oauth/token',
+    token_url='https://api.test.tryflux.com/auth/oauth/token' if settings.IS_TEST
+    else 'https://api.tryflux.com/auth/oauth/token',
     client_id=settings.FLUX_CLIENT_ID,
     client_secret=settings.FLUX_CLIENT_SECRET
 )
@@ -102,7 +104,18 @@ def send_charge_state_notif(charge_state: models.ChargeState):
             else "PENDING"
         }
 
-        oauth_session.post("https://webhooks.test.tryflux.com/merchant" if settings.IS_TEST else "https://webhooks.tryflux.com/merchant", json=[
-            request_data
-        ])
+        hook_url = "https://webhooks.test.tryflux.com/merchant" if settings.IS_TEST \
+            else "https://webhooks.tryflux.com/merchant"
+        try:
+            oauth_session.post(hook_url, json=[request_data])
+        except oauthlib.oauth2.rfc6749.errors.InvalidGrantError:
+            oauth_session.fetch_token(
+                token_url='https://api.test.tryflux.com/auth/oauth/token' if settings.IS_TEST
+                else 'https://api.tryflux.com/auth/oauth/token',
+                client_id=settings.FLUX_CLIENT_ID,
+                client_secret=settings.FLUX_CLIENT_SECRET
+            )
+            oauth_session.post(hook_url, json=[request_data])
+
+
 
