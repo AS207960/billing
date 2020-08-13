@@ -1283,7 +1283,8 @@ def stripe_webhook(request):
         return HttpResponseBadRequest()
 
     with transaction.atomic():
-        if event.type in ('payment_intent.succeeded', 'payment_intent.payment_failed', 'payment_intent.processing'):
+        if event.type in ('payment_intent.succeeded', 'payment_intent.payment_failed', 'payment_intent.processing',
+                          'payment_intent.canceled'):
             payment_intent = event.data.object
             update_from_payment_intent(payment_intent)
         elif event.type in ('source.failed', 'source.chargeable', 'source.canceled'):
@@ -1334,7 +1335,8 @@ def update_from_payment_intent(payment_intent, ledger_item=None):
     elif payment_intent["status"] == "processing":
         ledger_item.state = models.LedgerItem.STATE_PROCESSING
         ledger_item.save()
-    elif payment_intent["status"] == "requires_payment_method" and payment_intent["last_payment_error"]:
+    elif (payment_intent["status"] == "requires_payment_method" and payment_intent["last_payment_error"]) \
+            or payment_intent["status"] == "canceled":
         ledger_item.state = models.LedgerItem.STATE_FAILED
         ledger_item.save()
 
