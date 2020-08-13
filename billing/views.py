@@ -1286,7 +1286,7 @@ def stripe_webhook(request):
         if event.type in ('payment_intent.succeeded', 'payment_intent.payment_failed', 'payment_intent.processing'):
             payment_intent = event.data.object
             update_from_payment_intent(payment_intent)
-        elif event.type in ('source.failed', 'source.chargeable', 'source.cancelled'):
+        elif event.type in ('source.failed', 'source.chargeable', 'source.canceled'):
             source = event.data.object
             update_from_source(source)
         elif event.type in ('charge.pending', 'charge.succeeded', 'charge.failed', 'charge.succeeded'):
@@ -1361,7 +1361,7 @@ def update_from_source(source, ledger_item=None):
         ledger_item.state = models.LedgerItem.STATE_PROCESSING
         ledger_item.save()
         update_from_charge(charge, ledger_item)
-    elif source["status"] in ("failed", "cancelled"):
+    elif source["status"] in ("failed", "canceled"):
         ledger_item.state = models.LedgerItem.STATE_FAILED
         ledger_item.save()
 
