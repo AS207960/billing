@@ -864,107 +864,107 @@ def complete_charge(request, charge_id):
             charge_state.payment_ledger_item.account = request.user.account
             charge_state.payment_ledger_item.save()
 
-        if charge_state.account != request.user.account:
-            return HttpResponseForbidden()
+    if charge_state.account != request.user.account:
+        return HttpResponseForbidden()
 
-        if request.method == "POST":
-            if request.POST.get("action") == "cancel":
-                if charge_state.ledger_item and charge_state.ledger_item.state != models.LedgerItem.STATE_COMPLETED:
-                    charge_state.ledger_item.state = models.LedgerItem.STATE_FAILED
+    if request.method == "POST":
+        if request.POST.get("action") == "cancel":
+            if charge_state.ledger_item and charge_state.ledger_item.state != models.LedgerItem.STATE_COMPLETED:
+                charge_state.ledger_item.state = models.LedgerItem.STATE_FAILED
+                charge_state.ledger_item.save()
+
+            return redirect(charge_state.full_redirect_uri())
+
+        form = forms.CompleteChargeForm(request.POST)
+        if form.is_valid():
+            request.session["charge_state_id"] = str(charge_state.id)
+            request.session["amount"] = str((charge_state.account.balance + charge_state.ledger_item.amount) * -1)
+            if form.cleaned_data['method'] == forms.TopUpForm.METHOD_CARD:
+                return redirect("top_up_card")
+            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_GIROPAY:
+                return redirect("top_up_giropay")
+            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_BANCONTACT:
+                return redirect("top_up_bancontact")
+            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_EPS:
+                return redirect("top_up_eps")
+            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_IDEAL:
+                return redirect("top_up_ideal")
+            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_P24:
+                return redirect("top_up_p24")
+    else:
+        if charge_state.ledger_item and charge_state.account.balance >= (-charge_state.ledger_item.amount):
+            charge_state.ledger_item.state = charge_state.ledger_item.STATE_COMPLETED
+            charge_state.ledger_item.save()
+
+            return redirect(charge_state.full_redirect_uri())
+
+        payment_intent = stripe.PaymentIntent.retrieve(charge_state.payment_ledger_item.type_id) \
+            if (charge_state.payment_ledger_item and
+                charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CARD) \
+            else None
+
+        has_error = False
+        if payment_intent:
+            if payment_intent.get("last_payment_error"):
+                charge_state.last_error = payment_intent["last_payment_error"]["message"] \
+                    if payment_intent["last_payment_error"]["type"] == "card_error" else "Payment failed"
+                charge_state.save()
+                has_error = True
+            else:
+                if payment_intent["status"] != "succeeded":
+                    try:
+                        payment_intent.confirm()
+                    except (stripe.error.CardError, stripe.error.InvalidRequestError) as e:
+                        if isinstance(e, stripe.error.InvalidRequestError):
+                            message = "Payment failed"
+                        else:
+                            message = e["error"]["message"]
+                        charge_state.last_error = message
+                        charge_state.save()
+
+        if charge_state.ledger_item:
+            if charge_state.ledger_item.state in (
+                    models.LedgerItem.STATE_FAILED
+            ):
+                return redirect(charge_state.full_redirect_uri())
+
+        if charge_state.payment_ledger_item:
+            if charge_state.payment_ledger_item.type in (
+                    models.LedgerItem.TYPE_CARD, models.LedgerItem.TYPE_SEPA
+            ):
+                payment_intent = stripe.PaymentIntent.retrieve(charge_state.payment_ledger_item.type_id)
+                update_from_payment_intent(payment_intent, charge_state.payment_ledger_item)
+            elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_SOURCES:
+                source = stripe.Source.retrieve(charge_state.payment_ledger_item.type_id)
+                update_from_source(source, charge_state.payment_ledger_item)
+            elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CHARGES:
+                charge = stripe.Charge.retrieve(charge_state.payment_ledger_item.type_id)
+                update_from_charge(charge, charge_state.payment_ledger_item)
+            elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CHECKOUT:
+                session = stripe.checkout.Session.retrieve(charge_state.payment_ledger_item.type_id)
+                update_from_charge(session, charge_state.payment_ledger_item)
+
+            if charge_state.payment_ledger_item.state in (
+                    models.LedgerItem.STATE_COMPLETED, models.LedgerItem.STATE_PROCESSING
+            ):
+                if charge_state.ledger_item:
+                    charge_state.ledger_item.state = charge_state.ledger_item.STATE_COMPLETED
                     charge_state.ledger_item.save()
 
                 return redirect(charge_state.full_redirect_uri())
-
-            form = forms.CompleteChargeForm(request.POST)
-            if form.is_valid():
-                request.session["charge_state_id"] = str(charge_state.id)
-                request.session["amount"] = str((charge_state.account.balance + charge_state.ledger_item.amount) * -1)
-                if form.cleaned_data['method'] == forms.TopUpForm.METHOD_CARD:
-                    return redirect("top_up_card")
-                elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_GIROPAY:
-                    return redirect("top_up_giropay")
-                elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_BANCONTACT:
-                    return redirect("top_up_bancontact")
-                elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_EPS:
-                    return redirect("top_up_eps")
-                elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_IDEAL:
-                    return redirect("top_up_ideal")
-                elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_P24:
-                    return redirect("top_up_p24")
-        else:
-            if charge_state.ledger_item and charge_state.account.balance >= (-charge_state.ledger_item.amount):
-                charge_state.ledger_item.state = charge_state.ledger_item.STATE_COMPLETED
-                charge_state.ledger_item.save()
-
-                return redirect(charge_state.full_redirect_uri())
-
-            payment_intent = stripe.PaymentIntent.retrieve(charge_state.payment_ledger_item.type_id) \
-                if (charge_state.payment_ledger_item and
-                    charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CARD) \
-                else None
-
-            has_error = False
-            if payment_intent:
-                if payment_intent.get("last_payment_error"):
-                    charge_state.last_error = payment_intent["last_payment_error"]["message"] \
-                        if payment_intent["last_payment_error"]["type"] == "card_error" else "Payment failed"
-                    charge_state.save()
-                    has_error = True
-                else:
-                    if payment_intent["status"] != "succeeded":
-                        try:
-                            payment_intent.confirm()
-                        except (stripe.error.CardError, stripe.error.InvalidRequestError) as e:
-                            if isinstance(e, stripe.error.InvalidRequestError):
-                                message = "Payment failed"
-                            else:
-                                message = e["error"]["message"]
-                            charge_state.last_error = message
-                            charge_state.save()
-
-            if charge_state.ledger_item:
-                if charge_state.ledger_item.state in (
-                        models.LedgerItem.STATE_FAILED
-                ):
-                    return redirect(charge_state.full_redirect_uri())
-
-            if charge_state.payment_ledger_item:
-                if charge_state.payment_ledger_item.type in (
-                        models.LedgerItem.TYPE_CARD, models.LedgerItem.TYPE_SEPA
-                ):
-                    payment_intent = stripe.PaymentIntent.retrieve(charge_state.payment_ledger_item.type_id)
-                    update_from_payment_intent(payment_intent, charge_state.payment_ledger_item)
-                elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_SOURCES:
-                    source = stripe.Source.retrieve(charge_state.payment_ledger_item.type_id)
-                    update_from_source(source, charge_state.payment_ledger_item)
-                elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CHARGES:
-                    charge = stripe.Charge.retrieve(charge_state.payment_ledger_item.type_id)
-                    update_from_charge(charge, charge_state.payment_ledger_item)
-                elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CHECKOUT:
-                    session = stripe.checkout.Session.retrieve(charge_state.payment_ledger_item.type_id)
-                    update_from_charge(session, charge_state.payment_ledger_item)
-
-                if charge_state.payment_ledger_item.state in (
-                        models.LedgerItem.STATE_COMPLETED, models.LedgerItem.STATE_PROCESSING
-                ):
-                    if charge_state.ledger_item:
-                        charge_state.ledger_item.state = charge_state.ledger_item.STATE_COMPLETED
-                        charge_state.ledger_item.save()
-
-                    return redirect(charge_state.full_redirect_uri())
-                elif charge_state.ledger_item and not has_error:
-                    charge_state.last_error = "Payment failed."
-                    charge_state.save()
             elif charge_state.ledger_item and not has_error:
-                charge_state.last_error = "Insufficient funds in your account."
+                charge_state.last_error = "Payment failed."
                 charge_state.save()
+        elif charge_state.ledger_item and not has_error:
+            charge_state.last_error = "Insufficient funds in your account."
+            charge_state.save()
 
-            form = forms.CompleteChargeForm()
+        form = forms.CompleteChargeForm()
 
-        return render(request, "billing/complete_charge.html", {
-            "charge": charge_state,
-            "form": form
-        })
+    return render(request, "billing/complete_charge.html", {
+        "charge": charge_state,
+        "form": form
+    })
 
 
 @login_required
