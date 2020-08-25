@@ -1299,7 +1299,8 @@ def stripe_webhook(request):
         elif event.type in ('source.failed', 'source.chargeable', 'source.canceled'):
             source = event.data.object
             update_from_source(source)
-        elif event.type in ('charge.pending', 'charge.succeeded', 'charge.failed', 'charge.succeeded'):
+        elif event.type in ('charge.pending', 'charge.succeeded', 'charge.failed', 'charge.succeeded',
+                            'charge.refunded'):
             charge = event.data.object
             update_from_charge(charge)
         elif event.type in ("checkout.session.completed", "checkout.session.async_payment_failed",
@@ -1391,6 +1392,32 @@ def update_from_charge(charge, ledger_item=None):
         type=models.LedgerItem.TYPE_CHARGES,
         type_id=charge['id']
     ).first() if not ledger_item else ledger_item
+
+    if charge["refunded"]:
+        if not ledger_item and charge['payment_intent']:
+            ledger_item = models.LedgerItem.objects.filter(
+                type=models.LedgerItem.TYPE_CARD,
+                type_id=charge['payment_intent']
+            ).first() if not ledger_item else ledger_item
+
+        if ledger_item:
+            reversal_ledger_item = models.LedgerItem.objects.filter(
+                type=models.LedgerItem.TYPE_CHARGE,
+                type_id=ledger_item.id,
+                is_reversal=True
+            ).first()  # type: models.LedgerItem
+            if not reversal_ledger_item:
+                new_ledger_item = models.LedgerItem(
+                    account=ledger_item.account,
+                    descriptor=ledger_item.descriptor,
+                    amount=-(decimal.Decimal(charge["amount_refunded"]) / decimal.Decimal(100)),
+                    type=models.LedgerItem.TYPE_CHARGE,
+                    type_id=ledger_item.id,
+                    timestamp=timezone.now(),
+                    state=ledger_item.STATE_COMPLETED,
+                    is_reversal=True
+                )
+                new_ledger_item.save()
 
     if not ledger_item:
         return
