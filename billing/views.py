@@ -917,7 +917,7 @@ def complete_charge(request, charge_id):
                         charge_state.payment_ledger_item.save()
                         charge_state.last_error = "Card requires authentication"
                         charge_state.save()
-                        return redirect(charge_state.full_redirect_uri())
+                        has_error = True
                     elif payment_intent["next_action"]["type"] == "redirect_to_url":
                         return redirect(payment_intent["next_action"]["redirect_to_url"]["url"])
                 if payment_intent["status"] != "succeeded":
