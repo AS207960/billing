@@ -911,6 +911,15 @@ def complete_charge(request, charge_id):
                 charge_state.save()
                 has_error = True
             else:
+                if payment_intent["status"] == "requires_action":
+                    if payment_intent["next_action"]["type"] == "use_stripe_sdk":
+                        charge_state.payment_ledger_item.state = charge_state.payment_ledger_item.STATE_FAILED
+                        charge_state.payment_ledger_item.save()
+                        charge_state.last_error = "Card requires authentication"
+                        charge_state.save()
+                        return redirect(charge_state.full_redirect_uri())
+                    elif payment_intent["next_action"]["type"] == "redirect_to_url":
+                        return redirect(payment_intent["next_action"]["redirect_to_url"]["url"])
                 if payment_intent["status"] != "succeeded":
                     try:
                         payment_intent.confirm()
@@ -1284,7 +1293,7 @@ def stripe_webhook(request):
 
     with transaction.atomic():
         if event.type in ('payment_intent.succeeded', 'payment_intent.payment_failed', 'payment_intent.processing',
-                          'payment_intent.canceled'):
+                          'payment_intent.canceled', 'payment_intent.requires_action'):
             payment_intent = event.data.object
             update_from_payment_intent(payment_intent)
         elif event.type in ('source.failed', 'source.chargeable', 'source.canceled'):
@@ -1334,6 +1343,9 @@ def update_from_payment_intent(payment_intent, ledger_item=None):
         ledger_item.save()
     elif payment_intent["status"] == "processing":
         ledger_item.state = models.LedgerItem.STATE_PROCESSING
+        ledger_item.save()
+    elif payment_intent["status"] == "requires_action":
+        ledger_item.state = models.LedgerItem.STATE_PENDING
         ledger_item.save()
     elif (payment_intent["status"] == "requires_payment_method" and payment_intent["last_payment_error"]) \
             or payment_intent["status"] == "canceled":
