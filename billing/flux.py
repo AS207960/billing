@@ -3,6 +3,7 @@ import requests_oauthlib
 import oauthlib.oauth2
 import stripe
 import decimal
+import datetime
 from . import models
 
 
@@ -40,9 +41,19 @@ def send_charge_state_notif(charge_state: models.ChargeState):
             for charge in stripe_payment_intent["charges"]["data"]:
                 if not charge["paid"]:
                     continue
+                events = stripe.Event.list(type="charge.*", created={"gte": charge["created"]})
+                timestamp = charge_state.payment_ledger_item.timestamp
+                for event in events.auto_paging_iter():
+                    if event["type"] != "charge.succeeded":
+                        continue
+                    if event["data"]["object"]["id"] != charge["id"]:
+                        continue
+                    timestamp = datetime.datetime.fromtimestamp(event["created"])
                 if charge["payment_method_details"]["type"] == "card":
                     payment_methods.append({
                         "type": "CARD",
+                        "timestamp": timestamp.isoformat("T"),
+                        "method": charge_state.payment_ledger_item.descriptor,
                         "amount": charge["amount"],
                         "card": {
                             "lastFour": charge["payment_method_details"]["card"]["last4"],
@@ -53,7 +64,9 @@ def send_charge_state_notif(charge_state: models.ChargeState):
                 else:
                     payment_methods.append({
                         "type": "CASH",
+                        "timestamp": timestamp.isoformat("T"),
                         "amount": charge["amount"],
+                        "method": charge_state.payment_ledger_item.descriptor
                     })
         else:
             payment_methods.append({
