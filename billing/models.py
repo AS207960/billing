@@ -5,6 +5,7 @@ import urllib.parse
 import inflect
 import stripe
 import threading
+import as207960_utils.models
 from dateutil import relativedelta
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -122,7 +123,7 @@ class LedgerItem(models.Model):
         (TYPE_MANUAL, "Manual"),
     )
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    id = as207960_utils.models.TypedUUIDField('billing_ledgeritem', primary_key=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
     descriptor = models.CharField(max_length=255)
     amount = models.DecimalField(decimal_places=2, max_digits=9, default=0)
@@ -150,7 +151,7 @@ class LedgerItem(models.Model):
 
 
 class Mandate(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    id = as207960_utils.models.TypedUUIDField('billing_mandate', primary_key=True)
     account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
     mandate_id = models.CharField(max_length=255)
     payment_method = models.CharField(max_length=255)
@@ -193,7 +194,7 @@ class SEPAMandate(Mandate):
 
 
 class ChargeState(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    id = as207960_utils.models.TypedUUIDField('billing_charge', primary_key=True)
     account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
     payment_ledger_item = models.ForeignKey(
         LedgerItem, on_delete=models.SET_NULL, blank=True, null=True, related_name='charge_state_payment_set'
@@ -286,7 +287,7 @@ class RecurringPlan(models.Model):
         (AGGREGATION_LAST_PERIOD, "Last value in period"),
     )
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    id = as207960_utils.models.TypedUUIDField('billing_recurringplan', primary_key=True)
     name = models.CharField(max_length=255)
     unit_label = models.CharField(max_length=255)
     billing_interval_value = models.PositiveSmallIntegerField()
@@ -334,7 +335,7 @@ class RecurringPlan(models.Model):
 
 
 class RecurringPlanTier(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    id = as207960_utils.models.TypedUUIDField('billing_recurringplantier', primary_key=True)
     plan = models.ForeignKey(RecurringPlan, on_delete=models.CASCADE)
     last_unit = models.PositiveIntegerField(blank=True, null=True)
     price_per_unit = models.DecimalField(decimal_places=14, max_digits=28)
@@ -354,7 +355,7 @@ class Subscription(models.Model):
         (STATE_CANCELLED, "Cancelled"),
     )
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    id = as207960_utils.models.TypedUUIDField('billing_subscription', primary_key=True)
     plan = models.ForeignKey(RecurringPlan, on_delete=models.CASCADE)
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     last_billed = models.DateTimeField()
@@ -410,7 +411,7 @@ class Subscription(models.Model):
 
 
 class SubscriptionUsage(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    id = as207960_utils.models.TypedUUIDField('billing_subscriptionusage', primary_key=True)
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE)
     timestamp = models.DateTimeField()
     usage_units = models.PositiveIntegerField()
