@@ -121,4 +121,8 @@ class Command(BaseCommand):
                 subscription.last_billed = now
                 subscription.amount_unpaid = decimal.Decimal("0")
                 subscription.save()
-                mail_success(subscription, charge)
+
+                if charge != 0:
+                    mail_success(subscription, charge)
+                else:
+                    print(f"No charge for {subscription.id}, not mailing")

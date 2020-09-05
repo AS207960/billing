@@ -32,3 +32,23 @@ class SubscriptionAdmin(admin.ModelAdmin):
 
 admin.site.register(models.RecurringPlan, RecurringPlanAdmin)
 admin.site.register(models.Subscription, SubscriptionAdmin)
+
+
+class InvoiceFeeInline(admin.TabularInline):
+    readonly_fields = ('id',)
+    model = models.InvoiceFee
+    extra = 3
+
+
+class InvoiceDiscountInline(admin.TabularInline):
+    readonly_fields = ('id',)
+    model = models.InvoiceDiscount
+    extra = 3
+
+
+class InvoiceAdmin(admin.ModelAdmin):
+    inlines = [InvoiceFeeInline, InvoiceDiscountInline]
+    readonly_fields = ('id',)
+
+
+admin.site.register(models.Invoice, InvoiceAdmin)

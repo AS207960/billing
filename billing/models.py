@@ -1,6 +1,6 @@
 import datetime
 import decimal
-import uuid
+import secrets
 import urllib.parse
 import inflect
 import stripe
@@ -24,7 +24,7 @@ class Account(models.Model):
     default_stripe_payment_method_id = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
-        return str(self.user)
+        return f"{self.user.first_name} {self.user.last_name} {self.user.email} ({self.user.username})"
 
     @property
     def balance(self):
@@ -418,3 +418,43 @@ class SubscriptionUsage(models.Model):
 
     class Meta:
         ordering = ['-timestamp']
+
+
+def make_invoice_ref():
+    return secrets.token_hex(9).upper()
+
+
+class Invoice(models.Model):
+    STATE_DRAFT = "D"
+    STATE_OUTSTANDING = "O"
+    STATE_PAST_DUE = "P"
+    STATE_PAID = "C"
+    STATES = (
+        (STATE_DRAFT, "Draft"),
+        (STATE_OUTSTANDING, "Outstanding"),
+        (STATE_PAST_DUE, "Past due"),
+        (STATE_PAID, "Paid"),
+    )
+
+    id = as207960_utils.models.TypedUUIDField('billing_invoice', primary_key=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    ref = models.CharField(max_length=100, default=make_invoice_ref)
+    state = models.CharField(max_length=1, choices=STATES)
+    description = models.CharField(max_length=255)
+    invoice_date = models.DateTimeField()
+    due_date = models.DateTimeField()
+
+
+class InvoiceFee(models.Model):
+    id = as207960_utils.models.TypedUUIDField('billing_invoicefee', primary_key=True)
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE)
+    descriptor = models.CharField(max_length=255)
+    rate_per_unit = models.DecimalField(decimal_places=14, max_digits=28)
+    units = models.DecimalField(decimal_places=14, max_digits=28)
+
+
+class InvoiceDiscount(models.Model):
+    id = as207960_utils.models.TypedUUIDField('billing_invoicediscount', primary_key=True)
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE)
+    descriptor = models.CharField(max_length=255)
+    amount = models.DecimalField(decimal_places=2, max_digits=9)

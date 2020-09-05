@@ -17,3 +17,4 @@ plaid-python
 requests-oauthlib
 django-cockroachdb==2.2.*
 git+https://github.com/AS207960/python-utils@e345a3168b7040fbf5481e127bfa7cb78e2a8dcc
+pylatex
