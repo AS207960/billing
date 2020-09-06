@@ -16,7 +16,8 @@ def mail_failed(account: models.Account, reason: str):
         subject='Billing reconciliation failed',
         body=txt_content,
         to=[account.user.email],
-        bcc=['q@as207960.net']
+        bcc=['q@as207960.net'],
+        reply_to=['info@as207960.net']
     )
     email.attach_alternative(html_content, "text/html")
     email.send()

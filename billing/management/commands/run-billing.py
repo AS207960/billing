@@ -24,7 +24,8 @@ def mail_success(subscription: models.Subscription, value: decimal.Decimal):
         subject='Subscription payment successful',
         body=txt_content,
         to=[subscription.account.user.email],
-        bcc=['q@as207960.net']
+        bcc=['q@as207960.net'],
+        reply_to=['info@as207960.net']
     )
     email.attach_alternative(html_content, "text/html")
     email.send()
@@ -44,7 +45,8 @@ def mail_past_due(subscription: models.Subscription, value: decimal.Decimal, rea
         subject='Subscription payment failed',
         body=txt_content,
         to=[subscription.account.user.email],
-        bcc=['q@as207960.net']
+        bcc=['q@as207960.net'],
+        reply_to=['info@as207960.net']
     )
     email.attach_alternative(html_content, "text/html")
     email.send()
@@ -64,7 +66,8 @@ def mail_cancelled(subscription: models.Subscription, value: decimal.Decimal, re
         subject='Subscription cancelled',
         body=txt_content,
         to=[subscription.account.user.email],
-        bcc=['q@as207960.net']
+        bcc=['q@as207960.net'],
+        reply_to=['info@as207960.net']
     )
     email.attach_alternative(html_content, "text/html")
     email.send()
