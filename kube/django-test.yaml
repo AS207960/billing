@@ -327,6 +327,66 @@ spec:
                   prefix: "EMAIL_"
           restartPolicy: OnFailure
 ---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: billing-test-update-pending
+  labels:
+    app: billing-test
+    part: update-pending
+spec:
+  schedule: "16 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          annotations:
+            cni.projectcalico.org/ipv6pools: "[\"default-ipv6-ippool\"]"
+        spec:
+          volumes:
+            - name: static
+              persistentVolumeClaim:
+                claimName: billing-django-test-static
+            - name: media
+              persistentVolumeClaim:
+                claimName: billing-django-test-media
+          containers:
+            - name: django
+              image: as207960/billing-django:(version)
+              imagePullPolicy: Always
+              command: ["sh", "-c", "python3 manage.py update-pending"]
+              volumeMounts:
+                - mountPath: "/app/static/"
+                  name: static
+                - mountPath: "/app/media/"
+                  name: media
+              envFrom:
+                - configMapRef:
+                    name: billing-django-test-conf
+                - secretRef:
+                    name: billing-db-test-creds
+                  prefix: "DB_"
+                - secretRef:
+                    name: billing-django-test-secret
+                - secretRef:
+                    name: billing-test-keycloak
+                  prefix: "KEYCLOAK_"
+                - secretRef:
+                    name: billing-stripe-test-secret
+                - secretRef:
+                    name: billing-monzo-test-secret
+                - secretRef:
+                    name: billing-open-exchange-secret
+                - secretRef:
+                    name: billing-webpush
+                - secretRef:
+                    name: billing-flux-test
+                  prefix: "FLUX_"
+                - secretRef:
+                    name: billing-test-email
+                  prefix: "EMAIL_"
+          restartPolicy: OnFailure
+---
 apiVersion: v1
 kind: Service
 metadata:

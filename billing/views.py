@@ -951,7 +951,7 @@ def complete_charge(request, charge_id):
                 update_from_charge(charge, charge_state.payment_ledger_item)
             elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CHECKOUT:
                 session = stripe.checkout.Session.retrieve(charge_state.payment_ledger_item.type_id)
-                update_from_charge(session, charge_state.payment_ledger_item)
+                update_from_checkout_session(session, charge_state.payment_ledger_item)
 
             if charge_state.payment_ledger_item.state in (
                     models.LedgerItem.STATE_COMPLETED, models.LedgerItem.STATE_PROCESSING

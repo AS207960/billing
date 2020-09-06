@@ -317,6 +317,63 @@ spec:
                   prefix: "EMAIL_"
           restartPolicy: OnFailure
 ---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: billing-update-pending
+spec:
+  schedule: "16 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          annotations:
+            cni.projectcalico.org/ipv6pools: "[\"default-ipv6-ippool\"]"
+        spec:
+          volumes:
+            - name: static
+              persistentVolumeClaim:
+                claimName: billing-django-static
+            - name: media
+              persistentVolumeClaim:
+                claimName: billing-django-media
+          containers:
+            - name: django
+              image: as207960/billing-django:(version)
+              imagePullPolicy: Always
+              command: ["sh", "-c", "python3 manage.py update-pending"]
+              volumeMounts:
+                - mountPath: "/app/static/"
+                  name: static
+                - mountPath: "/app/media/"
+                  name: media
+              envFrom:
+                - configMapRef:
+                    name: billing-django-conf
+                - secretRef:
+                    name: billing-db-creds
+                  prefix: "DB_"
+                - secretRef:
+                    name: billing-django-secret
+                - secretRef:
+                    name: billing-keycloak
+                  prefix: "KEYCLOAK_"
+                - secretRef:
+                    name: billing-stripe-secret
+                - secretRef:
+                    name: billing-monzo-secret
+                - secretRef:
+                    name: billing-open-exchange-secret
+                - secretRef:
+                    name: billing-webpush
+                - secretRef:
+                    name: billing-flux
+                  prefix: "FLUX_"
+                - secretRef:
+                    name: billing-email
+                  prefix: "EMAIL_"
+          restartPolicy: OnFailure
+---
 apiVersion: v1
 kind: Service
 metadata:
