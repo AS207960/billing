@@ -920,16 +920,16 @@ def complete_charge(request, charge_id):
                         has_error = True
                     elif payment_intent["next_action"]["type"] == "redirect_to_url":
                         return redirect(payment_intent["next_action"]["redirect_to_url"]["url"])
-                if payment_intent["status"] != "succeeded":
-                    try:
-                        payment_intent.confirm()
-                    except (stripe.error.CardError, stripe.error.InvalidRequestError) as e:
-                        if isinstance(e, stripe.error.InvalidRequestError):
-                            message = "Payment failed"
-                        else:
-                            message = e["error"]["message"]
-                        charge_state.last_error = message
-                        charge_state.save()
+                # if payment_intent["status"] != "succeeded":
+                #     try:
+                #         payment_intent.confirm()
+                #     except (stripe.error.CardError, stripe.error.InvalidRequestError) as e:
+                #         if isinstance(e, stripe.error.InvalidRequestError):
+                #             message = "Payment failed"
+                #         else:
+                #             message = e["error"]["message"]
+                #         charge_state.last_error = message
+                #         charge_state.save()
 
         if charge_state.ledger_item:
             if charge_state.ledger_item.state in (
