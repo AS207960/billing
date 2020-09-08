@@ -166,7 +166,7 @@ OIDC_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET")
 OIDC_SCOPES = os.getenv("KEYCLOAK_SCOPES")
 
 stripe.api_key = os.getenv("STRIPE_SERVER_KEY")
-stripe.api_version = "2020-03-02; identity_beta=v3"
+stripe.api_version = "2020-08-27; identity_beta=v3"
 STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY")
 STRIPE_ENDPOINT_SECRET = os.getenv("STRIPE_ENDPOINT_SECRET")
 
