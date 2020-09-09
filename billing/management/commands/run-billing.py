@@ -8,7 +8,7 @@ import decimal
 from billing import models, tasks
 
 RETRY_INTERVAL = datetime.timedelta(days=1)
-RETRY_TIME = datetime.timedelta(days=1)
+RETRY_TIME = datetime.timedelta(days=7)
 
 
 def mail_success(subscription: models.Subscription, value: decimal.Decimal):
