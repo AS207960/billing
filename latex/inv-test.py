@@ -88,7 +88,7 @@ Account ID: {invoice.account.user.username}""")):
     doc.append(pylatex.Command("date", arguments=invoice.invoice_date.strftime("%a %d %B %Y")))
     doc.append(pylatex.Command("opening", arguments=f"Invoice {invoice.ref}"))
 
-    with doc.create(Invoice("GBP", 20.0)):
+    with doc.create(Invoice("GBP", 0)):
         doc.append(ProjectTitle(invoice.description))
 
         for fee in invoice.invoicefee_set.all():

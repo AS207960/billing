@@ -99,6 +99,8 @@ def top_up_card(request):
             "cards": cards
         })
     else:
+        if "amount" not in request.session:
+            return redirect("top_up")
         amount = decimal.Decimal(request.session.pop("amount"))
         charge_currency = request.POST.get("currency")
         if charge_currency not in ("eur", "gbp", "usd"):
@@ -218,6 +220,8 @@ def complete_top_up_card(request, item_id):
 @login_required
 def top_up_bacs(request):
     account = request.user.account
+    if "amount" not in request.session:
+        return redirect("top_up")
     amount = decimal.Decimal(request.session.pop("amount"))
     ref = secrets.token_hex(9).upper()
 
@@ -280,6 +284,8 @@ def top_up_bacs_direct_debit(request):
             "mandates": list(map(map_mandate, mandates))
         })
     else:
+        if "amount" not in request.session:
+            return redirect("top_up")
         amount = decimal.Decimal(request.session.pop("amount"))
         amount_int = int(amount * decimal.Decimal(100))
 
@@ -392,6 +398,8 @@ def top_up_sepa_direct_debit(request):
             "mandates": list(map(map_mandate, mandates))
         })
     else:
+        if "amount" not in request.session:
+            return redirect("top_up")
         amount = decimal.Decimal(request.session.pop("amount"))
         amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
         amount_int = int(amount_eur * decimal.Decimal(100))
@@ -486,6 +494,8 @@ def top_up_sofort(request):
     if request.method == "POST":
         form = forms.SOFORTForm(request.POST)
         if form.is_valid():
+            if "amount" not in request.session:
+                return redirect("top_up")
             amount = decimal.Decimal(request.session.pop("amount"))
 
             amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
@@ -534,6 +544,8 @@ def top_up_giropay(request):
     else:
         charge_state = None
 
+    if "amount" not in request.session:
+        return redirect("top_up")
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
@@ -578,6 +590,8 @@ def top_up_bancontact(request):
     else:
         charge_state = None
 
+    if "amount" not in request.session:
+        return redirect("top_up")
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
@@ -625,6 +639,8 @@ def top_up_eps(request):
     else:
         charge_state = None
 
+    if "amount" not in request.session:
+        return redirect("top_up")
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
@@ -669,6 +685,8 @@ def top_up_ideal(request):
     else:
         charge_state = None
 
+    if "amount" not in request.session:
+        return redirect("top_up")
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
@@ -708,6 +726,8 @@ def top_up_ideal(request):
 def top_up_multibanco(request):
     account = request.user.account
 
+    if "amount" not in request.session:
+        return redirect("top_up")
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
@@ -746,6 +766,8 @@ def top_up_p24(request):
     else:
         charge_state = None
 
+    if "amount" not in request.session:
+        return redirect("top_up")
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
