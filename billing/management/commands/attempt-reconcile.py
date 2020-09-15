@@ -28,7 +28,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         for account in models.Account.objects.all():
-            if account.processing_and_completed_balance < 1:
+            if account.processing_and_completed_balance < -1:
                 charge = 0 - account.processing_and_completed_balance
                 try:
                     tasks.charge_account(account, charge, "Balance reconciliation", "")
