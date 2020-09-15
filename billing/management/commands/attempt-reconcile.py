@@ -28,7 +28,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         for account in models.Account.objects.all():
-            if account.processing_and_completed_balance < 0:
+            if account.processing_and_completed_balance < 1:
                 charge = 0 - account.processing_and_completed_balance
                 try:
                     tasks.charge_account(account, charge, "Balance reconciliation", "")
@@ -36,4 +36,4 @@ class Command(BaseCommand):
                     print(f"Failed to bill account {account.user.username}: {e.message}")
                     mail_failed(account, e.message)
             else:
-                print(f"Not charging account {account.user.username}: balance not negative")
+                print(f"Not charging account {account.user.username}: balance not negative enough")
