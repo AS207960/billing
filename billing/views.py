@@ -1722,6 +1722,16 @@ def reverse_charge(request):
                     is_reversal=True
                 )
                 new_ledger_item.save()
+        else:
+            ledger_item = models.LedgerItem.objects.filter(
+                type=models.LedgerItem.TYPE_CHARGE,
+                type_id=data["id"],
+                is_reversal=False,
+                state=models.LedgerItem.STATE_PENDING
+            ).first()
+            if ledger_item:
+                ledger_item.state = models.LedgerItem.STATE_FAILED
+                ledger_item.save()
 
         return HttpResponse(status=200)
 
