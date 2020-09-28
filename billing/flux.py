@@ -49,7 +49,7 @@ def send_charge_state_notif(charge_state: models.ChargeState):
                     if event["data"]["object"]["id"] != charge["id"]:
                         continue
                     timestamp = datetime.datetime.fromtimestamp(event["created"])
-                timestamp = timestamp.replace(tzinfo=datetime.timezone.utc)
+                timestamp = timestamp.astimezone(datetime.timezone.utc)
                 if charge["payment_method_details"]["type"] == "card":
                     payment_methods.append({
                         "type": "CARD",
@@ -111,7 +111,7 @@ def send_charge_state_notif(charge_state: models.ChargeState):
             "metadata": {
                 "loyaltyCardId": charge_state.account.user.username
             },
-            "transactionDate": charge_state.ledger_item.timestamp.replace(tzinfo=datetime.timezone.utc).isoformat('T'),
+            "transactionDate": charge_state.ledger_item.timestamp.astimezone(datetime.timezone.utc).isoformat('T'),
             "items": items,
             "payments": payment_methods,
             "status": "SETTLED" if charge_state.payment_ledger_item.state == models.LedgerItem.STATE_COMPLETED
