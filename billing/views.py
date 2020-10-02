@@ -1,27 +1,27 @@
-from django.shortcuts import render, redirect, reverse, get_object_or_404
-from django.contrib.auth.decorators import login_required, permission_required
-from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Q
-from django.db import transaction
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest
-from django.core.exceptions import SuspiciousOperation
-from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.utils import timezone
-from django.template import loader
-from idempotency_key.decorators import idempotency_key
-import decimal
-import stripe
-import stripe.error
-import secrets
-import json
-import uuid
 import csv
-import urllib.parse
+import datetime
+import decimal
+import json
+import secrets
+import uuid
+
 import django_keycloak_auth.clients
 import keycloak.exceptions
-import datetime
+import stripe
+import stripe.error
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required, permission_required
+from django.db import transaction
+from django.db.models import DecimalField, OuterRef, Q, Sum, Subquery
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
+from django.shortcuts import get_object_or_404, redirect, render, reverse
+from django.template import loader
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from idempotency_key.decorators import idempotency_key
+
 from . import forms, models, tasks
 
 
@@ -1254,7 +1254,7 @@ def statement_export(request):
             )
             if form.cleaned_data["format"] == forms.StatementExportForm.FORMAT_CSV:
                 response = HttpResponse(content_type='text/csv; charset=utf-8')
-                response['Content-Disposition'] =\
+                response['Content-Disposition'] = \
                     f"attachment; filename=\"glauca-transactions-{from_date}-{to_date}.csv\""
 
                 fieldnames = ["Transaction ID", "Date", "Time", "Description", "Amount", "Currency"]
@@ -1695,7 +1695,6 @@ def reverse_charge(request):
     if "id" not in data:
         return HttpResponseBadRequest()
 
-
     with transaction.atomic():
         ledger_item = models.LedgerItem.objects.filter(
             type=models.LedgerItem.TYPE_CHARGE,
@@ -1903,8 +1902,18 @@ def save_subscription(request):
 def view_accounts(request):
     accounts = models.Account.objects.all()
 
+    balances = models.LedgerItem.objects.filter(account=OuterRef('pk')) \
+        .filter(state=models.LedgerItem.STATE_COMPLETED) \
+        .order_by().values('account') \
+        .annotate(balance=Sum('amount', output_field=DecimalField())) \
+        .values('balance')
+    total_balance = models.Account.objects\
+                        .annotate(balance=Subquery(balances, output_field=DecimalField()))\
+                        .aggregate(total_balance=Sum('balance')).get('total_balance') or decimal.Decimal(0)
+
     return render(request, "billing/accounts.html", {
-        "accounts": accounts
+        "accounts": accounts,
+        "total_balance": total_balance
     })
 
 
