@@ -173,8 +173,12 @@ def attempt_charge_account(account: models.Account, amount_gbp: decimal.Decimal,
         ledger_item.type_id = payment_intent['id']
 
         if payment_intent["status"] == "requires_action":
+            if off_session:
+                ledger_item.state = ledger_item.STATE_FAILED
+                ledger_item.save()
+                raise ChargeError(ledger_item, "Card requires authentication")
+
             if payment_intent["next_action"]["type"] == "use_stripe_sdk":
-                ledger_item.type_id = payment_intent['id']
                 ledger_item.state = ledger_item.STATE_FAILED
                 ledger_item.save()
                 raise ChargeError(ledger_item, "Card requires authentication")
