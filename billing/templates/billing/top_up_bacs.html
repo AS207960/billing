@@ -1,7 +1,7 @@
 {% extends 'billing/base.html' %}
 {% block content %}
     <div class="container my-3">
-        <h1>Top-up by BACS/Faster Payments/SEPA</h1>
+        <h1>Top-up by bank transfer</h1>
 
         <p>
             Please send <b>{{ amount|floatformat:2 }} GBP</b> (or equivalent in your local currency,
@@ -9,17 +9,21 @@
             with a reference of <b>{{ ref }}</b> to our bank account to complete the payment.
         </p>
 
-        <h2>UK BACS/Faster Payments (British Pound Sterling / Any other currency)</h2>
+        <h2>Information for all</h2>
+        <p>
+            Account holder: <b>AS207960 Cyfyngedig</b><br/>
+            Our address: <b>13 Pen-y-lan Terrace, Caerdydd, Cymru, CF23 9EU, GB</b>
+        </p>
+
+        <h2>UK BACS/Faster Payments/SWIFT (British Pound Sterling / Any other currency)</h2>
         <p>
             Sort Code: <b>04-00-04</b><br/>
             Account Number: <b>53868700</b><br/>
-            Account holder: <b>AS207960 Cyfyngedig</b>
             Bank address: <b>Monzo Bank Limited, Broadwalk House, 5 Appold St, London, EC2A 2DA, GB</b>
         </p>
 
-        <h2>SEPA/SWIFT Payments (Euro)</h2>
+        <h2>SEPA/SWIFT (Euro)</h2>
         <p>
-            Account holder: <b>AS207960 Cyfyngedig</b><br/>
             <!--IBAN: <b>GB06MONZ04000453868700</b><br>-->
             <!--BIC: <b>MONZGB2L</b>-->
             <!--Bank address: <b>Monzo Bank Limited, Broadwalk House, 5 Appold St, London, EC2A 2DA, GB</b>-->
@@ -28,9 +32,8 @@
             Bank address: <b>TransferWise Europe SA, Avenue Marnix 13-17, Brussels 1000, BE</b>
         </p>
 
-        <h2>ACH/Wire Payments (United States Dollar)</h2>
+        <h2>ACH/Wire/SWIFT (United States Dollar)</h2>
         <p>
-            Account holder: <b>AS207960 Cyfyngedig</b><br/>
             Account number: <b>8310843615</b><br/>
             ACH routing number: <b>026073150</b><br/>
             Wire routing number: <b>026073008</b><br/>
@@ -41,7 +44,6 @@
 
         <h2>Australian local bank transfer - No SWIFT (Australian Dollars)</h2>
         <p>
-            Account holder: <b>AS207960 Cyfyngedig</b><br/>
             Account number: <b>515288815</b><br/>
             BSB: <b>802-985</b><br/>
             Bank address: <b>Moneytech Limited, 80 Pacific Highway, Floor 7, North Sydney, AU</b>
@@ -49,14 +51,12 @@
 
         <h2>New Zeland local bank transfer - No SWIFT (New Zeland Dollars)</h2>
         <p>
-            Account holder: <b>AS207960 Cyfyngedig</b><br/>
             Account number: <b>02-1290-0673186-000</b><br/>
             Bank address: <b>Bank of New Zeland, 42 Willis Street, Spark Central, Level 2, Wellington, NZ</b>
         </p>
 
         <h2>Hungarian local bank transfer - No SWIFT (Hurgarian Florint)</h2>
         <p>
-            Account holder: <b>AS207960 Cyfyngedig</b><br/>
             Account number: <b>12600016-18780582-14075044</b><br/>
             IBAN: <b>HU81 1260 0016 1878 0582 1407 5044</b><br/>
             Bank address: <b>Giro ZRT, Vadasz 31, Budapest, HU</b>
@@ -64,7 +64,6 @@
 
         <h2>Romanian local bank transfer - No SWIFT (Romanian Leu)</h2>
         <p>
-            Account holder: <b>AS207960 Cyfyngedig</b><br/>
             IBAN: <b>RO93 BREL 0005 4001 0942 0100</b><br/>
             BIC: <b>BRELROBUXXX</b><br/>
             Bank address: <b>Libra Bank SA, Semilunei Str. 4-6 Sector 2, Bucharest, RO</b>
@@ -72,16 +71,10 @@
 
         <h2>FAST/MEPS - No SWIFT (Singapore Dollar)</h2>
         <p>
-            Account holder: <b>AS207960 Cyfyngedig</b><br/>
             Account number: <b>885-074-736-26</b><br/>
             Bank code: <b>7171</b><br/>
             Branch code: <b>003</b><br/>
             Bank address: <b>DBS Bank Ltd, 12 Marina Boulevard, Singapore 018982</b>
-        </p>
-
-        <h2>Possibly required information for all</h2>
-        <p>
-            Our address: <b>13 Pen-y-lan Terrace, Caerdydd, Cymru, CF23 9EU, GB</b><br>
         </p>
 
         <a href="{% url 'dashboard' %}" class="btn btn-primary">Back to dashboard</a>
