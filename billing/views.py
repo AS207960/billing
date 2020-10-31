@@ -223,7 +223,7 @@ def top_up_bacs(request):
     if "amount" not in request.session:
         return redirect("top_up")
     amount = decimal.Decimal(request.session.pop("amount"))
-    ref = secrets.token_hex(9).upper()
+    ref = secrets.token_hex(6).upper()
 
     ledger_item = models.LedgerItem(
         account=account,
