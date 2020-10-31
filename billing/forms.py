@@ -18,7 +18,7 @@ class TopUpForm(forms.Form):
     METHOD_MULTIBANCO = 'M'
     METHOD_P24 = 'P'
     METHODS = (
-        (METHOD_BACS, "BACS/Faster payments/SEPA"),
+        (METHOD_BACS, "Bank Transfer (US, SG, RO, NZ, HU, EU, AU, GB) / SWIFT"),
         (METHOD_BACS_DIRECT_DEBIT, "BACS Direct Debit"),
         # (METHOD_SEPA_DIRECT_DEBIT, "SEPA Direct Debit"),
         (METHOD_SOFORT, "SOFORT"),
