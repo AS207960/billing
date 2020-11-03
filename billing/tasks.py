@@ -39,7 +39,7 @@ def alert_account(account: models.Account, ledger_item: models.LedgerItem, new=F
     if ledger_item.state == ledger_item.STATE_PENDING:
         extra = "pending"
         emoji = "⌛"
-    elif ledger_item.state == ledger_item.STATE_PROCESSING:
+    elif ledger_item.state in (ledger_item.STATE_PROCESSING, ledger_item.STATE_PROCESSING_CANCELLABLE):
         extra = "processing"
         emoji = "📇"
     elif ledger_item.state == ledger_item.STATE_FAILED:

@@ -51,7 +51,8 @@ class Account(models.Model):
     def pending_balance(self):
         return (
             self.ledgeritem_set
-            .filter(Q(state=LedgerItem.STATE_PENDING) | Q(state=LedgerItem.STATE_PROCESSING))
+            .filter(Q(state=LedgerItem.STATE_PENDING) | Q(state=LedgerItem.STATE_PROCESSING_CANCELLABLE) |
+                    Q(state=LedgerItem.STATE_PROCESSING))
             .aggregate(balance=models.Sum('amount'))
             .get('balance') or decimal.Decimal(0)
         ).quantize(decimal.Decimal('1.00'))
@@ -97,11 +98,13 @@ class NotificationSubscription(models.Model):
 
 class LedgerItem(models.Model):
     STATE_PENDING = "P"
+    STATE_PROCESSING_CANCELLABLE = "A"
     STATE_PROCESSING = "S"
     STATE_FAILED = "F"
     STATE_COMPLETED = "C"
     STATES = (
         (STATE_PENDING, "Pending"),
+        (STATE_PROCESSING_CANCELLABLE, "Processing (cancellable)"),
         (STATE_PROCESSING, "Processing"),
         (STATE_FAILED, "Failed"),
         (STATE_COMPLETED, "Completed"),

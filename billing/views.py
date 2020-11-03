@@ -771,8 +771,11 @@ def top_up_new_ach_complete(request):
         }
     )
 
+    models.ACHMandate.sync_mandate(redirect_flow.links.mandate, account)
+
     if "amount" not in request.session:
-        return redirect("top_up")
+        return redirect("account_details")
+    
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_usd = models.ExchangeRate.get_rate('gbp', 'usd') * amount
     amount_int = int(amount_usd * decimal.Decimal(100))
@@ -787,14 +790,13 @@ def top_up_new_ach_complete(request):
         }
     })
 
-    models.ACHMandate.sync_mandate(redirect_flow.links.mandate, account)
-
     ledger_item = models.LedgerItem(
         account=account,
         descriptor="Top-up by ACH Direct Debit",
         amount=amount,
         type=models.LedgerItem.TYPE_GOCARDLESS,
         type_id=payment.id,
+        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
     )
     ledger_item.save()
 
@@ -812,8 +814,11 @@ def top_up_new_autogiro_complete(request):
         }
     )
 
+    models.AutogiroMandate.sync_mandate(redirect_flow.links.mandate, account)
+
     if "amount" not in request.session:
-        return redirect("top_up")
+        return redirect("account_details")
+    
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_sek = models.ExchangeRate.get_rate('gbp', 'sek') * amount
     amount_int = int(amount_sek * decimal.Decimal(100))
@@ -828,14 +833,13 @@ def top_up_new_autogiro_complete(request):
         }
     })
 
-    models.AutogiroMandate.sync_mandate(redirect_flow.links.mandate, account)
-
     ledger_item = models.LedgerItem(
         account=account,
         descriptor="Top-up by Autogiro",
         amount=amount,
         type=models.LedgerItem.TYPE_GOCARDLESS,
         type_id=payment.id,
+        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
     )
     ledger_item.save()
 
@@ -853,8 +857,11 @@ def top_up_new_bacs_complete(request):
         }
     )
 
+    models.GCBACSMandate.sync_mandate(redirect_flow.links.mandate, account)
+
     if "amount" not in request.session:
-        return redirect("top_up")
+        return redirect("account_details")
+
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_int = int(amount * decimal.Decimal(100))
 
@@ -868,14 +875,13 @@ def top_up_new_bacs_complete(request):
         }
     })
 
-    models.GCBACSMandate.sync_mandate(redirect_flow.links.mandate, account)
-
     ledger_item = models.LedgerItem(
         account=account,
         descriptor="Top-up by BACS Direct Debit",
         amount=amount,
         type=models.LedgerItem.TYPE_GOCARDLESS,
         type_id=payment.id,
+        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
     )
     ledger_item.save()
 
@@ -893,8 +899,11 @@ def top_up_new_becs_complete(request):
         }
     )
 
+    models.BECSMandate.sync_mandate(redirect_flow.links.mandate, account)
+
     if "amount" not in request.session:
-        return redirect("top_up")
+        return redirect("account_details")
+
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_aud = models.ExchangeRate.get_rate('gbp', 'aud') * amount
     amount_int = int(amount_aud * decimal.Decimal(100))
@@ -909,14 +918,13 @@ def top_up_new_becs_complete(request):
         }
     })
 
-    models.BECSMandate.sync_mandate(redirect_flow.links.mandate, account)
-
     ledger_item = models.LedgerItem(
         account=account,
         descriptor="Top-up by BECS Direct Debit",
         amount=amount,
         type=models.LedgerItem.TYPE_GOCARDLESS,
         type_id=payment.id,
+        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
     )
     ledger_item.save()
 
@@ -934,8 +942,11 @@ def top_up_new_becs_nz_complete(request):
         }
     )
 
+    models.BECSNZMandate.sync_mandate(redirect_flow.links.mandate, account)
+
     if "amount" not in request.session:
-        return redirect("top_up")
+        return redirect("account_details")
+
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_nzd = models.ExchangeRate.get_rate('gbp', 'nzd') * amount
     amount_int = int(amount_nzd * decimal.Decimal(100))
@@ -950,14 +961,13 @@ def top_up_new_becs_nz_complete(request):
         }
     })
 
-    models.BECSNZMandate.sync_mandate(redirect_flow.links.mandate, account)
-
     ledger_item = models.LedgerItem(
         account=account,
         descriptor="Top-up by BECS NZ Direct Debit",
         amount=amount,
         type=models.LedgerItem.TYPE_GOCARDLESS,
         type_id=payment.id,
+        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
     )
     ledger_item.save()
 
@@ -975,8 +985,11 @@ def top_up_new_betalingsservice_complete(request):
         }
     )
 
+    models.BetalingsserviceMandate.sync_mandate(redirect_flow.links.mandate, account)
+
     if "amount" not in request.session:
-        return redirect("top_up")
+        return redirect("account_details")
+
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_dkk = models.ExchangeRate.get_rate('gbp', 'dkk') * amount
     amount_int = int(amount_dkk * decimal.Decimal(100))
@@ -991,14 +1004,13 @@ def top_up_new_betalingsservice_complete(request):
         }
     })
 
-    models.BetalingsserviceMandate.sync_mandate(redirect_flow.links.mandate, account)
-
     ledger_item = models.LedgerItem(
         account=account,
         descriptor="Top-up by Betalingsservice",
         amount=amount,
         type=models.LedgerItem.TYPE_GOCARDLESS,
         type_id=payment.id,
+        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
     )
     ledger_item.save()
 
@@ -1016,8 +1028,11 @@ def top_up_new_pad_complete(request):
         }
     )
 
+    models.PADMandate.sync_mandate(redirect_flow.links.mandate, account)
+
     if "amount" not in request.session:
-        return redirect("top_up")
+        return redirect("account_details")
+
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_cad = models.ExchangeRate.get_rate('gbp', 'cad') * amount
     amount_int = int(amount_cad * decimal.Decimal(100))
@@ -1032,14 +1047,13 @@ def top_up_new_pad_complete(request):
         }
     })
 
-    models.PADMandate.sync_mandate(redirect_flow.links.mandate, account)
-
     ledger_item = models.LedgerItem(
         account=account,
         descriptor="Top-up by PAD Direct Debit",
         amount=amount,
         type=models.LedgerItem.TYPE_GOCARDLESS,
         type_id=payment.id,
+        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
     )
     ledger_item.save()
 
@@ -1057,8 +1071,11 @@ def top_up_new_sepa_complete(request):
         }
     )
 
+    models.GCSEPAMandate.sync_mandate(redirect_flow.links.mandate, account)
+
     if "amount" not in request.session:
-        return redirect("top_up")
+        return redirect("account_details")
+
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
     amount_int = int(amount_eur * decimal.Decimal(100))
@@ -1073,14 +1090,13 @@ def top_up_new_sepa_complete(request):
         }
     })
 
-    models.GCSEPAMandate.sync_mandate(redirect_flow.links.mandate, account)
-
     ledger_item = models.LedgerItem(
         account=account,
         descriptor="Top-up by SEPA Direct Debit",
         amount=amount,
         type=models.LedgerItem.TYPE_GOCARDLESS,
         type_id=payment.id,
+        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
     )
     ledger_item.save()
 
@@ -1118,6 +1134,7 @@ def top_up_existing_bacs_direct_debit(request, mandate_id):
             amount=amount,
             type=models.LedgerItem.TYPE_GOCARDLESS,
             type_id=payment.id,
+            state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
         )
         ledger_item.save()
 
@@ -1184,6 +1201,7 @@ def top_up_existing_ach_direct_debit(request, mandate_id):
         amount=amount,
         type=models.LedgerItem.TYPE_GOCARDLESS,
         type_id=payment.id,
+        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
     )
     ledger_item.save()
 
@@ -1221,6 +1239,7 @@ def top_up_existing_autogiro_direct_debit(request, mandate_id):
         amount=amount,
         type=models.LedgerItem.TYPE_GOCARDLESS,
         type_id=payment.id,
+        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
     )
     ledger_item.save()
 
@@ -1258,6 +1277,7 @@ def top_up_existing_becs_direct_debit(request, mandate_id):
         amount=amount,
         type=models.LedgerItem.TYPE_GOCARDLESS,
         type_id=payment.id,
+        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
     )
     ledger_item.save()
 
@@ -1295,6 +1315,7 @@ def top_up_existing_becs_nz_direct_debit(request, mandate_id):
         amount=amount,
         type=models.LedgerItem.TYPE_GOCARDLESS,
         type_id=payment.id,
+        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
     )
     ledger_item.save()
 
@@ -1332,6 +1353,7 @@ def top_up_existing_betalingsservice_direct_debit(request, mandate_id):
         amount=amount,
         type=models.LedgerItem.TYPE_GOCARDLESS,
         type_id=payment.id,
+        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
     )
     ledger_item.save()
 
@@ -1369,6 +1391,7 @@ def top_up_existing_pad_direct_debit(request, mandate_id):
         amount=amount,
         type=models.LedgerItem.TYPE_GOCARDLESS,
         type_id=payment.id,
+        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
     )
     ledger_item.save()
 
@@ -1427,6 +1450,7 @@ def top_up_existing_sepa_direct_debit(request, mandate_id):
             amount=amount,
             type=models.LedgerItem.TYPE_GOCARDLESS,
             type_id=payment.id,
+            state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
         )
         ledger_item.save()
 
@@ -1893,7 +1917,7 @@ def fail_top_up(request, item_id):
     if ledger_item.account != request.user.account:
         return HttpResponseForbidden
 
-    if ledger_item.state != ledger_item.STATE_PENDING:
+    if ledger_item.state not in (ledger_item.STATE_PENDING, ledger_item.STATE_PROCESSING_CANCELLABLE):
         return redirect('dashboard')
 
     if ledger_item.type not in (
@@ -2079,25 +2103,101 @@ def account_details(request):
             type="card"
         ).auto_paging_iter()
 
-    def map_mandate(m):
+    def map_sepa_mandate(m):
         mandate = stripe.Mandate.retrieve(m.mandate_id)
         payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
         return {
             "id": m.id,
-            "mandate_obj": m,
-            "mandate": mandate,
-            "payment_method": payment_method
+            "cc": payment_method["sepa_debit"]["country"],
+            "last4": payment_method["sepa_debit"]["last4"],
+            "bank": payment_method["sepa_debit"]["bank_code"],
+            "ref": mandate["payment_method_details"]["sepa_debit"]["reference"],
+            "url": mandate["payment_method_details"]["sepa_debit"]["url"],
+            "status": "active" if m.active else "revoked",
+            "active": m.active,
+            "is_default": mandate["payment_method"] == account.default_stripe_payment_method_id,
         }
 
-    bacs_mandates = list(map(map_mandate, models.BACSMandate.objects.filter(account=account)))
-    sepa_mandates = list(map(map_mandate, models.SEPAMandate.objects.filter(account=account)))
+    def map_bacs_mandate(m):
+        mandate = stripe.Mandate.retrieve(m.mandate_id)
+        payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
+        return {
+            "id": m.id,
+            "last4": payment_method["bacs_debit"]["last4"],
+            "bank": payment_method["bacs_debit"]["sort_code"],
+            "ref": mandate["payment_method_details"]["bacs_debit"]["reference"],
+            "url": mandate["payment_method_details"]["bacs_debit"]["url"],
+            "status": mandate["payment_method_details"]["bacs_debit"]["network_status"],
+            "active": m.active,
+            "is_default": mandate["payment_method"] == account.default_stripe_payment_method_id,
+        }
+
+    def map_gc_mandate(m, v):
+        mandate = gocardless_client.mandates.get(m.mandate_id)
+        bank_account = gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
+        return {
+            "id": m.id,
+            "cc": bank_account.country_code,
+            "account_type": bank_account.account_type,
+            "last4": bank_account.account_number_ending,
+            "bank": bank_account.bank_name,
+            "ref": mandate.reference,
+            "active": m.active,
+            "status": "pending" if mandate.status in ("pending_customer_approval", "pending_submission", "submitted")
+            else (
+                "refused" if mandate.status == "failed" else "revoked" if mandate.status == "cancelled"
+                else mandate.status
+            ),
+            "url": reverse(v, args=(m.id,))
+        }
+
+    ach_mandates = list(map(
+        lambda m: map_gc_mandate(m, 'view_ach_mandate'),
+        models.ACHMandate.objects.filter(account=account, active=True)
+    ))
+    autogiro_mandates = list(map(
+        lambda m: map_gc_mandate(m, 'view_autogiro_mandate'),
+        models.AutogiroMandate.objects.filter(account=account, active=True)
+    ))
+    bacs_mandates = list(map(map_bacs_mandate, models.BACSMandate.objects.filter(account=account, active=True)))
+    bacs_mandates += list(map(
+        lambda m: map_gc_mandate(m, 'view_bacs_mandate'),
+        models.GCBACSMandate.objects.filter(account=account, active=True))
+    )
+    becs_mandates = list(map(
+        lambda m: map_gc_mandate(m, 'view_becs_mandate'),
+        models.BECSMandate.objects.filter(account=account, active=True)
+    ))
+    becs_nz_mandates = list(map(
+        lambda m: map_gc_mandate(m, 'view_becs_nz_mandate')
+        , models.BECSNZMandate.objects.filter(account=account, active=True)
+    ))
+    betalingsservice_mandates = list(map(
+        lambda m: map_gc_mandate(m, 'view_betalingsservice_mandate'),
+        models.BetalingsserviceMandate.objects.filter(account=account, active=True)
+    ))
+    pad_mandates = list(map(
+        lambda m: map_gc_mandate(m, 'view_pad_mandate'),
+        models.PADMandate.objects.filter(account=account, active=True)
+    ))
+    sepa_mandates = list(map(map_sepa_mandate, models.SEPAMandate.objects.filter(account=account, active=True)))
+    sepa_mandates += list(map(
+        lambda m: map_gc_mandate(m, 'view_sepa_mandate'),
+        models.GCSEPAMandate.objects.filter(account=account, active=True)
+    ))
 
     subscriptions = request.user.account.subscription_set.all()
 
     return render(request, "billing/account_details.html", {
         "account": account,
         "cards": cards,
+        "ach_mandates": ach_mandates,
+        "autogiro_mandates": autogiro_mandates,
         "bacs_mandates": bacs_mandates,
+        "becs_mandates": becs_mandates,
+        "becs_nz_mandates": becs_nz_mandates,
+        "betalingsservice_mandates": betalingsservice_mandates,
+        "pad_mandates": pad_mandates,
         "sepa_mandates": sepa_mandates,
         "subscriptions": subscriptions,
         "error": request.session.pop("error", None)
@@ -2196,28 +2296,9 @@ def edit_card(request, pm_id):
 
 
 @login_required
-def add_bacs_mandate(request):
-    account = request.user.account
-
-    session = stripe.checkout.Session.create(
-        payment_method_types=['bacs_debit'],
-        mode='setup',
-        customer=account.get_stripe_id(),
-        success_url=request.build_absolute_uri(reverse('account_details')),
-        cancel_url=request.build_absolute_uri(reverse('account_details')),
-    )
-
-    return render(request, "billing/top_up_bacs_direct_debit.html", {
-        "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
-        "checkout_id": session["id"],
-        "is_new": True
-    })
-
-
-@login_required
 @require_POST
-def edit_bacs_mandate(request, m_id):
-    mandate = get_object_or_404(models.BACSMandate, id=m_id)
+def edit_sepa_mandate(request, m_id):
+    mandate = get_object_or_404(models.SEPAMandate, id=m_id)
 
     if mandate.account != request.user.account:
         return HttpResponseForbidden()
@@ -2237,40 +2318,341 @@ def edit_bacs_mandate(request, m_id):
 
 
 @login_required
-def add_sepa_mandate(request):
-    account = request.user.account
+def view_ach_mandate(request, m_id):
+    mandate = get_object_or_404(models.ACHMandate, id=m_id)
 
-    setup_intent = stripe.SetupIntent.create(
-        payment_method_types=['sepa_debit'],
-        customer=account.get_stripe_id(),
-    )
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
 
-    return render(request, "billing/top_up_sepa_direct_debit.html", {
-        "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
-        "client_secret": setup_intent["client_secret"],
-        "is_new": True,
-        "is_setup": True
+    pdf = gocardless_client.mandate_pdfs.create(params={
+        "links": {
+            "mandate": mandate.mandate_id
+        }
     })
+
+    return redirect(pdf.url)
+
+
+@login_required
+@require_POST
+def edit_ach_mandate(request, m_id):
+    action = request.POST.get("action")
+
+    mandate = get_object_or_404(models.ACHMandate, id=m_id)
+
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
+
+    if action == "delete":
+        gocardless_client.mandates.cancel(mandate.mandate_id)
+        mandate.active = False
+        mandate.save()
+
+    elif action == "default" and mandate.active:
+        request.user.account.default_gc_mandate_id = mandate.mandate_id
+        request.user.account.default_stripe_payment_method_id = None
+        request.user.account.save()
+
+    return redirect('account_details')
+
+
+@login_required
+def view_autogiro_mandate(request, m_id):
+    mandate = get_object_or_404(models.AutogiroMandate, id=m_id)
+
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
+
+    pdf = gocardless_client.mandate_pdfs.create(params={
+        "links": {
+            "mandate": mandate.mandate_id
+        }
+    })
+
+    return redirect(pdf.url)
+
+
+@login_required
+@require_POST
+def edit_autogiro_mandate(request, m_id):
+    action = request.POST.get("action")
+
+    mandate = get_object_or_404(models.AutogiroMandate, id=m_id)
+
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
+
+    if action == "delete":
+        gocardless_client.mandates.cancel(mandate.mandate_id)
+        mandate.active = False
+        mandate.save()
+
+    elif action == "default" and mandate.active:
+        request.user.account.default_gc_mandate_id = mandate.mandate_id
+        request.user.account.default_stripe_payment_method_id = None
+        request.user.account.save()
+
+    return redirect('account_details')
+
+
+@login_required
+def view_bacs_mandate(request, m_id):
+    mandate = get_object_or_404(models.GCBACSMandate, id=m_id)
+
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
+
+    pdf = gocardless_client.mandate_pdfs.create(params={
+        "links": {
+            "mandate": mandate.mandate_id
+        }
+    })
+
+    return redirect(pdf.url)
+
+
+@login_required
+@require_POST
+def edit_bacs_mandate(request, m_id):
+    action = request.POST.get("action")
+
+    gc_mandate = models.GCBACSMandate.objects.filter(id=m_id).first()
+    if gc_mandate:
+        if gc_mandate.account != request.user.account:
+            return HttpResponseForbidden()
+
+        if action == "delete":
+            gocardless_client.mandates.cancel(gc_mandate.mandate_id)
+            gc_mandate.active = False
+            gc_mandate.save()
+
+        elif action == "default" and gc_mandate.active:
+            request.user.account.default_gc_mandate_id = gc_mandate.mandate_id
+            request.user.account.default_stripe_payment_method_id = None
+            request.user.account.save()
+    else:
+        mandate = get_object_or_404(models.BACSMandate, id=m_id)
+
+        if mandate.account != request.user.account:
+            return HttpResponseForbidden()
+
+        if action == "delete":
+            stripe.PaymentMethod.detach(mandate.payment_method)
+            mandate.delete()
+
+        elif action == "default" and mandate.active:
+            request.user.account.default_stripe_payment_method_id = mandate.payment_method
+            request.user.account.default_gc_mandate_id = None
+            request.user.account.save()
+
+    return redirect('account_details')
+
+
+@login_required
+def view_becs_mandate(request, m_id):
+    mandate = get_object_or_404(models.BECSMandate, id=m_id)
+
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
+
+    pdf = gocardless_client.mandate_pdfs.create(params={
+        "links": {
+            "mandate": mandate.mandate_id
+        }
+    })
+
+    return redirect(pdf.url)
+
+
+@login_required
+@require_POST
+def edit_becs_mandate(request, m_id):
+    action = request.POST.get("action")
+
+    mandate = get_object_or_404(models.BECSMandate, id=m_id)
+
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
+
+    if action == "delete":
+        gocardless_client.mandates.cancel(mandate.mandate_id)
+        mandate.active = False
+        mandate.save()
+
+    elif action == "default" and mandate.active:
+        request.user.account.default_gc_mandate_id = mandate.mandate_id
+        request.user.account.default_stripe_payment_method_id = None
+        request.user.account.save()
+
+    return redirect('account_details')
+
+
+@login_required
+def view_becs_nz_mandate(request, m_id):
+    mandate = get_object_or_404(models.BECSNZMandate, id=m_id)
+
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
+
+    pdf = gocardless_client.mandate_pdfs.create(params={
+        "links": {
+            "mandate": mandate.mandate_id
+        }
+    })
+
+    return redirect(pdf.url)
+
+
+@login_required
+@require_POST
+def edit_becs_nz_mandate(request, m_id):
+    action = request.POST.get("action")
+
+    mandate = get_object_or_404(models.BECSNZMandate, id=m_id)
+
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
+
+    if action == "delete":
+        gocardless_client.mandates.cancel(mandate.mandate_id)
+        mandate.active = False
+        mandate.save()
+
+    elif action == "default" and mandate.active:
+        request.user.account.default_gc_mandate_id = mandate.mandate_id
+        request.user.account.default_stripe_payment_method_id = None
+        request.user.account.save()
+
+    return redirect('account_details')
+
+
+@login_required
+def view_betalingsservice_mandate(request, m_id):
+    mandate = get_object_or_404(models.BetalingsserviceMandate, id=m_id)
+
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
+
+    pdf = gocardless_client.mandate_pdfs.create(params={
+        "links": {
+            "mandate": mandate.mandate_id
+        }
+    })
+
+    return redirect(pdf.url)
+
+
+@login_required
+@require_POST
+def edit_betalingsservice_mandate(request, m_id):
+    action = request.POST.get("action")
+
+    mandate = get_object_or_404(models.BetalingsserviceMandate, id=m_id)
+
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
+
+    if action == "delete":
+        gocardless_client.mandates.cancel(mandate.mandate_id)
+        mandate.active = False
+        mandate.save()
+
+    elif action == "default" and mandate.active:
+        request.user.account.default_gc_mandate_id = mandate.mandate_id
+        request.user.account.default_stripe_payment_method_id = None
+        request.user.account.save()
+
+    return redirect('account_details')
+
+
+@login_required
+def view_pad_mandate(request, m_id):
+    mandate = get_object_or_404(models  .PADMandate, id=m_id)
+
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
+
+    pdf = gocardless_client.mandate_pdfs.create(params={
+        "links": {
+            "mandate": mandate.mandate_id
+        }
+    })
+
+    return redirect(pdf.url)
+
+
+@login_required
+@require_POST
+def edit_pad_mandate(request, m_id):
+    action = request.POST.get("action")
+
+    mandate = get_object_or_404(models.PADMandate, id=m_id)
+
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
+
+    if action == "delete":
+        gocardless_client.mandates.cancel(mandate.mandate_id)
+        mandate.active = False
+        mandate.save()
+
+    elif action == "default" and mandate.active:
+        request.user.account.default_gc_mandate_id = mandate.mandate_id
+        request.user.account.default_stripe_payment_method_id = None
+        request.user.account.save()
+
+    return redirect('account_details')
+
+
+@login_required
+def view_sepa_mandate(request, m_id):
+    mandate = get_object_or_404(models.GCSEPAMandate, id=m_id)
+
+    if mandate.account != request.user.account:
+        return HttpResponseForbidden()
+
+    pdf = gocardless_client.mandate_pdfs.create(params={
+        "links": {
+            "mandate": mandate.mandate_id
+        }
+    })
+
+    return redirect(pdf.url)
 
 
 @login_required
 @require_POST
 def edit_sepa_mandate(request, m_id):
-    mandate = get_object_or_404(models.SEPAMandate, id=m_id)
-
-    if mandate.account != request.user.account:
-        return HttpResponseForbidden()
-
     action = request.POST.get("action")
 
-    if action == "delete":
-        stripe.PaymentMethod.detach(mandate.payment_method)
-        mandate.delete()
+    gc_mandate = models.GCSEPAMandate.objects.filter(id=m_id).first()
+    if gc_mandate:
+        if gc_mandate.account != request.user.account:
+            return HttpResponseForbidden()
 
-    elif action == "default" and mandate.active:
-        request.user.account.default_stripe_payment_method_id = mandate.payment_method
-        request.user.account.default_gc_mandate_id = None
-        request.user.account.save()
+        if action == "delete":
+            gocardless_client.mandates.cancel(gc_mandate.mandate_id)
+            gc_mandate.active = False
+            gc_mandate.save()
+
+        elif action == "default" and gc_mandate.active:
+            request.user.account.default_gc_mandate_id = gc_mandate.mandate_id
+            request.user.account.default_stripe_payment_method_id = None
+            request.user.account.save()
+    else:
+        mandate = get_object_or_404(models.SEPAMandate, id=m_id)
+
+        if mandate.account != request.user.account:
+            return HttpResponseForbidden()
+
+        if action == "delete":
+            stripe.PaymentMethod.detach(mandate.payment_method)
+            mandate.delete()
+
+        elif action == "default" and mandate.active:
+            request.user.account.default_stripe_payment_method_id = mandate.payment_method
+            request.user.account.default_gc_mandate_id = None
+            request.user.account.save()
 
     return redirect('account_details')
 
