@@ -107,6 +107,9 @@ spec:
                 name: billing-flux-test
               prefix: "FLUX_"
             - secretRef:
+                name: billing-gc-test
+              prefix: "GOCARDLESS_"
+            - secretRef:
                 name: billing-test-email
               prefix: "EMAIL_"
       containers:
@@ -143,6 +146,9 @@ spec:
             - secretRef:
                 name: billing-flux-test
               prefix: "FLUX_"
+            - secretRef:
+                name: billing-gc-test
+              prefix: "GOCARDLESS_"
             - secretRef:
                 name: billing-test-email
               prefix: "EMAIL_"
@@ -202,6 +208,9 @@ spec:
                 - secretRef:
                     name: billing-flux-test
                   prefix: "FLUX_"
+                - secretRef:
+                    name: billing-gc-test
+                  prefix: "GOCARDLESS_"
                 - secretRef:
                     name: billing-test-email
                   prefix: "EMAIL_"
@@ -263,6 +272,9 @@ spec:
                     name: billing-flux-test
                   prefix: "FLUX_"
                 - secretRef:
+                    name: billing-gc-test
+                  prefix: "GOCARDLESS_"
+                - secretRef:
                     name: billing-test-email
                   prefix: "EMAIL_"
           restartPolicy: OnFailure
@@ -323,6 +335,9 @@ spec:
                     name: billing-flux-test
                   prefix: "FLUX_"
                 - secretRef:
+                    name: billing-gc-test
+                  prefix: "GOCARDLESS_"
+                - secretRef:
                     name: billing-test-email
                   prefix: "EMAIL_"
           restartPolicy: OnFailure
@@ -382,6 +397,9 @@ spec:
                 - secretRef:
                     name: billing-flux-test
                   prefix: "FLUX_"
+                - secretRef:
+                    name: billing-gc-test
+                  prefix: "GOCARDLESS_"
                 - secretRef:
                     name: billing-test-email
                   prefix: "EMAIL_"
