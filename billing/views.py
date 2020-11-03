@@ -2070,8 +2070,12 @@ def complete_charge(request, charge_id):
                 update_from_checkout_session(session, charge_state.payment_ledger_item)
 
             if charge_state.payment_ledger_item.state in (
-                    models.LedgerItem.STATE_COMPLETED, models.LedgerItem.STATE_PROCESSING
+                    models.LedgerItem.STATE_COMPLETED, models.LedgerItem.STATE_PROCESSING,
+                    models.LedgerItem.STATE_PROCESSING_CANCELLABLE
             ):
+                if charge_state.payment_ledger_item.state == models.LedgerItem.STATE_PROCESSING_CANCELLABLE:
+                    charge_state.payment_ledger_item.state = models.LedgerItem.STATE_PROCESSING
+                    charge_state.payment_ledger_item.save()
                 if charge_state.ledger_item:
                     charge_state.ledger_item.state = charge_state.ledger_item.STATE_COMPLETED
                     charge_state.ledger_item.save()
