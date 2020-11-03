@@ -3,7 +3,62 @@
 {% block content %}
     <div class="container my-3">
         <h1>Top-up by SOFORT</h1>
-
-        {% crispy form form.helper %}
+        <form action="" method="post">
+            {% csrf_token %}
+            <h2>Account country</h2>
+            <div class="card-columns">
+                <div class="card text-center">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <h3 class="display-4">&#x1f1e6;&#x1f1f9;</h3>
+                        <h5 class="card-title">Austria</h5>
+                        <button type="submit" class="btn btn-primary align-self-stretch" name="account_country" value="AT">Select</button>
+                    </div>
+                </div>
+                <div class="card text-center">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <h3 class="display-4">&#x1f1e7;&#x1f1ea;</h3>
+                        <h5 class="card-title">Belgium</h5>
+                        <button type="submit" class="btn btn-primary align-self-stretch" name="account_country" value="BE">Select</button>
+                    </div>
+                </div>
+                <div class="card text-center">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <h3 class="display-4">&#x1f1e9;&#x1f1ea;</h3>
+                        <h5 class="card-title">Germany</h5>
+                        <button type="submit" class="btn btn-primary align-self-stretch" name="account_country" value="DE">Select</button>
+                    </div>
+                </div>
+                <div class="card text-center">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <h3 class="display-4">&#x1f1ee;&#x1f1f9;</h3>
+                        <h5 class="card-title">Italy</h5>
+                        <button type="submit" class="btn btn-primary align-self-stretch" name="account_country" value="IT">Select</button>
+                    </div>
+                </div>
+                <div class="card text-center">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <h3 class="display-4">&#x1f1f3;&#x1f1f1;</h3>
+                        <h5 class="card-title">Netherlands</h5>
+                        <button type="submit" class="btn btn-primary align-self-stretch" name="account_country" value="NL">Select</button>
+                    </div>
+                </div>
+                <div class="card text-center">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <h3 class="display-4">&#x1f1ea;&#x1f1f8;</h3>
+                        <h5 class="card-title">Spain</h5>
+                        <button type="submit" class="btn btn-primary align-self-stretch" name="account_country" value="ES">Select</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+        <p>
+            By providing your payment information and confirming this payment, you authorise AS207960 Cyfyngedig and
+            Stripe, our payment service provider, to send instructions to your bank to debit your account and your
+            bank to debit your account in accordance with those instructions. As part of your rights, you are entitled
+            to a refund from your bank under the terms and conditions of your agreement with your bank. A refund must be
+            claimed within 8 weeks starting from the date on which your account was debited. Your rights are explained
+            in a statement that you can obtain from your bank. You agree to receive notifications for future debits up
+            to 2 days before they occur.
+        </p>
     </div>
 {% endblock %}

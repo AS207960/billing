@@ -1,0 +1,21 @@
+{% extends 'billing/base.html' %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Top-up by bank transfer</h1>
+
+        <p>
+            Please send <b>{{ amount|floatformat:2 }} NZD</b> (we'll update the final amount if the exchange
+            rate changes before it clears) with a reference of <b>{{ ref }}</b> to our bank account to complete the payment.
+        </p>
+
+        <p>
+            Account holder: <b>AS207960 Cyfyngedig</b><br/>
+            Account number: <b>02-1290-0673186-000</b><br/>
+            Our address: <b>13 Pen-y-lan Terrace, Caerdydd, Cymru, CF23 9EU, GB</b><br/>
+            Bank address: <b>Bank of New Zeland, 42 Willis Street, Spark Central, Level 2, Wellington, NZ</b><br/>
+            Payment Schemes: <b>New Zealand local bank transfer - No SWIFT</b>
+        </p>
+
+        <a href="{% url 'dashboard' %}" class="btn btn-primary">Back to dashboard</a>
+    </div>
+{% endblock %}

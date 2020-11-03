@@ -8,8 +8,6 @@ from phonenumber_field.formfields import PhoneNumberField
 class TopUpForm(forms.Form):
     METHOD_CARD = 'C'
     METHOD_BACS = 'B'
-    METHOD_BACS_DIRECT_DEBIT = 'D'
-    METHOD_SEPA_DIRECT_DEBIT = 'A'
     METHOD_SOFORT = 'S'
     METHOD_GIROPAY = 'G'
     METHOD_BANCONTACT = 'A'
@@ -19,8 +17,6 @@ class TopUpForm(forms.Form):
     METHOD_P24 = 'P'
     METHODS = (
         (METHOD_BACS, "Bank Transfer (US, SG, RO, NZ, HU, EU, AU, GB) / SWIFT (Anywhere)"),
-        (METHOD_BACS_DIRECT_DEBIT, "BACS Direct Debit"),
-        # (METHOD_SEPA_DIRECT_DEBIT, "SEPA Direct Debit"),
         (METHOD_SOFORT, "SOFORT"),
         (METHOD_GIROPAY, "giropay"),
         (METHOD_BANCONTACT, "Bancontact"),
@@ -32,7 +28,7 @@ class TopUpForm(forms.Form):
     )
 
     amount = forms.DecimalField(decimal_places=2, max_digits=9, label="Amount (GBP)", min_value=2)
-    method = forms.ChoiceField(choices=METHODS)
+    method = forms.ChoiceField(choices=METHODS, required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -165,3 +161,323 @@ class BACSMarkPaidForm(forms.Form):
 
         self.helper = crispy_forms.helper.FormHelper()
         self.helper.add_input(crispy_forms.layout.Submit('submit', 'Mark paid', css_class='btn-block'))
+
+
+class GBBankAccountForm(forms.Form):
+    branch_code = forms.CharField(max_length=6, min_length=6, label="Sort code")
+    account_number = forms.CharField(max_length=8, min_length=6, label="Account number")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class AUBankAccountForm(forms.Form):
+    branch_code = forms.CharField(max_length=6, min_length=6, label="BSB Number")
+    account_number = forms.CharField(max_length=9, min_length=5, label="Account number")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class ATBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=5, min_length=5, label="Bankleitzahl")
+    account_number = forms.CharField(max_length=11, min_length=4, label="Kontonummer")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class BEBankAccountForm(forms.Form):
+    account_number = forms.CharField(min_length=4, label="Rekeningnummer/Numéro de compte")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class CABankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=3, min_length=2, label="Financial Institution number")
+    branch_code = forms.CharField(max_length=5, min_length=5, label="Branch Transit number")
+    account_number = forms.CharField(max_length=12, min_length=7, label="Account number")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class CYBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=3, min_length=3, label="Kodikos Trapezas")
+    branch_code = forms.CharField(max_length=5, min_length=5, label="Kodikos Katastimatos")
+    account_number = forms.CharField(max_length=16, min_length=7, label="Arithmos Logariasmou")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class DKBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=4, min_length=2, label="Registreringsnummer")
+    account_number = forms.CharField(max_length=10, min_length=9, label="Kontonumme")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class EEBankAccountForm(forms.Form):
+    account_number = forms.CharField(max_length=14, label="Account number")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class FIBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=6, min_length=6, label="Bank code")
+    account_number = forms.CharField(max_length=8, min_length=1, label="Account number")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class FRBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=5, min_length=5, label="Code banque")
+    branch_code = forms.CharField(max_length=5, min_length=5, label="Code guiche")
+    account_number = forms.CharField(max_length=13, min_length=3, label="Numéro de compte")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class DEBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=8, min_length=8, label="Bankleitzahl")
+    account_number = forms.CharField(max_length=10, min_length=1, label="Kontonummer")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class GRBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=3, min_length=3, label="Kodikos Trapezas")
+    branch_code = forms.CharField(max_length=5, min_length=5, label="Kodikos Katastimatos")
+    account_number = forms.CharField(max_length=16, min_length=16, label="Arithmos Logariasmou")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class IEBankAccountForm(forms.Form):
+    branch_code = forms.CharField(max_length=6, min_length=6, label="Sort code")
+    account_number = forms.CharField(max_length=8, min_length=6, label="Account number")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class ITBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=5, min_length=5, label="Codice ABI")
+    branch_code = forms.CharField(max_length=5, min_length=5, label="CAB")
+    account_number = forms.CharField(max_length=12, label="Numero di conto")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class LVBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=4, min_length=4, label="Bank code")
+    account_number = forms.CharField(max_length=13, min_length=13, label="Account number")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class LTBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=5, min_length=5, label="Bank code")
+    account_number = forms.CharField(max_length=11, min_length=11, label="Account number")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class LUBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=3, min_length=3, label="Bank code")
+    account_number = forms.CharField(max_length=13, min_length=13, label="Account number")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class MTBankAccountForm(forms.Form):
+    branch_code = forms.CharField(max_length=5, min_length=5, label="Sort code")
+    account_number = forms.CharField(max_length=18, label="Account number")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class MCBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=5, min_length=5, label="Code banque")
+    branch_code = forms.CharField(max_length=5, min_length=5, label="Code guichet")
+    account_number = forms.CharField(max_length=13, min_length=3, label="Numéro de compte")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class NLBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=4, min_length=4, label="Bank code")
+    account_number = forms.CharField(max_length=10, label="Rekeningnummer")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class NZBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=2, min_length=2, label="Bank number")
+    branch_code = forms.CharField(max_length=4, min_length=3, label="Branch number")
+    account_number = forms.CharField(max_length=11, min_length=9, label="Account number")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class PTBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=4, min_length=4, label="Código de Banco")
+    branch_code = forms.CharField(max_length=4, min_length=4, label="Código de Balcão")
+    account_number = forms.CharField(max_length=13, min_length=13, label="Número de conta")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class SMBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=5, min_length=5, label="Codice ABI")
+    branch_code = forms.CharField(max_length=5, min_length=5, label="CAB")
+    account_number = forms.CharField(max_length=12, label="Numero di conto")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class SKBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=4, min_length=4, label="Kód banky")
+    account_number = forms.CharField(max_length=14, label="Předčíslí / Číslo účtu")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class SIBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=5, min_length=5, label="Bank code")
+    account_number = forms.CharField(max_length=10, label="Account number")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class ESBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=4, min_length=4, label="Código de entidad")
+    branch_code = forms.CharField(max_length=4, min_length=4, label="Código de oficina")
+    account_number = forms.CharField(max_length=12, min_length=12, label="Dígitos de control / número de cuenta")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class SEBankAccountForm(forms.Form):
+    branch_code = forms.CharField(max_length=5, min_length=4, label="Clearingnummer")
+    account_number = forms.CharField(max_length=10, label="Kontonummer")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+
+
+class USBankAccountForm(forms.Form):
+    bank_code = forms.CharField(max_length=9, min_length=9, label="Routing number")
+    account_number = forms.CharField(max_length=17, label="Account number")
+    account_type = forms.ChoiceField(choices=(
+        ("checking", "Checking"),
+        ("savings", "Savings"),
+    ))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))

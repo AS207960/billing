@@ -1,0 +1,354 @@
+{% extends 'billing/base.html' %}
+{% load static %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Top-up from your bank account</h1>
+    </div>
+    <section class="stripe">
+        <div class="container py-5">
+            <h2 class="text-white">Find supported schemes by IBAN</h2>
+            <form action="" method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                    <div class="input-group mb-3">
+                        <input class="form-control form-control-lg {% if iban_error %}is-invalid{% endif %}" type="text"
+                               placeholder="GB60 BARC 2000 0055 7799 11" name="iban" value="{{ iban }}">
+                        <div class="input-group-append">
+                            <button class="btn btn-primary" type="submit">Search</button>
+                        </div>
+                    </div>
+                </div>
+                {% if iban_error %}
+                    <div class="alert alert-danger">
+                        {{ iban_error }}
+                    </div>
+                {% endif %}
+            </form>
+            <div class="alert alert-info">
+                Not supported for Australian bank accounts denominated in AUD,
+                New Zealand bank accounts denominated in NZD, Swedish bank accounts denominated in SEK,
+                nor American bank accounts denominated in USD - please local bank details.
+            </div>
+        </div>
+    </section>
+    <div class="container my-3 mt-5">
+        <h2>Or, enter local bank details</h2>
+        <div class="card-columns">
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1e6;&#x1f1fa;</h3>
+                    <h5 class="card-title">Australia</h5>
+                    <a href="{% url 'top_up_bacs_local' 'AU' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1e6;&#x1f1f9;</h3>
+                    <h5 class="card-title">Austria</h5>
+                    <a href="{% url 'top_up_bacs_local' 'AT' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1e7;&#x1f1ea;</h3>
+                    <h5 class="card-title">Belgium</h5>
+                    <a href="{% url 'top_up_bacs_local' 'BE' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1e8;&#x1f1e6;</h3>
+                    <h5 class="card-title">Canada</h5>
+                    <a href="{% url 'top_up_bacs_local' 'CA' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1e8;&#x1f1fe;</h3>
+                    <h5 class="card-title">Cyprus</h5>
+                    <a href="{% url 'top_up_bacs_local' 'CY' %}" class="btn btn-primary align-self-stretch"">
+                    Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1e9;&#x1f1f0;</h3>
+                    <h5 class="card-title">Denmark</h5>
+                    <a href="{% url 'top_up_bacs_local' 'DK' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1ea;&#x1f1ea;</h3>
+                    <h5 class="card-title">Estonia</h5>
+                    <a href="{% url 'top_up_bacs_local' 'EE' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1eb;&#x1f1ee;</h3>
+                    <h5 class="card-title">Finland</h5>
+                    <a href="{% url 'top_up_bacs_local' 'FI' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1eb;&#x1f1f7;</h3>
+                    <h5 class="card-title">France</h5>
+                    <a href="{% url 'top_up_bacs_local' 'FR' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1e9;&#x1f1ea;</h3>
+                    <h5 class="card-title">Germany</h5>
+                    <a href="{% url 'top_up_bacs_local' 'DE' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1ec;&#x1f1f7;</h3>
+                    <h5 class="card-title">Greece</h5>
+                    <a href="{% url 'top_up_bacs_local' 'GR' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1ee;&#x1f1ea;</h3>
+                    <h5 class="card-title">Ireland</h5>
+                    <a href="{% url 'top_up_bacs_local' 'IE' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1ee;&#x1f1f9;</h3>
+                    <h5 class="card-title">Italy</h5>
+                    <a href="{% url 'top_up_bacs_local' 'IT' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1f1;&#x1f1fb;</h3>
+                    <h5 class="card-title">Latvia</h5>
+                    <a href="{% url 'top_up_bacs_local' 'LV' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1f1;&#x1f1f9;</h3>
+                    <h5 class="card-title">Lithuania</h5>
+                    <a href="{% url 'top_up_bacs_local' 'LT' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1f1;&#x1f1fa;</h3>
+                    <h5 class="card-title">Luxembourg</h5>
+                    <a href="{% url 'top_up_bacs_local' 'LU' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1f2;&#x1f1f9;</h3>
+                    <h5 class="card-title">Malta</h5>
+                    <a href="{% url 'top_up_bacs_local' 'MT' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1f2;&#x1f1e8;</h3>
+                    <h5 class="card-title">Monaco</h5>
+                    <a href="{% url 'top_up_bacs_local' 'MC' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1f3;&#x1f1f1;</h3>
+                    <h5 class="card-title">Netherlands</h5>
+                    <a href="{% url 'top_up_bacs_local' 'NL' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1f3;&#x1f1ff;</h3>
+                    <h5 class="card-title">New Zealand</h5>
+                    <a href="{% url 'top_up_bacs_local' 'NZ' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1f5;&#x1f1f9;</h3>
+                    <h5 class="card-title">Portugal</h5>
+                    <a href="{% url 'top_up_bacs_local' 'PT' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1f8;&#x1f1f2;</h3>
+                    <h5 class="card-title">San Marino</h5>
+                    <a href="{% url 'top_up_bacs_local' 'SM' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1f8;&#x1f1f0;</h3>
+                    <h5 class="card-title">Slovakia</h5>
+                    <a href="{% url 'top_up_bacs_local' 'SK' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1f8;&#x1f1ee;</h3>
+                    <h5 class="card-title">Slovenia</h5>
+                    <a href="{% url 'top_up_bacs_local' 'SI' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1ea;&#x1f1f8;</h3>
+                    <h5 class="card-title">Spain</h5>
+                    <button type="submit" class="btn btn-primary align-self-stretch" name="account_country" value="ES">
+                        Select
+                    </button>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1f8;&#x1f1ea;</h3>
+                    <h5 class="card-title">Sweden</h5>
+                    <a href="{% url 'top_up_bacs_local' 'SE' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1fa;&#x1f1f8;</h3>
+                    <h5 class="card-title">United States</h5>
+                    <a href="{% url 'top_up_bacs_local' 'US' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f1ec;&#x1f1e7;</h3>
+                    <h5 class="card-title">United Kingdom</h5>
+                    <a href="{% url 'top_up_bacs_local' 'GB' %}" class="btn btn-primary align-self-stretch">
+                        Select
+                    </a>
+                </div>
+            </div>
+        </div>
+        <hr>
+        <h2>Already know how you want to pay?</h2>
+        <div class="card-columns">
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f4b5;</h3>
+                    <h5 class="card-title">ACH Direct Debit</h5>
+                    <a href="{% url 'top_up_new_ach' %}" class="btn btn-primary align-self-stretch">Select</a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f3e6;</h3>
+                    <h5 class="card-title">Autogiro</h5>
+                    <a href="{% url 'top_up_new_autogiro' %}" class="btn btn-primary align-self-stretch">Select</a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <img src="{% static 'billing/imgs/dd_logo_landscape-2.png' %}" class="mw-100 px-5 pb-3" alt="">
+                    <h5 class="card-title">BACS Direct Debit</h5>
+                    <a href="{% url 'top_up_new_bacs' %}" class="btn btn-primary align-self-stretch">Select</a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f3e6;</h3>
+                    <h5 class="card-title">BECS Direct Debit</h5>
+                    <a href="{% url 'top_up_new_becs' %}" class="btn btn-primary align-self-stretch">Select</a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f3e6;</h3>
+                    <h5 class="card-title">BECS NZ Direct Debit</h5>
+                    <a href="{% url 'top_up_new_becs_nz' %}" class="btn btn-primary align-self-stretch">Select</a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f3e6;</h3>
+                    <h5 class="card-title">Betalingsservice</h5>
+                    <a href="{% url 'top_up_new_betalingsservice' %}" class="btn btn-primary align-self-stretch">Select</a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h3 class="display-4">&#x1f3e6;</h3>
+                    <h5 class="card-title">PAD Direct Debit</h5>
+                    <a href="{% url 'top_up_new_pad' %}" class="btn btn-primary align-self-stretch">Select</a>
+                </div>
+            </div>
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <img src="{% static 'billing/imgs/SepaLogo.png' %}" class="mw-100 px-5 pb-3" alt="">
+                    <h5 class="card-title">SEPA Direct Debit</h5>
+                    <a href="{% url 'top_up_new_sepa' %}" class="btn btn-primary align-self-stretch">Select</a>
+                </div>
+            </div>
+        </div>
+        <hr>
+        <h2>Or, send a normal bank transfer</h2>
+        {% include "billing/top_up_currency_select.html" %}
+    </div>
+{% endblock %}

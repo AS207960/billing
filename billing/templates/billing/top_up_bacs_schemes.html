@@ -1,0 +1,85 @@
+{% extends 'billing/base.html' %}
+{% load static %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Top-up from your bank account</h1>
+        <h2>We support the following schemes for your {{ bank_name }} account:</h2>
+        <div class="card-deck justify-content-center">
+            {% if "ach" in schemes %}
+                <div class="card text-center" style="max-width: 15rem">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <h3 class="display-4">&#x1f4b5;</h3>
+                        <h5 class="card-title">ACH Direct Debit</h5>
+                        <a href="{% url 'top_up_new_ach' %}" class="btn btn-primary align-self-stretch">Select</a>
+                    </div>
+                </div>
+            {% endif %}
+            {% if "autogiro" in schemes %}
+                <div class="card text-center" style="max-width: 15rem">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <h3 class="display-4">&#x1f3e6;</h3>
+                        <h5 class="card-title">Autogiro</h5>
+                        <a href="{% url 'top_up_new_autogiro' %} %}" class="btn btn-primary align-self-stretch">Select</a>
+                    </div>
+                </div>
+            {% endif %}
+            {% if "bacs" in schemes %}
+                <div class="card text-center" style="max-width: 15rem">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <img src="{% static 'billing/imgs/dd_logo_landscape-2.png' %}" class="mw-100 m-3" alt="">
+                        <h5 class="card-title">BACS Direct Debit</h5>
+                        <a href="{% url 'top_up_new_bacs' %}" class="btn btn-primary align-self-stretch">Select</a>
+                    </div>
+                </div>
+            {% endif %}
+            {% if "becs" in schemes %}
+                <div class="card text-center" style="max-width: 15rem">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <h3 class="display-4">&#x1f3e6;</h3>
+                        <h5 class="card-title">BECS Direct Debit</h5>
+                        <a href="{% url 'top_up_new_becs' %} %}" class="btn btn-primary align-self-stretch">Select</a>
+                    </div>
+                </div>
+            {% endif %}
+            {% if "becs_nz" in schemes %}
+                <div class="card text-center" style="max-width: 15rem">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <h3 class="display-4">&#x1f3e6;</h3>
+                        <h5 class="card-title">BECS NZ Direct Debit</h5>
+                        <a href="{% url 'top_up_new_becs_nz' %}" class="btn btn-primary align-self-stretch">Select</a>
+                    </div>
+                </div>
+            {% endif %}
+            {% if "betalingsservice" in schemes %}
+                <div class="card text-center" style="max-width: 15rem">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <h3 class="display-4">&#x1f3e6;</h3>
+                        <h5 class="card-title">Betalingsservice</h5>
+                        <a href="{% url 'top_up_new_betalingsservice' %}" class="btn btn-primary align-self-stretch">Select</a>
+                    </div>
+                </div>
+            {% endif %}
+            {% if "pad" in schemes %}
+                <div class="card text-center" style="max-width: 15rem">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <h3 class="display-4">&#x1f3e6;</h3>
+                        <h5 class="card-title">PAD Direct Debit</h5>
+                        <a href="{% url 'top_up_new_pad' %}" class="btn btn-primary align-self-stretch">Select</a>
+                    </div>
+                </div>
+            {% endif %}
+            {% if "sepa_core" in schemes %}
+                <div class="card text-center" style="max-width: 15rem">
+                    <div class="card-body d-flex flex-column align-items-center">
+                        <img src="{% static 'billing/imgs/SepaLogo.png' %}" class="mw-100 m-3" alt="">
+                        <h5 class="card-title">SEPA Direct Debit</h5>
+                        <a href="{% url 'top_up_new_sepa' %}" class="btn btn-primary align-self-stretch">Select</a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+        <hr>
+        <h2>Or, send a normal bank transfer</h2>
+        {% include "billing/top_up_currency_select.html" %}
+    </div>
+{% endblock %}

@@ -210,3 +210,4 @@ fabric.properties
 # End of https://www.gitignore.io/api/django,pycharm
 
 secrets/
+venv/

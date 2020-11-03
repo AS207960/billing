@@ -148,6 +148,8 @@ with open(os.path.join(BASE_DIR, "secrets/plaid.json")) as f:
     plaid_conf = json.load(f)
 with open(os.path.join(BASE_DIR, "secrets/flux.json")) as f:
     flux_conf = json.load(f)
+with open(os.path.join(BASE_DIR, "secrets/gocardless.json")) as f:
+    gocardless_conf = json.load(f)
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "AS207960 Billing <billing@as207960.net>"
@@ -170,6 +172,10 @@ PLAID_ENV = plaid_conf["env"]
 
 FLUX_CLIENT_ID = flux_conf["client_id"]
 FLUX_CLIENT_SECRET = flux_conf["client_secret"]
+
+GOCARDLESS_TOKEN = gocardless_conf["token"]
+GOCARDLESS_ENV = gocardless_conf["env"]
+GOCARDLESS_WEBHOOK_SECRET = gocardless_conf["webhook_secret"]
 
 OPEN_EXCHANGE_API_KEY = open_exchange_conf["key"]
 

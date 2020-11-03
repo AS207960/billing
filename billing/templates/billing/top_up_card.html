@@ -18,15 +18,6 @@
                         <option value="sgd">Singapore Dollar</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="card_select">Select card</label>
-                    <select class="form-control" id="card_select" name="card">
-                        <option value="new">New card</option>
-                        {% for card in cards %}
-                            <option value="{{ card.id }}">{{ card.billing_details.name }} *** *** *** {{ card.card.last4 }} ({{ card.card.exp_month|stringformat:"02d" }} / {{ card.card.exp_year }})</option>
-                        {% endfor %}
-                    </select>
-                </div>
                 <button id="submit" class="btn btn-primary">Pay</button>
             </form>
         </div>

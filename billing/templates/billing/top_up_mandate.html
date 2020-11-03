@@ -1,0 +1,19 @@
+{% extends 'billing/base.html' %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Top-up by {{ scheme }}</h1>
+        <p>
+            By providing your payment information and confirming this payment, you authorise AS207960 Cyfyngedig and
+            Stripe, our payment service provider, to send instructions to your bank to debit your account and your
+            bank to debit your account in accordance with those instructions. As part of your rights, you are entitled
+            to a refund from your bank under the terms and conditions of your agreement with your bank. A refund must be
+            claimed within 8 weeks starting from the date on which your account was debited. Your rights are explained
+            in a statement that you can obtain from your bank. You agree to receive notifications for future debits up
+            to 2 days before they occur.
+        </p>
+        <form action="" method="post">
+            {% csrf_token %}
+            <button class="btn btn-primary btn-block" type="submit" name="accept" value="true">Continue</button>
+        </form>
+    </div>
+{% endblock %}

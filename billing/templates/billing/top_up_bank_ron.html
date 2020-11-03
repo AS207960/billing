@@ -1,0 +1,22 @@
+{% extends 'billing/base.html' %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Top-up by bank transfer</h1>
+
+        <p>
+            Please send <b>{{ amount|floatformat:2 }} RON</b> (we'll update the final amount if the exchange
+            rate changes before it clears) with a reference of <b>{{ ref }}</b> to our bank account to complete the payment.
+        </p>
+
+        <p>
+            Account holder: <b>AS207960 Cyfyngedig</b><br/>
+            IBAN: <b>RO93 BREL 0005 4001 0942 0100</b><br/>
+            BIC: <b>BRELROBUXXX</b><br/>
+            Our address: <b>13 Pen-y-lan Terrace, Caerdydd, Cymru, CF23 9EU, GB</b><br/>
+            Bank address: <b>Libra Bank SA, Semilunei Str. 4-6 Sector 2, Bucharest, RO</b><br/>
+            Payment Schemes: <b>Romanian local bank transfer - No SWIFT</b>
+        </p>
+
+        <a href="{% url 'dashboard' %}" class="btn btn-primary">Back to dashboard</a>
+    </div>
+{% endblock %}

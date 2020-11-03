@@ -1,0 +1,8 @@
+{% extends 'billing/base.html' %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Top-up from your bank account</h1>
+        <h2>We don't support taking direct debits from your account, please select a currency for a normal bank transfer.</h2>
+        {% include "billing/top_up_currency_select.html" %}
+    </div>
+{% endblock %}
