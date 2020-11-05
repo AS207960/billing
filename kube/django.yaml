@@ -110,7 +110,7 @@ spec:
               prefix: "GOCARDLESS_"
             - secretRef:
                 name: billing-xfw
-                prefix: "TRANSFERWISE_"
+              prefix: "TRANSFERWISE_"
             - secretRef:
                 name: billing-email
               prefix: "EMAIL_"
@@ -153,7 +153,7 @@ spec:
               prefix: "GOCARDLESS_"
             - secretRef:
                 name: billing-xfw
-                prefix: "TRANSFERWISE_"
+              prefix: "TRANSFERWISE_"
             - secretRef:
                 name: billing-email
               prefix: "EMAIL_"
@@ -215,7 +215,7 @@ spec:
                   prefix: "GOCARDLESS_"
                 - secretRef:
                     name: billing-xfw
-                    prefix: "TRANSFERWISE_"
+                  prefix: "TRANSFERWISE_"
                 - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
@@ -278,7 +278,7 @@ spec:
                   prefix: "GOCARDLESS_"
                 - secretRef:
                     name: billing-xfw
-                    prefix: "TRANSFERWISE_"
+                  prefix: "TRANSFERWISE_"
                 - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
@@ -341,7 +341,7 @@ spec:
                   prefix: "GOCARDLESS_"
                 - secretRef:
                     name: billing-xfw
-                    prefix: "TRANSFERWISE_"
+                  prefix: "TRANSFERWISE_"
                 - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
@@ -404,7 +404,7 @@ spec:
                   prefix: "GOCARDLESS_"
                 - secretRef:
                     name: billing-xfw
-                    prefix: "TRANSFERWISE_"
+                  prefix: "TRANSFERWISE_"
                 - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"

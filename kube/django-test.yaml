@@ -417,7 +417,7 @@ spec:
                   prefix: "GOCARDLESS_"
                 - secretRef:
                     name: billing-xfw-test
-                    prefix: "TRANSFERWISE_"
+                  prefix: "TRANSFERWISE_"
                 - secretRef:
                     name: billing-test-email
                   prefix: "EMAIL_"
