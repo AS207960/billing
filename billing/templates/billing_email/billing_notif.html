@@ -1,0 +1,46 @@
+{% extends "billing_email/email_base.html" %}
+{% block content %}
+    <p>
+        Hello {{ name }},
+    </p>
+    <p>
+        Just to let you know your payment has progressed.
+    </p>
+    <table style="width:100%;background:#eee;border-radius:5px;padding:20px;">
+        <tbody>
+        <tr style="padding:5px;">
+            <th>Description</th>
+            <td>{{ item.descriptor }}</td>
+        </tr>
+        <tr style="padding:5px;">
+            <th>Amount</th>
+            <td>&pound;{{ item.value|floatformat:2 }}</td>
+        </tr>
+        <tr style="padding:5px;">
+            <th>State</th>
+            <td>
+                {% if item.state == "P" %}
+                    <span style="background:#ECC94B;padding: 0.25rem 0.4rem;font-size: 75%;border-radius: 10rem;">
+                        &#x23f3; Pending
+                    </span>
+                {% elif item.state == "S" or item.state == "A" %}
+                    <span style="background:#319795;padding: 0.25rem 0.4rem;font-size: 75%;border-radius: 10rem;">
+                        &#x1f4c7; Processing
+                    </span>
+                {% elif item.state == "F" %}
+                    <span style="background:#E53E3E;padding: 0.25rem 0.4rem;font-size: 75%;border-radius: 10rem;">
+                         &#x1f645; Failed
+                    </span>
+                {% elif item.state == "C" %}
+                    <span style="background:#38A169;padding: 0.25rem 0.4rem;font-size: 75%;border-radius: 10rem;">
+                         &#x14b8; Completed
+                    </span>
+                {% endif %}
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <p>
+        You can always view your account at <a href="https://billing.as207960.net">billing.as207960.net</a>.
+    </p>
+{% endblock %}

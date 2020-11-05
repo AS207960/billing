@@ -1,0 +1,13 @@
+Hello {{ name }},
+
+Just to let you know your payment has progressed.
+
+Description: { item.descriptor }}
+Amount: {{ item.value|floatformat:2 }} GBP
+State: {% if item.state == "P" %}Pending{% elif item.state == "S" or item.state == "A" %}Processing{% elif item.state == "F" %}Failed{% elif item.state == "C" %}Completed{% endif %}
+
+You can always keep an eye on your account at https://billing.as207960.net
+
+Thanks,
+The Glauca Team
+https://glauca.digital

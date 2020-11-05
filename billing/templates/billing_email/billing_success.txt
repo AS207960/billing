@@ -3,7 +3,7 @@ Hello {{ name }},
 Just to let you know the subscription payment of £{{ value|floatformat:2 }},
 for {{ plan_name }} has succeeded. No further action is required on your part.
 
-You can always keep an eye on your account at https://billing.as207960.netilling.as207960.net
+You can always keep an eye on your account at https://billing.as207960.net
 
 Thanks,
 The Glauca Team

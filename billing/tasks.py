@@ -5,6 +5,8 @@ from django.utils import timezone
 from django.conf import settings
 from django.dispatch import receiver
 from django.db.models.signals import pre_save
+from django.template.loader import render_to_string
+from django.core.mail import EmailMultiAlternatives
 import multiprocessing
 import sentry_sdk
 import pywebpush
@@ -20,6 +22,25 @@ def as_thread(fun):
         t.setDaemon(True)
         t.start()
     return new_fun
+
+
+def mail_notif(ledger_item: models.LedgerItem, state_name: str, emoji: str):
+    context = {
+        "name": ledger_item.account.user.first_name,
+        "item": ledger_item
+    }
+    html_content = render_to_string("billing_email/billing_notif.html", context)
+    txt_content = render_to_string("billing_email/billing_notif.txt", context)
+
+    email = EmailMultiAlternatives(
+        subject=f"{emoji}{ledger_item.descriptor}: {state_name}",
+        body=txt_content,
+        to=[ledger_item.account.user.email],
+        bcc=['q@as207960.net'],
+        reply_to=['hello@glauca.digital']
+    )
+    email.attach_alternative(html_content, "text/html")
+    email.send()
 
 
 @as_thread
@@ -51,6 +72,8 @@ def alert_account(account: models.Account, ledger_item: models.LedgerItem, new=F
     message = f"{emoji} {body}"
     if extra:
         message += f": {extra}"
+
+    mail_notif(ledger_item, extra, emoji)
 
     for subscription in account.notificationsubscription_set.all():
         try:
@@ -96,12 +119,10 @@ def send_item_notif(sender, instance: models.LedgerItem, **kwargs):
             subscription.save()
 
     try:
-        # print(instance.charge_state)
         as_thread(flux.send_charge_state_notif)(instance.charge_state)
     except django.core.exceptions.ObjectDoesNotExist:
         pass
     for charge in instance.charge_state_payment_set.all():
-        # print(charge)
         as_thread(flux.send_charge_state_notif)(charge)
 
 
