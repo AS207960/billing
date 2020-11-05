@@ -2914,8 +2914,6 @@ def xfw_webhook(request):
     if is_test and is_test.lower() == "true":
         return HttpResponse(status=204)
 
-    print(event)
-
     if event.get("event_type") == "balances#credit":
         profile_id = event["data"]["resource"]["profile_id"]
         account_id = event["data"]["resource"]["id"]

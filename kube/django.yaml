@@ -109,6 +109,9 @@ spec:
                 name: billing-gc
               prefix: "GOCARDLESS_"
             - secretRef:
+                name: billing-xfw
+                prefix: "TRANSFERWISE_"
+            - secretRef:
                 name: billing-email
               prefix: "EMAIL_"
       containers:
@@ -148,6 +151,9 @@ spec:
             - secretRef:
                 name: billing-gc
               prefix: "GOCARDLESS_"
+            - secretRef:
+                name: billing-xfw
+                prefix: "TRANSFERWISE_"
             - secretRef:
                 name: billing-email
               prefix: "EMAIL_"
@@ -207,6 +213,9 @@ spec:
                 - secretRef:
                     name: billing-gc
                   prefix: "GOCARDLESS_"
+                - secretRef:
+                    name: billing-xfw
+                    prefix: "TRANSFERWISE_"
                 - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
@@ -268,6 +277,9 @@ spec:
                     name: billing-gc
                   prefix: "GOCARDLESS_"
                 - secretRef:
+                    name: billing-xfw
+                    prefix: "TRANSFERWISE_"
+                - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
           restartPolicy: OnFailure
@@ -328,6 +340,9 @@ spec:
                     name: billing-gc
                   prefix: "GOCARDLESS_"
                 - secretRef:
+                    name: billing-xfw
+                    prefix: "TRANSFERWISE_"
+                - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
           restartPolicy: OnFailure
@@ -387,6 +402,9 @@ spec:
                 - secretRef:
                     name: billing-gc
                   prefix: "GOCARDLESS_"
+                - secretRef:
+                    name: billing-xfw
+                    prefix: "TRANSFERWISE_"
                 - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
