@@ -20,3 +20,4 @@ git+https://github.com/AS207960/python-utils@e345a3168b7040fbf5481e127bfa7cb78e2
 pylatex
 gocardless_pro
 schwifty
+cryptography

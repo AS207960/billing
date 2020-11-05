@@ -13,6 +13,15 @@ import stripe
 import stripe.error
 import gocardless_pro.errors
 import schwifty
+import requests
+import binascii
+import dateutil.parser
+import base64
+import cryptography.hazmat.primitives.serialization
+import cryptography.hazmat.primitives.hashes
+import cryptography.hazmat.primitives.asymmetric.padding
+import cryptography.exceptions
+import cryptography.hazmat.backends
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, permission_required
@@ -29,6 +38,30 @@ from idempotency_key.decorators import idempotency_key
 from . import forms, models, tasks
 
 gocardless_client = gocardless_pro.Client(access_token=settings.GOCARDLESS_TOKEN, environment=settings.GOCARDLESS_ENV)
+transferwise_live_pub = cryptography.hazmat.primitives.serialization.load_der_public_key(
+    base64.b64decode(
+        b"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvO8vXV+JksBzZAY6GhSO"
+        b"XdoTCfhXaaiZ+qAbtaDBiu2AGkGVpmEygFmWP4Li9m5+Ni85BhVvZOodM9epgW3F"
+        b"bA5Q1SexvAF1PPjX4JpMstak/QhAgl1qMSqEevL8cmUeTgcMuVWCJmlge9h7B1CS"
+        b"D4rtlimGZozG39rUBDg6Qt2K+P4wBfLblL0k4C4YUdLnpGYEDIth+i8XsRpFlogx"
+        b"CAFyH9+knYsDbR43UJ9shtc42Ybd40Afihj8KnYKXzchyQ42aC8aZ/h5hyZ28yVy"
+        b"Oj3Vos0VdBIs/gAyJ/4yyQFCXYte64I7ssrlbGRaco4nKF3HmaNhxwyKyJafz19e"
+        b"HwIDAQAB",
+    ),
+    backend=cryptography.hazmat.backends.default_backend()
+)
+transferwise_sandbox_pub = cryptography.hazmat.primitives.serialization.load_der_public_key(
+    base64.b64decode(
+        b"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwpb91cEYuyJNQepZAVfP"
+        b"ZIlPZfNUefH+n6w9SW3fykqKu938cR7WadQv87oF2VuT+fDt7kqeRziTmPSUhqPU"
+        b"ys/V2Q1rlfJuXbE+Gga37t7zwd0egQ+KyOEHQOpcTwKmtZ81ieGHynAQzsn1We3j"
+        b"wt760MsCPJ7GMT141ByQM+yW1Bx+4SG3IGjXWyqOWrcXsxAvIXkpUD/jK/L958Cg"
+        b"nZEgz0BSEh0QxYLITnW1lLokSx/dTianWPFEhMC9BgijempgNXHNfcVirg1lPSyg"
+        b"z7KqoKUN0oHqWLr2U1A+7kqrl6O2nx3CKs1bj1hToT1+p4kcMoHXA7kA+VBLUpEs"
+        b"VwIDAQAB",
+    ),
+    backend=cryptography.hazmat.backends.default_backend()
+)
 
 
 def get_ip(request):
@@ -76,7 +109,8 @@ def top_up(request):
             if "becs_nz_mandate" in request.POST:
                 return redirect('top_up_existing_becs_nz_direct_debit', mandate_id=request.POST["becs_nz_mandate"])
             if "betalingsservice_mandate" in request.POST:
-                return redirect('top_up_existing_betalingsservice_direct_debit', mandate_id=request.POST["betalingsservice_mandate"])
+                return redirect('top_up_existing_betalingsservice_direct_debit',
+                                mandate_id=request.POST["betalingsservice_mandate"])
             if "pad_mandate" in request.POST:
                 return redirect('top_up_existing_pad_direct_debit', mandate_id=request.POST["pad_mandate"])
             if "sepa_mandate" in request.POST:
@@ -166,12 +200,14 @@ def top_up(request):
         }
 
     ach_mandates = list(map(map_ach_mandate, models.ACHMandate.objects.filter(account=account, active=True)))
-    autogiro_mandates = list(map(map_gc_bacs_mandate, models.AutogiroMandate.objects.filter(account=account, active=True)))
+    autogiro_mandates = list(
+        map(map_gc_bacs_mandate, models.AutogiroMandate.objects.filter(account=account, active=True)))
     bacs_mandates = list(map(map_bacs_mandate, models.BACSMandate.objects.filter(account=account, active=True)))
     bacs_mandates += list(map(map_gc_bacs_mandate, models.GCBACSMandate.objects.filter(account=account, active=True)))
     becs_mandates = list(map(map_gc_bacs_mandate, models.BECSMandate.objects.filter(account=account, active=True)))
     becs_nz_mandates = list(map(map_gc_bacs_mandate, models.BECSNZMandate.objects.filter(account=account, active=True)))
-    betalingsservice_mandates = list(map(map_gc_bacs_mandate, models.BetalingsserviceMandate.objects.filter(account=account, active=True)))
+    betalingsservice_mandates = list(
+        map(map_gc_bacs_mandate, models.BetalingsserviceMandate.objects.filter(account=account, active=True)))
     pad_mandates = list(map(map_gc_bacs_mandate, models.PADMandate.objects.filter(account=account, active=True)))
     sepa_mandates = list(map(map_sepa_mandate, models.SEPAMandate.objects.filter(account=account, active=True)))
     sepa_mandates += list(map(map_gc_sepa_mandate, models.GCSEPAMandate.objects.filter(account=account, active=True)))
@@ -775,7 +811,7 @@ def top_up_new_ach_complete(request):
 
     if "amount" not in request.session:
         return redirect("account_details")
-    
+
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_usd = models.ExchangeRate.get_rate('gbp', 'usd') * amount
     amount_int = int(amount_usd * decimal.Decimal(100))
@@ -818,7 +854,7 @@ def top_up_new_autogiro_complete(request):
 
     if "amount" not in request.session:
         return redirect("account_details")
-    
+
     amount = decimal.Decimal(request.session.pop("amount"))
     amount_sek = models.ExchangeRate.get_rate('gbp', 'sek') * amount
     amount_int = int(amount_sek * decimal.Decimal(100))
@@ -2571,7 +2607,7 @@ def edit_betalingsservice_mandate(request, m_id):
 
 @login_required
 def view_pad_mandate(request, m_id):
-    mandate = get_object_or_404(models  .PADMandate, id=m_id)
+    mandate = get_object_or_404(models.PADMandate, id=m_id)
 
     if mandate.account != request.user.account:
         return HttpResponseForbidden()
@@ -2844,6 +2880,93 @@ def gc_webhook(request):
     return HttpResponse(status=204)
 
 
+@csrf_exempt
+@require_POST
+def xfw_webhook(request):
+    payload = request.body
+    sig_header = request.META.get('HTTP_X_SIGNATURE_SHA256')
+    is_test = request.META.get('HTTP_X_TEST_NOTIFICATION')
+
+    try:
+        xfw_sig = base64.b64decode(sig_header)
+    except binascii.Error:
+        return HttpResponseBadRequest()
+
+    pubkey = transferwise_live_pub if settings.TRANSFERWISE_ENV == "live" else transferwise_sandbox_pub
+    api_base = "https://api.transferwise.com" if settings.TRANSFERWISE_ENV == "live" else \
+        "https://api.sandbox.transferwise.tech"
+
+    try:
+        pubkey.verify(
+            xfw_sig,
+            payload,
+            cryptography.hazmat.primitives.asymmetric.padding.PKCS1v15(),
+            cryptography.hazmat.primitives.hashes.SHA256()
+        )
+    except cryptography.exceptions.InvalidSignature:
+        return HttpResponseForbidden()
+
+    try:
+        event = json.loads(payload)
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest()
+
+    if is_test and is_test.lower() == "true":
+        return HttpResponse(status=204)
+
+    print(event)
+
+    if event.get("event_type") == "balances#credit":
+        profile_id = event["data"]["resource"]["profile_id"]
+        account_id = event["data"]["resource"]["id"]
+        credit_time = dateutil.parser.parse(event["data"]["occurred_at"])
+        currency = event["data"]["currency"]
+        amount = event["data"]["amount"]
+        post_balance = event["data"]["post_transaction_balance_amount"]
+
+        r = requests.get(
+            f"{api_base}/v3/profiles/{profile_id}"
+            f"/borderless-accounts/{account_id}/statement.json",
+            headers={
+                "Authorization": f"Bearer {settings.TRANSFERWISE_TOKEN}"
+            },
+            params={
+                "currency": currency,
+                "intervalStart": (credit_time - datetime.timedelta(seconds=5)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                "intervalEnd": (credit_time + datetime.timedelta(seconds=5)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                "type": "COMPACT"
+            }
+        )
+        r.raise_for_status()
+        data = r.json()
+        transactions = data["transactions"]
+        credit_transactions = filter(
+            lambda t: t["type"] == "CREDIT" and t["details"]["type"] == "DEPOSIT",
+            transactions
+        )
+        found_t = None
+        for t in credit_transactions:
+            if t["amount"]["value"] == amount and t["runningBalance"]["value"] == post_balance:
+                found_t = t
+                break
+
+        if found_t:
+            ref = found_t["details"].get("paymentReference")
+            if ref:
+                ledger_item = models.LedgerItem.objects.filter(
+                    type=models.LedgerItem.TYPE_BACS,
+                    type_id__contains=ref.upper(),
+                    state=models.LedgerItem.STATE_PENDING
+                ).first()
+
+                if ledger_item:
+                    ledger_item.amount = decimal.Decimal(found_t["amount"]["value"])
+                    ledger_item.state = models.LedgerItem.STATE_COMPLETED
+                    ledger_item.save()
+
+    return HttpResponse(status=204)
+
+
 def update_from_payment_intent(payment_intent, ledger_item=None):
     ledger_item = models.LedgerItem.objects.filter(
         Q(type=models.LedgerItem.TYPE_CARD) | Q(type=models.LedgerItem.TYPE_SEPA) |
@@ -3097,7 +3220,7 @@ def monzo_webhook(request, secret_key):
         if ref:
             ledger_item = models.LedgerItem.objects.filter(
                 type=models.LedgerItem.TYPE_BACS,
-                type_id__contains=ref,
+                type_id__contains=ref.upper(),
                 state=models.LedgerItem.STATE_PENDING
             ).first()
 

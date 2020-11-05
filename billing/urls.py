@@ -85,6 +85,7 @@ urlpatterns = [
     path('edit_subscription/<str:s_id>/', views.edit_subscription, name='edit_subscription'),
     path('stripe_webhook/', views.stripe_webhook),
     path('gc_webhook/', views.gc_webhook),
+    path('xfw_webhook/', views.xfw_webhook),
     path('monzo_webhook/<secret_key>/', views.monzo_webhook),
     path('charge_user/<user_id>/', views.charge_user),
     path('get_charge_state/<str:charge_state_id>/', views.get_charge_state),
