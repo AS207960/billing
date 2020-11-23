@@ -1,0 +1,24 @@
+{% extends 'billing/base.html' %}
+{% load mathfilters %}
+{% load crispy_forms_tags %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Your order</h1>
+        <h2>&pound;{{ charge.ledger_item.amount|mul:-1|floatformat:2 }} for {{ charge.ledger_item.descriptor }}</h2>
+        <p>Your account is &pound;{{ charge.ledger_item.amount|mul:-1|sub:charge.account.balance|floatformat:2 }} short for this payment.</p>
+        {% if charge.last_error %}
+            <div class="alert alert-danger">
+                <h4 class="alert-heading">Oh no! &#x1f631;</h4>
+                <p>{{ charge.last_error }}</p>
+            </div>
+        {% endif %}
+        <h3>Choose how you'd like to complete this payment</h3>
+        {% crispy form %}
+        <form action="" method="post">
+            {% csrf_token %}
+            <button class="btn btn-danger btn-block" name="action" value="cancel">
+                Cancel payment
+            </button>
+        </form>
+    </div>
+{% endblock %}
