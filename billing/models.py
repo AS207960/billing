@@ -290,6 +290,7 @@ class ChargeState(models.Model):
         LedgerItem, on_delete=models.SET_NULL, blank=True, null=True, related_name='charge_state'
     )
     return_uri = models.URLField(blank=True, null=True)
+    notif_queue = models.CharField(max_length=255, blank=True, null=True)
     last_error = models.TextField(blank=True, null=True)
 
     def full_redirect_uri(self):

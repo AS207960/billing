@@ -21,3 +21,4 @@ pylatex
 gocardless_pro
 schwifty
 cryptography
+protobuf

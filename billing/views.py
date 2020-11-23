@@ -3345,7 +3345,7 @@ def get_charge_state(request, charge_state_id):
 
     if status == models.LedgerItem.STATE_PENDING:
         status = "pending"
-    elif status == models.LedgerItem.STATE_PROCESSING:
+    elif status in (models.LedgerItem.STATE_PROCESSING, models.LedgerItem.STATE_PROCESSING_CANCELLABLE):
         status = "processing"
     elif status == models.LedgerItem.STATE_FAILED:
         status = "failed"

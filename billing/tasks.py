@@ -4,7 +4,7 @@ from django.shortcuts import reverse
 from django.utils import timezone
 from django.conf import settings
 from django.dispatch import receiver
-from django.db.models.signals import pre_save
+from django.db.models.signals import pre_save, post_save
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
 import multiprocessing
@@ -13,7 +13,14 @@ import pywebpush
 import json
 import decimal
 import threading
+import pika
 import stripe.error
+from .proto import billing_pb2
+import google.protobuf.wrappers_pb2
+
+pika_parameters = pika.URLParameters(settings.RABBITMQ_RPC_URL)
+pika_connection = pika.BlockingConnection(parameters=pika_parameters)
+pika_channel = pika_connection.channel()
 
 
 def as_thread(fun):
@@ -126,6 +133,42 @@ def send_item_notif(sender, instance: models.LedgerItem, **kwargs):
         as_thread(flux.send_charge_state_notif)(charge)
 
 
+@receiver(post_save, sender=models.ChargeState)
+def send_charge_state_notif(sender, instance: models.ChargeState, **kwargs):
+    if instance.notif_queue:
+        if instance.ledger_item:
+            status = instance.ledger_item.state
+        elif instance.payment_ledger_item:
+            status = instance.payment_ledger_item.state
+        else:
+            status = ""
+
+        if status == models.LedgerItem.STATE_PENDING:
+            status = billing_pb2.ChargeStateNotification.PENDING
+        elif status in (models.LedgerItem.STATE_PROCESSING, models.LedgerItem.STATE_PROCESSING_CANCELLABLE):
+            status = billing_pb2.ChargeStateNotification.PROCESING
+        elif status == models.LedgerItem.STATE_FAILED:
+            status = billing_pb2.ChargeStateNotification.FAILED
+        elif status == models.LedgerItem.STATE_COMPLETED:
+            status = billing_pb2.ChargeStateNotification.COMPLETED
+        else:
+            status = billing_pb2.ChargeStateNotification.UNKNOWN
+
+        msg = billing_pb2.ChargeStateNotification(
+            charge_id=instance.id,
+            account=instance.account.user.username if instance.account else "",
+            state=status,
+            last_error=google.protobuf.wrappers_pb2.StringValue(
+                value=instance.last_error
+            ) if instance.last_error else None
+        )
+        pika_channel.basic_publish(
+            exchange='',
+            routing_key=instance.notif_queue,
+            body=msg.SerializeToString()
+        )
+
+
 class ChargeError(Exception):
     def __init__(self, payment_ledger_item, message):
         self.payment_ledger_item = payment_ledger_item
@@ -216,7 +259,7 @@ def attempt_charge_account(account: models.Account, amount_gbp: decimal.Decimal,
 
 
 def charge_account(account: models.Account, amount: decimal.Decimal, descriptor: str, type_id: str, can_reject=True,
-                   off_session=True, return_uri=None):
+                   off_session=True, return_uri=None, notif_queue=None):
     ledger_item = models.LedgerItem(
         account=account,
         descriptor=descriptor,
@@ -228,7 +271,8 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
     charge_state = models.ChargeState(
         account=account,
         ledger_item=ledger_item,
-        return_uri=return_uri
+        return_uri=return_uri,
+        notif_queue=notif_queue
     )
 
     if not account:

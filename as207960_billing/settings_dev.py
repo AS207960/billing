@@ -194,3 +194,5 @@ with open(os.path.join(BASE_DIR, "secrets/vapid_private.der")) as f:
     PUSH_PRIV_KEY = f.read()
 
 IS_TEST = True
+
+RABBITMQ_RPC_URL = "amqp://guest:guest@localhost:5672/rpc"

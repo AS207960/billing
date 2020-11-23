@@ -1,0 +1,61 @@
+syntax = "proto3";
+package billing;
+import "google/protobuf/wrappers.proto";
+
+message BillingRequest {
+  oneof message {
+    ConvertCurrencyRequest convert_currency = 1;
+    ChargeUserRequest charge_user = 2;
+  }
+}
+
+message ConvertCurrencyRequest {
+  string from_currency = 1;
+  string to_currency = 2;
+  int64 amount = 3;
+}
+
+message ConvertCurrencyResponse {
+  int64 amount = 3;
+}
+
+message ChargeUserRequest {
+  int64 amount = 1;
+  string id = 2;
+  string descriptor = 3;
+  bool can_reject = 4;
+  bool off_session = 5;
+  string user_id = 6;
+  google.protobuf.StringValue return_uri = 7;
+  google.protobuf.StringValue notif_queue = 8;
+}
+
+message ChargeUserResponse {
+  enum ChargeResult {
+    SUCCESS = 0;
+    FAIL = 1;
+    REDIRECT = 2;
+  }
+
+  string charge_state_id = 1;
+  ChargeResult result = 2;
+  oneof data  {
+      string message = 3;
+      string redirect_uri = 4;
+  }
+}
+
+message ChargeStateNotification {
+  enum ChargeState {
+    UNKNOWN = 0;
+    PENDING = 1;
+    PROCESSING = 2;
+    FAILED = 3;
+    COMPLETED = 4;
+  }
+
+  string charge_id = 1;
+  string account = 2;
+  ChargeState state = 3;
+  google.protobuf.StringValue last_error = 4;
+}
