@@ -15,6 +15,9 @@ from django.db.models import F, Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.shortcuts import reverse
+from django.core import validators
+from phonenumber_field.modelfields import PhoneNumberField
+from django_countries.fields import CountryField
 
 p = inflect.engine()
 gocardless_client = gocardless_pro.Client(access_token=settings.GOCARDLESS_TOKEN, environment=settings.GOCARDLESS_ENV)
@@ -87,6 +90,31 @@ def create_user_profile(sender, instance, created, **kwargs):
     if created:
         Account.objects.create(user=instance)
     instance.account.save()
+
+
+class AccountBillingAddress(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
+    organisation = models.CharField(max_length=255, blank=True, null=True)
+    street_1 = models.CharField(max_length=255, verbose_name="Address line 1")
+    street_2 = models.CharField(max_length=255, blank=True, null=True, verbose_name="Address line 2")
+    street_3 = models.CharField(max_length=255, blank=True, null=True, verbose_name="Address line 3")
+    city = models.CharField(max_length=255)
+    province = models.CharField(max_length=255, blank=True, null=True)
+    postal_code = models.CharField(max_length=255)
+    country_code = CountryField(verbose_name="Country")
+
+
+class KnownBankAccount(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
+    country_code = models.CharField(max_length=2, validators=[validators.MinLengthValidator(2)])
+    bank_code = models.CharField(max_length=255, blank=True, null=True)
+    branch_code = models.CharField(max_length=255, blank=True, null=True)
+    account_code = models.CharField(max_length=255)
+
+
+class KnownStripePaymentMethod(models.Model):
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
+    method_id = models.CharField(max_length=255)
 
 
 class NotificationSubscription(models.Model):

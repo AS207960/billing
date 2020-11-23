@@ -2336,28 +2336,6 @@ def edit_card(request, pm_id):
 
 
 @login_required
-@require_POST
-def edit_sepa_mandate(request, m_id):
-    mandate = get_object_or_404(models.SEPAMandate, id=m_id)
-
-    if mandate.account != request.user.account:
-        return HttpResponseForbidden()
-
-    action = request.POST.get("action")
-
-    if action == "delete":
-        stripe.PaymentMethod.detach(mandate.payment_method)
-        mandate.delete()
-
-    elif action == "default" and mandate.active:
-        request.user.account.default_stripe_payment_method_id = mandate.payment_method
-        request.user.account.default_gc_mandate_id = None
-        request.user.account.save()
-
-    return redirect('account_details')
-
-
-@login_required
 def view_ach_mandate(request, m_id):
     mandate = get_object_or_404(models.ACHMandate, id=m_id)
 
@@ -2478,7 +2456,8 @@ def edit_bacs_mandate(request, m_id):
 
         if action == "delete":
             stripe.PaymentMethod.detach(mandate.payment_method)
-            mandate.delete()
+            mandate.active = False
+            mandate.save()
 
         elif action == "default" and mandate.active:
             request.user.account.default_stripe_payment_method_id = mandate.payment_method
@@ -2687,7 +2666,8 @@ def edit_sepa_mandate(request, m_id):
 
         if action == "delete":
             stripe.PaymentMethod.detach(mandate.payment_method)
-            mandate.delete()
+            mandate.active = False
+            mandate.save()
 
         elif action == "default" and mandate.active:
             request.user.account.default_stripe_payment_method_id = mandate.payment_method
