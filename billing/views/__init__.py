@@ -154,7 +154,7 @@ def complete_order(request, charge_id):
     has_vat = False
     vat_rate = decimal.Decimal(0)
     vat_charged = decimal.Decimal(0)
-    taxable = not selected_billing_address.vat_id
+    taxable = not selected_billing_address.vat_id if selected_billing_address else True
     available_currencies = []
     mandate_acceptance = False
     currency_name_lookup = {

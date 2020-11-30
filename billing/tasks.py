@@ -393,7 +393,7 @@ def attempt_charge_off_session(charge_state):
     vat_rate = decimal.Decimal(0)
     selected_payment_method_type = None
     selected_payment_method_id = None
-    taxable = not default_billing_address.vat_id
+    taxable = not default_billing_address.vat_id if default_billing_address else True
 
     if billing_address_country and taxable:
         country_vat_rate = vat.get_vat_rate(billing_address_country)
