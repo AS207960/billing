@@ -114,6 +114,8 @@ spec:
             - secretRef:
                 name: billing-email
               prefix: "EMAIL_"
+            - secretRef:
+                name: billing-rpc
       containers:
         - name: gunicorn
           image: as207960/billing-django:(version)
@@ -157,6 +159,8 @@ spec:
             - secretRef:
                 name: billing-email
               prefix: "EMAIL_"
+            - secretRef:
+                name: billing-rpc
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -229,6 +233,8 @@ spec:
             - secretRef:
                 name: billing-email
               prefix: "EMAIL_"
+            - secretRef:
+                name: billing-rpc
 ---
 apiVersion: batch/v1beta1
 kind: CronJob
@@ -291,6 +297,8 @@ spec:
                 - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
+                - secretRef:
+                    name: billing-rpc
           restartPolicy: OnFailure
 ---
 apiVersion: batch/v1beta1
@@ -354,6 +362,8 @@ spec:
                 - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
+                - secretRef:
+                    name: billing-rpc
           restartPolicy: OnFailure
 ---
 apiVersion: batch/v1beta1
@@ -417,6 +427,8 @@ spec:
                 - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
+                - secretRef:
+                    name: billing-rpc
           restartPolicy: OnFailure
 ---
 apiVersion: batch/v1beta1
@@ -480,6 +492,8 @@ spec:
                 - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
+                - secretRef:
+                    name: billing-rpc
           restartPolicy: OnFailure
 ---
 apiVersion: batch/v1beta1
@@ -543,6 +557,8 @@ spec:
                 - secretRef:
                     name: billing-email
                   prefix: "EMAIL_"
+                - secretRef:
+                    name: billing-rpc
           restartPolicy: OnFailure
 ---
 apiVersion: v1
