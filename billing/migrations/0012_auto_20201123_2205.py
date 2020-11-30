@@ -37,11 +37,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterField(
             model_name='accountbillingaddress',
-            name='deleted',
-            field=models.BooleanField(blank=True, default=False),
-        ),
-        migrations.AlterField(
-            model_name='accountbillingaddress',
             name='id',
             field=as207960_utils.models.TypedUUIDField(data_type='billing_billingaddress', primary_key=True, serialize=False),
         ),
