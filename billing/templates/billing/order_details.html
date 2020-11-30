@@ -10,9 +10,12 @@
 
                 <p>
                     Order ID: <b>{{ charge.id }}</b><br/>
-                    Created on: <b>{{ charge.ledger_item.timestamp }}</b><br/>
+                    Created on: <b>{{ charge.ledger_item.timestamp }}</b>
                     {% if charge.completed_timestamp %}
-                        Paid on: <b>{{ charge.completed_timestamp }}</b>
+                        <br/>Paid on: <b>{{ charge.completed_timestamp }}</b>
+                    {% endif %}
+                    {% if charge.evidence_billing_address and charge.evidence_billing_address.formatted_vat_id %}
+                        <br/><b>Vat ID:</b> {{ charge.evidence_billing_address.formatted_vat_id }}
                     {% endif %}
                 </p>
             </div>
