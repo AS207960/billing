@@ -1,9 +1,11 @@
-from django.conf import settings
-import requests_oauthlib
-import oauthlib.oauth2
-import stripe
-import decimal
 import datetime
+import decimal
+
+import oauthlib.oauth2
+import requests_oauthlib
+import stripe
+from django.conf import settings
+
 from . import models
 
 
@@ -114,8 +116,11 @@ def send_charge_state_notif(charge_state: models.ChargeState):
             "transactionDate": charge_state.ledger_item.timestamp.astimezone(datetime.timezone.utc).isoformat('T'),
             "items": items,
             "payments": payment_methods,
-            "status": "SETTLED" if charge_state.payment_ledger_item.state == models.LedgerItem.STATE_COMPLETED
-            else "PENDING"
+            "status":
+                "SETTLED" if
+                (
+                    charge_state.payment_ledger_item if charge_state.payment_ledger_item else charge_state.ledger_item
+                ).state == models.LedgerItem.STATE_COMPLETED else "PENDING"
         }
 
         hook_url = "https://webhooks.test.tryflux.com/merchant" if settings.IS_TEST \
@@ -130,6 +135,3 @@ def send_charge_state_notif(charge_state: models.ChargeState):
                 client_secret=settings.FLUX_CLIENT_SECRET
             )
             oauth_session.post(hook_url, json=[request_data])
-
-
-

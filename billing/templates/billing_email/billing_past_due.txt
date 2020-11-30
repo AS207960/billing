@@ -1,9 +1,8 @@
 Hello {{ name }},
 
-The subscription payment of £{{ value|floatformat:2 }}, for {{ plan_name }} has failed.
-Please go to https://billing.as207960.net to top-up your account or add a default card for future payments.
+The subscription payment of £{{ value|floatformat:2 }}, for {{ plan_name }} has failed.{% if reason %}
 
-The reason for the failure is: {{ reason }}
+The reason for the failure is: {{ reason }}{% endif %}
 
 We'll retry the payment, however if it consistently fails the subscription will be cancelled,
 and the resources associated with it placed on hold/deleted.

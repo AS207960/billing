@@ -1,9 +1,9 @@
 Hello {{ name }},
 
 The subscription payment of £{{ value|floatformat:2 }}, for {{ plan_name }} has failed.
-This was the last attempt.
+This was the last attempt.{% if reason %}
 
-The reason for the failure is: {{ reason }}
+The reason for the failure is: {{ reason }}{% endif %}
 
 The subscription has been cancelled, and the resources associated with it will placed on hold/deleted.
 

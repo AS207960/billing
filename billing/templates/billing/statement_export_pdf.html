@@ -53,7 +53,7 @@
                     <td></td>
                 {% else %}
                     <td></td>
-                    <td>-{{ item.amount|abs|floatformat:2 }}</td>
+                    <td>{{ item.amount|abs|floatformat:2 }}</td>
                 {% endif %}
                 <td>
                     {% if item.balance_at >= 0 %}

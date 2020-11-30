@@ -7,9 +7,11 @@
         The subscription payment of &pound;{{ value|floatformat:2 }}, for {{ plan_name }} has failed.
         This was the last attempt.
     </p>
+    {% if reason %}
     <p>
         The reason for the failure is: {{ reason }}
     </p>
+    {% endif %}
     <p>
         The subscription has been cancelled, and the resources associated with it will be placed on hold/deleted.
     </p>

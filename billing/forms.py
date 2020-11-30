@@ -3,6 +3,10 @@ import crispy_forms.helper
 import crispy_forms.layout
 from django_countries.fields import CountryField
 from phonenumber_field.formfields import PhoneNumberField
+from django.conf import settings
+import django.core.exceptions
+from . import models, apps, vat
+import zeep.exceptions
 
 
 class TopUpForm(forms.Form):
@@ -79,6 +83,51 @@ class EditCardForm(forms.Form):
         self.helper = crispy_forms.helper.FormHelper()
         self.helper.add_input(crispy_forms.layout.Hidden("action", "edit"))
         self.helper.add_input(crispy_forms.layout.Submit('submit', 'Save', css_class='btn-block'))
+
+
+class BillingAddressForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Save', css_class='btn-block'))
+
+    class Meta:
+        model = models.AccountBillingAddress
+        exclude = ('id', 'account', 'deleted', 'default', 'vat_id_verification_request')
+
+    def clean(self, *args, **kwargs):
+        super().clean(*args, **kwargs)
+        if self.cleaned_data['vat_id']:
+            vies_country = vat.get_vies_country_code(self.cleaned_data['country_code'])
+            if vies_country:
+                try:
+                    vat_resp = apps.vies_client.service.checkVatApprox(
+                        countryCode=vies_country,
+                        vatNumber=self.cleaned_data['vat_id'],
+                        traderName=self.cleaned_data['organisation'],
+                        requesterCountryCode=settings.OWN_EU_VAT_COUNTRY,
+                        requesterVatNumber=settings.OWN_EU_VAT_ID,
+                    )
+                except zeep.exceptions.Fault as e:
+                    if e.message in ("SERVICE_UNAVAILABLE", "MS_UNAVAILABLE"):
+                        raise django.core.exceptions.ValidationError({
+                            django.core.exceptions.NON_FIELD_ERRORS: [
+                                "VAT check service currently unavailable, please try again later"
+                            ]
+                        })
+                    else:
+                        raise django.core.exceptions.ValidationError({
+                            django.core.exceptions.NON_FIELD_ERRORS: [
+                                "An unexpected error occurred"
+                            ]
+                        })
+                if not vat_resp["valid"]:
+                    raise django.core.exceptions.ValidationError({
+                        'vat_id': ["Invalid VAT ID"]
+                    })
+                self.cleaned_data['organisation'] = vat_resp["traderName"]
+                self.instance.vat_id_verification_request = vat_resp["requestIdentifier"]
 
 
 class SOFORTForm(forms.Form):

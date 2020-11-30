@@ -1,0 +1,13 @@
+{% extends 'billing/base.html' %}
+{% load mathfilters %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Your order</h1>
+        <h2>&pound;{{ charge.ledger_item.amount|mul:-1|floatformat:2 }} for {{ charge.ledger_item.descriptor }}</h2>
+        <div class="alert alert-info">
+            The payment for your order is current processing. We'll email you when its complete.
+        </div>
+    </div>
+{% endblock %}

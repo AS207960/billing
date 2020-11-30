@@ -204,6 +204,8 @@ XFF_TRUSTED_PROXY_DEPTH = 2
 XFF_NO_SPOOFING = True
 XFF_HEADER_REQUIRED = True
 
+RABBITMQ_RPC_URL = os.getenv("RABBITMQ_RPC_URL")
+
 IDEMPOTENCY_KEY = {
     'ENCODER_CLASS': 'idempotency_key.encoders.BasicKeyEncoder',
     'CONFLICT_STATUS_CODE': status.HTTP_409_CONFLICT,
@@ -233,5 +235,37 @@ IDEMPOTENCY_KEY = {
         'TIMEOUT': 0.1,
     },
 
+}
+
+COUNTRIES_COMMON_NAMES = True
+COUNTRIES_OVERRIDE = {
+    "BS": "the Bahamas",
+    "IO": "the British Indian Ocean Territory",
+    "KY": "the Cayman Islands",
+    "CF": "the Central African Republic",
+    "CC": "the Cocos Islands",
+    "KM": "the Comoros",
+    "CD": "the Democratic Republic of the Congo",
+    "CG": "the Congo",
+    "DO": "the Dominican Republic",
+    "FK": "the Falkland Islands",
+    "FO": "the Faroe Islands",
+    "TF": "the French Southern Territories",
+    "VA": "the Holy See",
+    "KP": "the Democratic People's Republic of Korea",
+    "KR": "the Republic of Korea",
+    "LA": "the Lao People's Democratic Republic",
+    "MH": "the Marshall Islands",
+    "MD": "the Republic of Moldova",
+    "NL": "the Netherlands",
+    "NE": "the Niger",
+    "MP": "the Northen Mariana Islands",
+    "PH": "the Philippines",
+    "RU": "the Russian Federation",
+    "CK": "the Cook Islands",
+    "AE": "the United Arab Emirates",
+    "GB": "the United Kingdom",
+    "US": "the United States of America",
+    "UM": "the United States Minor Outlying Islands",
 }
 

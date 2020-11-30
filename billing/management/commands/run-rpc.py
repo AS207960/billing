@@ -72,7 +72,7 @@ class Command(BaseCommand):
             try:
                 charge_state = tasks.charge_account(
                     account, amount, msg.descriptor, msg.id, can_reject=msg.can_reject, off_session=msg.off_session,
-                    return_uri=return_uri, notif_queue=notif_queue
+                    return_uri=return_uri, notif_queue=notif_queue, supports_delayed=True
                 )
             except tasks.ChargeError as e:
                 return billing.proto.billing_pb2.ChargeUserResponse(

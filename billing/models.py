@@ -16,8 +16,9 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.shortcuts import reverse
 from django.core import validators
-from phonenumber_field.modelfields import PhoneNumberField
 from django_countries.fields import CountryField
+
+from . import utils, vat
 
 p = inflect.engine()
 gocardless_client = gocardless_pro.Client(access_token=settings.GOCARDLESS_TOKEN, environment=settings.GOCARDLESS_ENV)
@@ -93,6 +94,7 @@ def create_user_profile(sender, instance, created, **kwargs):
 
 
 class AccountBillingAddress(models.Model):
+    id = as207960_utils.models.TypedUUIDField('billing_billingaddress', primary_key=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
     organisation = models.CharField(max_length=255, blank=True, null=True)
     street_1 = models.CharField(max_length=255, verbose_name="Address line 1")
@@ -102,6 +104,37 @@ class AccountBillingAddress(models.Model):
     province = models.CharField(max_length=255, blank=True, null=True)
     postal_code = models.CharField(max_length=255)
     country_code = CountryField(verbose_name="Country")
+    vat_id = models.CharField(max_length=255, blank=True, null=True, verbose_name="VAT ID (without country prefix)")
+    vat_id_verification_request = models.CharField(max_length=255, blank=True, null=True)
+    deleted = models.BooleanField(default=False, blank=True)
+    default = models.BooleanField(default=False, blank=True)
+
+    @property
+    def formatted(self):
+        lines = []
+        if self.organisation:
+            lines.append(self.organisation)
+        lines.append(self.street_1)
+        if self.street_2:
+            lines.append(self.street_2)
+        if self.street_3:
+            lines.append(self.street_3)
+        lines.append(self.city)
+        if self.province:
+            lines.append(self.province)
+        lines.append(self.postal_code)
+        lines.append(f"{self.country_code.name} {self.country_code.unicode_flag}")
+
+        return "\n".join(lines)
+
+    @property
+    def formatted_vat_id(self):
+        if self.vat_id:
+            vat_country_code = vat.get_vies_country_code(self.country_code.code)
+            if vat_country_code:
+                return f"{vat_country_code}{self.vat_id}"
+            else:
+                return self.vat_id
 
 
 class KnownBankAccount(models.Model):
@@ -115,6 +148,7 @@ class KnownBankAccount(models.Model):
 class KnownStripePaymentMethod(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
     method_id = models.CharField(max_length=255)
+    country_code = models.CharField(max_length=2, validators=[validators.MinLengthValidator(2)])
 
 
 class NotificationSubscription(models.Model):
@@ -180,6 +214,7 @@ class LedgerItem(models.Model):
     type = models.CharField(max_length=1, choices=TYPES, default=TYPE_CHARGE)
     type_id = models.CharField(max_length=255, blank=True, null=True)
     is_reversal = models.BooleanField(default=False, blank=True)
+    last_state_change_timestamp = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         ordering = ['-timestamp']
@@ -229,6 +264,15 @@ class StripeMandate(models.Model):
                 mandate_obj.account.save()
             mandate_obj.save()
 
+        if is_active:
+            payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
+            KnownStripePaymentMethod.objects.update_or_create(
+                account=account, method_id=payment_method["id"],
+                defaults={
+                    "country_code": utils.country_from_stripe_payment_method(payment_method)
+                }
+            )
+
     class Meta:
         abstract = True
 
@@ -263,6 +307,7 @@ class GCMandate(models.Model):
                 mandate_obj.account.default_gc_mandate_id = None
                 mandate_obj.account.save()
             mandate_obj.save()
+        return mandate_obj
 
     class Meta:
         abstract = True
@@ -311,15 +356,35 @@ class GCSEPAMandate(GCMandate):
 class ChargeState(models.Model):
     id = as207960_utils.models.TypedUUIDField('billing_charge', primary_key=True)
     account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
-    payment_ledger_item = models.ForeignKey(
-        LedgerItem, on_delete=models.SET_NULL, blank=True, null=True, related_name='charge_state_payment_set'
+    payment_ledger_item = models.OneToOneField(
+        LedgerItem, on_delete=models.SET_NULL, blank=True, null=True, related_name='charge_state_payment'
     )
     ledger_item = models.OneToOneField(
-        LedgerItem, on_delete=models.SET_NULL, blank=True, null=True, related_name='charge_state'
+        LedgerItem, on_delete=models.PROTECT, related_name='charge_state'
     )
     return_uri = models.URLField(blank=True, null=True)
     notif_queue = models.CharField(max_length=255, blank=True, null=True)
     last_error = models.TextField(blank=True, null=True)
+    base_amount = models.DecimalField(decimal_places=2, max_digits=9, default=0)
+    vat_rate = models.DecimalField(decimal_places=2, max_digits=9, default=0)
+    country_code = models.CharField(max_length=2, validators=[validators.MinLengthValidator(2)], blank=True, null=True)
+    evidence_billing_address = models.ForeignKey(AccountBillingAddress, on_delete=models.PROTECT, blank=True, null=True)
+    evidence_bank_account = models.ForeignKey(KnownBankAccount, on_delete=models.PROTECT, blank=True, null=True)
+    evidence_stripe_pm = models.ForeignKey(KnownStripePaymentMethod, on_delete=models.PROTECT, blank=True, null=True)
+    evidence_ach_mandate = models.ForeignKey(ACHMandate, on_delete=models.PROTECT, blank=True, null=True)
+    evidence_autogiro_mandate = models.ForeignKey(AutogiroMandate, on_delete=models.PROTECT, blank=True, null=True)
+    evidence_bacs_mandate = models.ForeignKey(BACSMandate, on_delete=models.PROTECT, blank=True, null=True)
+    evidence_gc_bacs_mandate = models.ForeignKey(GCBACSMandate, on_delete=models.PROTECT, blank=True, null=True)
+    evidence_becs_mandate = models.ForeignKey(BECSMandate, on_delete=models.PROTECT, blank=True, null=True)
+    evidence_becs_nz_mandate = models.ForeignKey(BECSNZMandate, on_delete=models.PROTECT, blank=True, null=True)
+    evidence_betalingsservice_mandate = models.ForeignKey(
+        BetalingsserviceMandate, on_delete=models.PROTECT, blank=True, null=True)
+    evidence_pad_mandate = models.ForeignKey(PADMandate, on_delete=models.PROTECT, blank=True, null=True)
+    evidence_sepa_mandate = models.ForeignKey(SEPAMandate, on_delete=models.PROTECT, blank=True, null=True)
+    evidence_gc_sepa_mandate = models.ForeignKey(GCSEPAMandate, on_delete=models.PROTECT, blank=True, null=True)
+    ready_to_complete = models.BooleanField(default=False, blank=True, null=True)
+    can_reject = models.BooleanField(default=True, blank=True, null=True)
+    completed_timestamp = models.DateTimeField(blank=True, null=True)
 
     def full_redirect_uri(self):
         if self.return_uri:
@@ -339,7 +404,7 @@ class ChargeState(models.Model):
                     LedgerItem.STATE_COMPLETED, LedgerItem.STATE_PROCESSING
             ):
                 return True
-        elif self.ledger_item:
+        else:
             if self.account and self.account.balance >= self.ledger_item.amount:
                 return True
 
@@ -411,6 +476,7 @@ class RecurringPlan(models.Model):
     billing_type = models.CharField(max_length=1, choices=TYPES)
     tiers_type = models.CharField(max_length=1, choices=TIERS)
     aggregation_type = models.CharField(max_length=1, choices=AGGREGATIONS, blank=True, null=True)
+    notif_queue = models.CharField(max_length=255, blank=True, null=True)
 
     def clean(self):
         if self.billing_type == self.TYPE_RECURRING and self.aggregation_type is not None:
@@ -462,10 +528,12 @@ class RecurringPlanTier(models.Model):
 
 
 class Subscription(models.Model):
+    STATE_PENDING = "E"
     STATE_ACTIVE = "A"
     STATE_PAST_DUE = "P"
     STATE_CANCELLED = "C"
     STATES = (
+        (STATE_PENDING, "Pending"),
         (STATE_ACTIVE, "Active"),
         (STATE_PAST_DUE, "Past due"),
         (STATE_CANCELLED, "Cancelled"),
@@ -475,9 +543,7 @@ class Subscription(models.Model):
     plan = models.ForeignKey(RecurringPlan, on_delete=models.CASCADE)
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     last_billed = models.DateTimeField()
-    last_bill_attempted = models.DateTimeField()
     state = models.CharField(max_length=1, choices=STATES)
-    amount_unpaid = models.DecimalField(decimal_places=2, max_digits=9, default="0")
 
     @property
     def next_bill(self):
@@ -488,6 +554,23 @@ class Subscription(models.Model):
     def usage_in_period_label(self):
         usage = self.usage_in_period
         return f"{usage} {p.plural(self.plan.unit_label, usage)}"
+
+    @property
+    def amount_unpaid(self):
+        return (
+                self.subscriptioncharge_set
+                .filter(ledger_item__state=LedgerItem.STATE_FAILED)
+                .aggregate(balance=models.Sum('amount'))
+                .get('balance') or decimal.Decimal(0)
+        ).quantize(decimal.Decimal('1.00'))
+
+    # @property
+    # def last_billed(self):
+    #     charge = self.subscriptioncharge_set.first()
+    #     if charge:
+    #         return charge.timestamp
+    #     else:
+    #         return None
 
     @property
     def usage_in_period(self):
@@ -531,6 +614,20 @@ class SubscriptionUsage(models.Model):
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE)
     timestamp = models.DateTimeField()
     usage_units = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ['-timestamp']
+
+
+class SubscriptionCharge(models.Model):
+    id = as207960_utils.models.TypedUUIDField('billing_subscriptioncharge', primary_key=True)
+    subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE)
+    timestamp = models.DateTimeField()
+    last_bill_attempted = models.DateTimeField()
+    failed_bill_attempts = models.PositiveSmallIntegerField(default=0)
+    amount = models.DecimalField(decimal_places=2, max_digits=9, default=0)
+    ledger_item = models.OneToOneField(LedgerItem, on_delete=models.PROTECT)
+    is_setup_charge = models.BooleanField(blank=True, default=False)
 
     class Meta:
         ordering = ['-timestamp']

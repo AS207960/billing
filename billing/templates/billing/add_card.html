@@ -46,7 +46,7 @@
                     loading.style.display = "none";
                     error.innerText = result.error.message;
                 } else {
-                    document.location = "{% url 'account_details' %}";
+                    document.location = "{{ return_uri }}";
                 }
             });
         });

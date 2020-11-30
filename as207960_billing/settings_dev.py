@@ -195,4 +195,39 @@ with open(os.path.join(BASE_DIR, "secrets/vapid_private.der")) as f:
 
 IS_TEST = True
 
+OWN_EU_VAT_COUNTRY = None
+OWN_EU_VAT_ID = None
+
 RABBITMQ_RPC_URL = "amqp://guest:guest@localhost:5672/rpc"
+
+COUNTRIES_COMMON_NAMES = True
+COUNTRIES_OVERRIDE = {
+    "BS": "the Bahamas",
+    "IO": "the British Indian Ocean Territory",
+    "KY": "the Cayman Islands",
+    "CF": "the Central African Republic",
+    "CC": "the Cocos Islands",
+    "KM": "the Comoros",
+    "CD": "the Democratic Republic of the Congo",
+    "CG": "the Congo",
+    "DO": "the Dominican Republic",
+    "FK": "the Falkland Islands",
+    "FO": "the Faroe Islands",
+    "TF": "the French Southern Territories",
+    "VA": "the Holy See",
+    "KP": "the Democratic People's Republic of Korea",
+    "KR": "the Republic of Korea",
+    "LA": "the Lao People's Democratic Republic",
+    "MH": "the Marshall Islands",
+    "MD": "the Republic of Moldova",
+    "NL": "the Netherlands",
+    "NE": "the Niger",
+    "MP": "the Northen Mariana Islands",
+    "PH": "the Philippines",
+    "RU": "the Russian Federation",
+    "CK": "the Cook Islands",
+    "AE": "the United Arab Emirates",
+    "GB": "the United Kingdom",
+    "US": "the United States of America",
+    "UM": "the United States Minor Outlying Islands",
+}

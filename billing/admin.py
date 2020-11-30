@@ -8,6 +8,8 @@ admin.site.register(models.ExchangeRate)
 admin.site.register(models.SEPAMandate)
 admin.site.register(models.BACSMandate)
 admin.site.register(models.ChargeState)
+admin.site.register(models.KnownBankAccount)
+admin.site.register(models.KnownStripePaymentMethod)
 
 
 class RecurringPlanTierInline(admin.TabularInline):
@@ -25,8 +27,13 @@ class SubscriptionUsageInline(admin.TabularInline):
     extra = 0
 
 
+class SubscriptionChargeInline(admin.TabularInline):
+    model = models.SubscriptionCharge
+    extra = 0
+
+
 class SubscriptionAdmin(admin.ModelAdmin):
-    inlines = [SubscriptionUsageInline]
+    inlines = [SubscriptionUsageInline, SubscriptionChargeInline]
     readonly_fields = ('id',)
 
 

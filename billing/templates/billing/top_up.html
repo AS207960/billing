@@ -31,7 +31,7 @@
                                     {{ card.billing_details.name }}
                                 </td>
                                 <td>{{ card.card.brand|upper }}</td>
-                                <td>*** *** **** {{ card.card.last4 }}</td>
+                                <td>**** **** **** {{ card.card.last4 }}</td>
                                 <td>{{ card.card.exp_month|stringformat:"02d" }} / {{ card.card.exp_year }}</td>
                                 <td>
                                     <button type="submit" class="btn btn-primary btn-sm" name="card" value="{{ card.id }}">
