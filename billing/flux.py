@@ -89,7 +89,7 @@ def send_charge_state_notif(charge_state: models.ChargeState):
 
         account_balance_amount = int(
             (charge_state.payment_ledger_item.amount + charge_state.ledger_item.amount) * decimal.Decimal(100)
-        )
+        ) if charge_state.payment_ledger_item and charge_state.ledger_item else 0
         if account_balance_amount != 0:
             items.append({
                 "sku": "account_balance",

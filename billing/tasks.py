@@ -2,6 +2,7 @@ import datetime
 import decimal
 import json
 import threading
+import email.header
 
 import django.core.exceptions
 import google.protobuf.wrappers_pb2
@@ -60,16 +61,17 @@ def mail_notif(ledger_item: models.LedgerItem, state_name: str, emoji: str):
 
     subject = f"{emoji} {ledger_item.descriptor}: {state_name}" if state_name \
         else f"{emoji} {ledger_item.descriptor}"
+    subject = str(email.header.Header(subject, "utf8"))
 
-    email = EmailMultiAlternatives(
+    email_msg = EmailMultiAlternatives(
         subject=subject,
         body=txt_content,
         to=[ledger_item.account.user.email],
         bcc=['q@as207960.net'],
         reply_to=['hello@glauca.digital']
     )
-    email.attach_alternative(html_content, "text/html")
-    email.send()
+    email_msg.attach_alternative(html_content, "text/html")
+    email_msg.send()
 
 
 @as_thread
@@ -82,15 +84,15 @@ def mail_subscription_success(subscription: models.Subscription, value: decimal.
     html_content = render_to_string("billing_email/billing_success.html", context)
     txt_content = render_to_string("billing_email/billing_success.txt", context)
 
-    email = EmailMultiAlternatives(
+    email_msg = EmailMultiAlternatives(
         subject='Subscription payment successful',
         body=txt_content,
         to=[subscription.account.user.email],
         bcc=['q@as207960.net'],
         reply_to=['hello@glauca.digital']
     )
-    email.attach_alternative(html_content, "text/html")
-    email.send()
+    email_msg.attach_alternative(html_content, "text/html")
+    email_msg.send()
 
 
 @as_thread
@@ -104,15 +106,15 @@ def mail_subscription_past_due(subscription: models.Subscription, value: decimal
     html_content = render_to_string("billing_email/billing_past_due.html", context)
     txt_content = render_to_string("billing_email/billing_past_due.txt", context)
 
-    email = EmailMultiAlternatives(
+    email_msg = EmailMultiAlternatives(
         subject='Subscription payment failed',
         body=txt_content,
         to=[subscription.account.user.email],
         bcc=['q@as207960.net'],
         reply_to=['hello@glauca.digital']
     )
-    email.attach_alternative(html_content, "text/html")
-    email.send()
+    email_msg.attach_alternative(html_content, "text/html")
+    email_msg.send()
 
 
 @as_thread
@@ -126,15 +128,15 @@ def mail_subscription_cancelled(subscription: models.Subscription, value: decima
     html_content = render_to_string("billing_email/billing_cancelled.html", context)
     txt_content = render_to_string("billing_email/billing_cancelled.txt", context)
 
-    email = EmailMultiAlternatives(
+    email_msg = EmailMultiAlternatives(
         subject='Subscription cancelled',
         body=txt_content,
         to=[subscription.account.user.email],
         bcc=['q@as207960.net'],
         reply_to=['hello@glauca.digital']
     )
-    email.attach_alternative(html_content, "text/html")
-    email.send()
+    email_msg.attach_alternative(html_content, "text/html")
+    email_msg.send()
 
 
 @as_thread

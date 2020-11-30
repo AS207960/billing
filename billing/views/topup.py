@@ -489,6 +489,12 @@ def show_bank_details(request, amount, ref, currency):
             "amount": amount,
             "ref": ref
         })
+    elif currency == "try":
+        amount = models.ExchangeRate.get_rate('gbp', 'try') * amount
+        return render(request, "billing/top_up_bank_try.html", {
+            "amount": amount,
+            "ref": ref
+        })
     else:
         raise Http404()
 
