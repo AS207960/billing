@@ -13,11 +13,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(
-            model_name='accountbillingaddress',
-            name='deleted',
-            field=models.BooleanField(blank=True, default=False, null=True),
-        ),
-        migrations.AddField(
             model_name='knownstripepaymentmethod',
             name='country_code',
             field=models.CharField(default='', max_length=2, validators=[django.core.validators.MinLengthValidator(2)]),

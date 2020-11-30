@@ -51,6 +51,7 @@ class Migration(migrations.Migration):
                 ('postal_code', models.CharField(max_length=255)),
                 ('country_code', django_countries.fields.CountryField(max_length=2, verbose_name='Country')),
                 ('account', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='billing.Account')),
+                ('deleted', models.BooleanField(blank=True, default=False, null=True)),
             ],
         ),
     ]
