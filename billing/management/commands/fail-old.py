@@ -18,6 +18,5 @@ class Command(BaseCommand):
             state=models.LedgerItem.STATE_PENDING,
             last_state_change_timestamp__lt=fail_threshold
         ):
-            print(ledger_item)
             ledger_item.state = models.LedgerItem.STATE_FAILED
             ledger_item.save()

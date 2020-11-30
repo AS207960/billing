@@ -158,6 +158,78 @@ spec:
                 name: billing-email
               prefix: "EMAIL_"
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-rpc
+  labels:
+    app: billing
+    part: rpc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: billing
+      part: rpc
+  template:
+    metadata:
+      annotations:
+        cni.projectcalico.org/ipv6pools: "[\"default-ipv6-ippool\"]"
+      labels:
+        app: billing
+        part: rpc
+    spec:
+      volumes:
+        - name: static
+          persistentVolumeClaim:
+            claimName: billing-django-static
+        - name: media
+          persistentVolumeClaim:
+            claimName: billing-django-media
+      containers:
+        - name: rpc
+          image: as207960/billing-django:(version)
+          imagePullPolicy: Always
+          command: ["sh", "-c", "python3 manage.py run-rpc"]
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - mountPath: "/app/static/"
+              name: static
+            - mountPath: "/app/media/"
+              name: media
+          envFrom:
+            - configMapRef:
+                name: billing-django-conf
+            - secretRef:
+                name: billing-db-creds
+              prefix: "DB_"
+            - secretRef:
+                name: billing-django-secret
+            - secretRef:
+                name: billing-keycloak
+              prefix: "KEYCLOAK_"
+            - secretRef:
+                name: billing-stripe-secret
+            - secretRef:
+                name: billing-monzo-secret
+            - secretRef:
+                name: billing-open-exchange-secret
+            - secretRef:
+                name: billing-webpush
+            - secretRef:
+                name: billing-flux
+              prefix: "FLUX_"
+            - secretRef:
+                name: billing-gc
+              prefix: "GOCARDLESS_"
+            - secretRef:
+                name: billing-xfw
+              prefix: "TRANSFERWISE_"
+            - secretRef:
+                name: billing-email
+              prefix: "EMAIL_"
+---
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
@@ -372,6 +444,69 @@ spec:
               image: as207960/billing-django:(version)
               imagePullPolicy: Always
               command: ["sh", "-c", "python3 manage.py update-pending"]
+              volumeMounts:
+                - mountPath: "/app/static/"
+                  name: static
+                - mountPath: "/app/media/"
+                  name: media
+              envFrom:
+                - configMapRef:
+                    name: billing-django-conf
+                - secretRef:
+                    name: billing-db-creds
+                  prefix: "DB_"
+                - secretRef:
+                    name: billing-django-secret
+                - secretRef:
+                    name: billing-keycloak
+                  prefix: "KEYCLOAK_"
+                - secretRef:
+                    name: billing-stripe-secret
+                - secretRef:
+                    name: billing-monzo-secret
+                - secretRef:
+                    name: billing-open-exchange-secret
+                - secretRef:
+                    name: billing-webpush
+                - secretRef:
+                    name: billing-flux
+                  prefix: "FLUX_"
+                - secretRef:
+                    name: billing-gc
+                  prefix: "GOCARDLESS_"
+                - secretRef:
+                    name: billing-xfw
+                  prefix: "TRANSFERWISE_"
+                - secretRef:
+                    name: billing-email
+                  prefix: "EMAIL_"
+          restartPolicy: OnFailure
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: billing-fail-old
+spec:
+  schedule: "42 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          annotations:
+            cni.projectcalico.org/ipv6pools: "[\"default-ipv6-ippool\"]"
+        spec:
+          volumes:
+            - name: static
+              persistentVolumeClaim:
+                claimName: billing-django-static
+            - name: media
+              persistentVolumeClaim:
+                claimName: billing-django-media
+          containers:
+            - name: django
+              image: as207960/billing-django:(version)
+              imagePullPolicy: Always
+              command: ["sh", "-c", "python3 manage.py fail-old"]
               volumeMounts:
                 - mountPath: "/app/static/"
                   name: static
