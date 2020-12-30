@@ -335,9 +335,11 @@ def send_charge_state_notif(instance: models.ChargeState):
         )
         pika_connection.close()
 
+
 @receiver(post_save, sender=models.ChargeState)
-def send_charge_state_notif_receiver(_sender, instance: models.ChargeState, **_kwargs):
+def send_charge_state_notif_receiver(sender, instance: models.ChargeState, **kwargs):
     send_charge_state_notif(instance)
+
 
 @receiver(post_save, sender=models.Subscription)
 def send_subscription_notif(sender, instance: models.Subscription, **kwargs):
