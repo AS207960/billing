@@ -435,7 +435,7 @@ class LedgerItem(models.Model):
 
     @property
     def reversal(self):
-        reversal_ledger_item = self.objects.filter(
+        reversal_ledger_item = LedgerItem.objects.filter(
             type=self.TYPE_CHARGE,
             type_id=self.type_id,
             is_reversal=True,
