@@ -5,6 +5,9 @@
 {% block content %}
     <div class="container my-3">
         <h1>Your order</h1>
+        {% if reversal %}
+            <h2>Refunded</h2>
+        {% endif %}
         <div class="row">
             <div class="col-12 col-lg-6">
 
@@ -17,6 +20,9 @@
                     {% if charge.payment_ledger_item and charge.payment_ledger_item.evidence_billing_address and charge.payment_ledger_item.evidence_billing_address.formatted_vat_id %}
                         <br/><b>Your VAT ID:</b>
                         {{ charge.payment_ledger_item.evidence_billing_address.formatted_vat_id }}
+                    {% endif %}
+                    {% if reversal %}
+                        <br/>Refunded on: <b>{{ reversal.timestamp }}</b>
                     {% endif %}
                 </p>
             </div>

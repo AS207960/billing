@@ -434,6 +434,19 @@ class LedgerItem(models.Model):
         super().save(*args, **kwargs)
 
     @property
+    def reversal(self):
+        reversal_ledger_item = self.objects.filter(
+            type=self.TYPE_CHARGE,
+            type_id=self.type_id,
+            is_reversal=True,
+            state=self.STATE_COMPLETED
+        ).first()
+        if reversal_ledger_item and reversal_ledger_item.timestamp >= self.timestamp:
+            return reversal_ledger_item
+        else:
+            return None
+
+    @property
     def balance_at(self):
         queryset = self.account.ledgeritem_set \
             .filter(timestamp__lte=self.timestamp)

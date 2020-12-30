@@ -167,13 +167,8 @@ def reverse_charge(request):
             state=models.LedgerItem.STATE_COMPLETED
         ).first()
         if ledger_item:
-            reversal_ledger_item = models.LedgerItem.objects.filter(
-                type=models.LedgerItem.TYPE_CHARGE,
-                type_id=data["id"],
-                is_reversal=True,
-                state=models.LedgerItem.STATE_COMPLETED
-            ).first()  # type: models.LedgerItem
-            if not (reversal_ledger_item and reversal_ledger_item.timestamp >= ledger_item.item):
+            reversal_ledger_item = ledger_item.reversal
+            if not reversal_ledger_item:
                 new_ledger_item = models.LedgerItem(
                     account=ledger_item.account,
                     descriptor=ledger_item.descriptor,

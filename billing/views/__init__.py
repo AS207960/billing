@@ -75,6 +75,7 @@ def order_details(request, charge_id):
         "from_account_balance": from_account_balance,
         "left_to_be_paid": left_to_be_paid,
         "charged_amount": charged_amount,
+        "reversal": charge_state.ledger_item.reversal,
     })
 
 
