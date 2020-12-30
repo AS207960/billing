@@ -64,7 +64,7 @@ def mail_notif(ledger_item: models.LedgerItem, state_name: str, emoji: str):
 
     subject = f"{emoji} {ledger_item.descriptor}: {state_name}" if state_name \
         else f"{emoji} {ledger_item.descriptor}"
-    subject = str(email.header.Header(subject, "utf8"))
+    subject = str(email.header.Header(subject, "utf8").encode())
 
     email_msg = EmailMultiAlternatives(
         subject=subject,
