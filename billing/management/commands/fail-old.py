@@ -19,9 +19,6 @@ class Command(BaseCommand):
             state=models.LedgerItem.STATE_PENDING,
             last_state_change_timestamp__lt=fail_threshold
         ):
-            ledger_item.state = models.LedgerItem.STATE_FAILED
-            ledger_item.save()
-
             try:
                 charge_state = ledger_item.charge_state
             except django.core.exceptions.ObjectDoesNotExist:
@@ -30,3 +27,6 @@ class Command(BaseCommand):
             if charge_state and not charge_state.last_error:
                 charge_state.last_error = "Payment timed out"
                 charge_state.save()
+
+            ledger_item.state = models.LedgerItem.STATE_FAILED
+            ledger_item.save()
