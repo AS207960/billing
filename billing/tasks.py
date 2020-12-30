@@ -250,11 +250,16 @@ def try_update_charge_state(sender, instance: models.LedgerItem, **kwargs):
                 charge_state.ledger_item.save()
             # charge_state.payment_ledger_item = None
             # charge_state.save()
+    if charge_state:
+        send_charge_state_notif(None, charge_state)
 
     try:
         charge_state_2 = instance.charge_state
     except django.core.exceptions.ObjectDoesNotExist:
         charge_state_2 = None
+
+    if charge_state_2:
+        send_charge_state_notif(None, charge_state_2)
 
     try:
         subscription_charge = instance.subscriptioncharge
@@ -299,7 +304,7 @@ def try_update_charge_state(sender, instance: models.LedgerItem, **kwargs):
 
 
 @receiver(post_save, sender=models.ChargeState)
-def send_charge_state_notif(sender, instance: models.ChargeState, **kwargs):
+def send_charge_state_notif(_sender, instance: models.ChargeState, **_kwargs):
     if instance.notif_queue:
         status = instance.ledger_item.state
 

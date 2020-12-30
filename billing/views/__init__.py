@@ -171,6 +171,8 @@ def complete_order(request, charge_id):
         if charge_state.ledger_item and charge_state.ledger_item.state != models.LedgerItem.STATE_COMPLETED:
             charge_state.ledger_item.state = models.LedgerItem.STATE_FAILED
             charge_state.ledger_item.save()
+        charge_state.last_error = "Oder cancelled"
+        charge_state.save()
 
         return redirect(charge_state.full_redirect_uri())
     elif result == topup.HandlePaymentOutcome.FORBIDDEN:
