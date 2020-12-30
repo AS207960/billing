@@ -1,6 +1,5 @@
 import datetime
 import decimal
-import email.header
 import json
 import threading
 
@@ -62,9 +61,8 @@ def mail_notif(ledger_item: models.LedgerItem, state_name: str, emoji: str):
     html_content = render_to_string("billing_email/billing_notif.html", context)
     txt_content = render_to_string("billing_email/billing_notif.txt", context)
 
-    subject = f"{emoji} {ledger_item.descriptor}: {state_name}" if state_name \
-        else f"{emoji} {ledger_item.descriptor}"
-    subject = str(email.header.Header(subject, "UTF-8").encode())
+    subject = f"{ledger_item.descriptor}: {state_name}" if state_name \
+        else f"{ledger_item.descriptor}"
 
     email_msg = EmailMultiAlternatives(
         subject=subject,
