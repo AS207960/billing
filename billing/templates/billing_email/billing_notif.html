@@ -1,4 +1,5 @@
 {% extends "billing_email/email_base.html" %}
+{% load mathfilters %}
 {% block content %}
     <p>
         Hello {{ name }},
@@ -14,7 +15,11 @@
         </tr>
         <tr style="padding:5px;">
             <th>Amount</th>
-            <td>&pound;{{ item.amount|floatformat:2 }}</td>
+            {% if item.amount >= 0 %}
+                <td>&pound;{{ item.amount|floatformat:2 }}</td>
+            {% else %}
+                <td>-&pound;{{ item.amount|abs|floatformat:2 }}</td>
+            {% endif %}
         </tr>
         <tr style="padding:5px;">
             <th>State</th>
@@ -41,12 +46,10 @@
         </tbody>
     </table>
     {% if charge_state_url %}
-        <hr/>
          <a href="{{ charge_state_url }}"
-           style="color: #fff;background-color: #3182CE;text-align: center;text-decoration: none;box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);border-radius: .5rem;display: block;padding: 0.5rem 1rem;font-size: 1.25rem;line-height: 1.5;">
+           style="color: #fff;background-color: #3182CE;text-align: center;text-decoration: none;box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);border-radius: .5rem;display: block;padding: 0.5rem 1rem;font-size: 1.25rem;line-height: 1.5;margin-top: 15px;">
             Continue with your order
         </a>
-        <hr/>
     {% endif %}
     <p>
         You can always view your account at <a href="https://billing.as207960.net">billing.as207960.net</a>.

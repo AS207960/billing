@@ -251,7 +251,7 @@ def try_update_charge_state(sender, instance: models.LedgerItem, **kwargs):
             # charge_state.payment_ledger_item = None
             # charge_state.save()
     if charge_state:
-        send_charge_state_notif(None, charge_state)
+        send_charge_state_notif(charge_state)
 
     try:
         charge_state_2 = instance.charge_state
@@ -259,7 +259,7 @@ def try_update_charge_state(sender, instance: models.LedgerItem, **kwargs):
         charge_state_2 = None
 
     if charge_state_2:
-        send_charge_state_notif(None, charge_state_2)
+        send_charge_state_notif(charge_state_2)
 
     try:
         subscription_charge = instance.subscriptioncharge
@@ -303,8 +303,7 @@ def try_update_charge_state(sender, instance: models.LedgerItem, **kwargs):
                     subscription_charge.subscription.save()
 
 
-@receiver(post_save, sender=models.ChargeState)
-def send_charge_state_notif(_sender, instance: models.ChargeState, **_kwargs):
+def send_charge_state_notif(instance: models.ChargeState):
     if instance.notif_queue:
         status = instance.ledger_item.state
 
@@ -336,6 +335,9 @@ def send_charge_state_notif(_sender, instance: models.ChargeState, **_kwargs):
         )
         pika_connection.close()
 
+@receiver(post_save, sender=models.ChargeState)
+def send_charge_state_notif_receiver(_sender, instance: models.ChargeState, **_kwargs):
+    send_charge_state_notif(instance)
 
 @receiver(post_save, sender=models.Subscription)
 def send_subscription_notif(sender, instance: models.Subscription, **kwargs):
