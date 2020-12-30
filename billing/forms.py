@@ -92,7 +92,7 @@ class BillingAddressForm(forms.ModelForm):
 
         if self.instance.vat_id:
             self.fields['vat_id'].disabled = True
-        if self.instance:
+        if not self.instance._state.adding:
             self.fields['country_code'].disabled = True
 
         self.helper = crispy_forms.helper.FormHelper()
