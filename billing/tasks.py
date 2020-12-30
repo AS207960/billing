@@ -64,7 +64,7 @@ def mail_notif(ledger_item: models.LedgerItem, state_name: str, emoji: str):
 
     subject = f"{emoji} {ledger_item.descriptor}: {state_name}" if state_name \
         else f"{emoji} {ledger_item.descriptor}"
-    subject = str(email.header.Header(subject, "utf8").encode())
+    subject = str(email.header.Header(subject, "UTF-8").encode())
 
     email_msg = EmailMultiAlternatives(
         subject=subject,
@@ -310,7 +310,7 @@ def send_charge_state_notif(instance: models.ChargeState):
         if status == models.LedgerItem.STATE_PENDING:
             status = billing_pb2.ChargeStateNotification.PENDING
         elif status in (models.LedgerItem.STATE_PROCESSING, models.LedgerItem.STATE_PROCESSING_CANCELLABLE):
-            status = billing_pb2.ChargeStateNotification.PROCESING
+            status = billing_pb2.ChargeStateNotification.PROCESSING
         elif status == models.LedgerItem.STATE_FAILED:
             status = billing_pb2.ChargeStateNotification.FAILED
         elif status == models.LedgerItem.STATE_COMPLETED:
