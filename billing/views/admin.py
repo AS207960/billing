@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import DecimalField, OuterRef, Sum, Subquery
 from django.shortcuts import get_object_or_404, redirect, render
-from .. import forms, models, tasks
+from .. import forms, models, tasks, vat
 
 
 @login_required
@@ -133,7 +133,17 @@ def edit_ledger_item(request, item_id):
         if request.method == "POST":
             form = forms.BACSMarkPaidForm(request.POST)
             if form.is_valid():
-                ledger_item.amount = form.cleaned_data['amount']
+                amount = form.cleaned_data['amount']
+                gbp_amount = models.ExchangeRate.get_rate(form.cleaned_data['currency'], 'gbp') * amount
+
+                vat_rate = decimal.Decimal(0)
+                if ledger_item.account.taxable:
+                    country_vat_rate = vat.get_vat_rate(ledger_item.evidence_billing_address.country_code.code.lower())
+                    if country_vat_rate is not None:
+                        vat_rate = country_vat_rate
+
+                ledger_item.amount = gbp_amount / (1 + vat_rate)
+                ledger_item.vat_rate = vat_rate
                 ledger_item.state = ledger_item.STATE_COMPLETED
                 ledger_item.save()
 

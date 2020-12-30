@@ -1,0 +1,12 @@
+{% extends 'billing/base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Top-up account</h1>
+
+        <p class="lead">We don't have a billing address for your account. Please set one up.</p>
+        <a href="{% url 'add_billing_address' %}" class="btn btn-success btn-block">&#x1f195; Setup billing address
+            &#x1f195;</a>
+    </div>
+{% endblock %}

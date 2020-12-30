@@ -1,0 +1,21 @@
+{% extends 'billing/base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Top-up account</h1>
+        <h2>We can't sell to you</h2>
+
+        <p class="lead">{{ reason }}</p>
+
+        {% if account.billing_address %}
+            <a href="{% url 'edit_billing_address' account.billing_address.id %}" class="btn btn-info btn-block">
+                Edit your billing address
+            </a>
+        {% else %}
+            <a href="{% url 'add_billing_address' %}" class="btn btn-success btn-block">
+                &#x1f195; Setup billing address &#x1f195;
+            </a>
+        {% endif %}
+    </div>
+{% endblock %}

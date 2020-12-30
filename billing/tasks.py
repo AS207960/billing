@@ -1,8 +1,8 @@
 import datetime
 import decimal
+import email.header
 import json
 import threading
-import email.header
 
 import django.core.exceptions
 import google.protobuf.wrappers_pb2
@@ -40,13 +40,16 @@ def as_thread(fun):
 def mail_notif(ledger_item: models.LedgerItem, state_name: str, emoji: str):
     try:
         charge_state = ledger_item.charge_state
+        is_payment_item = False
     except django.core.exceptions.ObjectDoesNotExist:
         try:
             charge_state = ledger_item.charge_state_payment
+            is_payment_item = True
         except django.core.exceptions.ObjectDoesNotExist:
             charge_state = None
+            is_payment_item = False
 
-    if charge_state and charge_state.ledger_item.state != charge_state.ledger_item.STATE_FAILED:
+    if charge_state and (charge_state.ledger_item.state != charge_state.ledger_item.STATE_FAILED or is_payment_item):
         charge_state_url = settings.EXTERNAL_URL_BASE + reverse('complete_order', args=(charge_state.id,))
     else:
         charge_state_url = None
@@ -245,18 +248,13 @@ def try_update_charge_state(sender, instance: models.LedgerItem, **kwargs):
             else:
                 charge_state.ledger_item.state = instance.STATE_COMPLETED
                 charge_state.ledger_item.save()
-            charge_state.payment_ledger_item = None
-            charge_state.save()
+            # charge_state.payment_ledger_item = None
+            # charge_state.save()
 
     try:
         charge_state_2 = instance.charge_state
     except django.core.exceptions.ObjectDoesNotExist:
         charge_state_2 = None
-
-    if charge_state_2:
-        if instance.state == instance.STATE_COMPLETED and not charge_state_2.completed_timestamp:
-            charge_state_2.completed_timestamp = timezone.now()
-            charge_state_2.save()
 
     try:
         subscription_charge = instance.subscriptioncharge
@@ -288,12 +286,14 @@ def try_update_charge_state(sender, instance: models.LedgerItem, **kwargs):
 
                 if subscription_charge.failed_bill_attempts >= SUBSCRIPTION_RETRY_ATTEMPTS:
                     if subscription_charge.subscription.state != models.Subscription.STATE_CANCELLED:
-                        mail_subscription_cancelled(subscription_charge.subscription, instance.amount * -1, error_message)
+                        mail_subscription_cancelled(subscription_charge.subscription, instance.amount * -1,
+                                                    error_message)
                     subscription_charge.subscription.state = models.Subscription.STATE_CANCELLED
                     subscription_charge.subscription.save()
                 else:
                     if subscription_charge.subscription.state != models.Subscription.STATE_CANCELLED:
-                        mail_subscription_past_due(subscription_charge.subscription, instance.amount * -1, error_message)
+                        mail_subscription_past_due(subscription_charge.subscription, instance.amount * -1,
+                                                   error_message)
                     subscription_charge.subscription.state = models.Subscription.STATE_PAST_DUE
                     subscription_charge.subscription.save()
 
@@ -381,122 +381,159 @@ class ChargeStateRequiresActionError(Exception):
 
 
 def attempt_charge_off_session(charge_state):
-    default_billing_address = models.AccountBillingAddress.objects \
-        .filter(account=charge_state.account, deleted=False, default=True).first()
+    account = charge_state.account  # type: models.Account
 
-    if not default_billing_address and vat.need_billing_evidence():
+    if not account.billing_address:
         raise ChargeError(None, "No default billing address", must_reject=True)
 
-    billing_address_country = default_billing_address.country_code.code.lower() \
-        if default_billing_address else None
-    order_total = charge_state.base_amount
-    vat_rate = decimal.Decimal(0)
-    selected_payment_method_type = None
-    selected_payment_method_id = None
-    taxable = not default_billing_address.vat_id if default_billing_address else True
+    can_sell, can_sell_reason = account.can_sell
+    if not can_sell:
+        raise ChargeError(None, can_sell_reason, must_reject=True)
 
-    if billing_address_country and taxable:
-        country_vat_rate = vat.get_vat_rate(billing_address_country)
-        if country_vat_rate is not None:
-            vat_rate = country_vat_rate
-            vat_charged = (order_total * country_vat_rate)
-            order_total += vat_charged
-
-    from_account_balance = min(charge_state.account.balance, order_total)
-    left_to_be_paid = order_total - from_account_balance
+    from_account_balance = min(charge_state.account.balance, -charge_state.ledger_item.amount)
+    left_to_be_paid = -(charge_state.ledger_item.amount + from_account_balance)
     needs_payment = left_to_be_paid > 0
-    account_evidence = {}
-    payment_method_country = None
-    currency = "gbp"
 
     if left_to_be_paid < decimal.Decimal(1):
         left_to_be_paid = decimal.Decimal(1)
 
+    charged_amount = left_to_be_paid
+
+    vat_rate = decimal.Decimal(0)
+    selected_currency = "gbp"
+    billing_address_country = account.billing_address.country_code.code.lower()
+    selected_payment_method_type = None
+    selected_payment_method_id = None
+
+    if account.taxable:
+        country_vat_rate = vat.get_vat_rate(billing_address_country)
+        if country_vat_rate is not None:
+            vat_rate = country_vat_rate
+            vat_charged = (left_to_be_paid * country_vat_rate)
+            charged_amount += vat_charged
+
     if needs_payment:
         if charge_state.account.default_stripe_payment_method_id:
             payment_method = stripe.PaymentMethod.retrieve(charge_state.account.default_stripe_payment_method_id)
-            if payment_method["type"] == "sepa_debit":
-                currency = "eur"
+            method_country = utils.country_from_stripe_payment_method(payment_method)
+            if method_country == billing_address_country or not account.taxable:
+                if payment_method["type"] == "card":
+                    if selected_currency not in ['gbp', 'eur', 'usd']:
+                        selected_currency = 'gbp'
+            else:
+                raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
             selected_payment_method_type = "stripe_pm"
-            selected_payment_method_id = payment_method
-            payment_method_country = utils.country_from_stripe_payment_method(payment_method)
-        elif charge_state.account.default_gc_mandate_id:
-            mandate = apps.gocardless_client.mandates.get(charge_state.account.default_gc_mandate_id)
-
-            if mandate.scheme == "ach":
-                currency = "usd"
-            elif mandate.scheme == "autogiro":
-                currency = "sek"
-            elif mandate.scheme == "becs":
-                currency = "aud"
-            elif mandate.scheme == "becs_nz":
-                currency = "nzd"
-            elif mandate.scheme == "betalingsservice":
-                currency = "dkk"
-            elif mandate.scheme == "pad":
-                currency = "cad"
-            elif mandate.scheme in ("sepa_core", "sepa_cor1"):
-                currency = "eur"
-
-            customer_bank_account = apps.gocardless_client.customer_bank_accounts.get(
-                mandate.links.customer_bank_account)
-            payment_method_country = customer_bank_account.country_code.lower()
-            selected_payment_method_type = "gc_mandate"
-            selected_payment_method_id = mandate
-
-        if vat.need_billing_evidence():
-            address_and_method_match = payment_method_country == billing_address_country
+            selected_payment_method_id = charge_state.account.default_stripe_payment_method_id
+        elif charge_state.account.default_sepa_mandate:
+            payment_method = stripe.PaymentMethod.retrieve(charge_state.account.default_sepa_mandate.payment_method)
+            method_country = utils.country_from_stripe_payment_method(payment_method)
+            if method_country == billing_address_country or not account.taxable:
+                selected_currency = 'eur'
+            else:
+                raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
+            selected_payment_method_type = "sepa_mandate_stripe"
+            selected_payment_method_id = charge_state.account.default_sepa_mandate.payment_method
+        elif charge_state.account.default_bacs_mandate:
+            payment_method = stripe.PaymentMethod.retrieve(charge_state.account.default_bacs_mandate.payment_method)
+            method_country = utils.country_from_stripe_payment_method(payment_method)
+            if method_country == billing_address_country or not account.taxable:
+                selected_currency = 'gbp'
+            else:
+                raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
+            selected_payment_method_type = "bacs_mandate_stripe"
+            selected_payment_method_id = charge_state.account.default_bacs_mandate.payment_method
+        elif charge_state.account.default_ach_mandate:
+            if billing_address_country == "us" or not account.taxable:
+                selected_currency = 'usd'
+            else:
+                raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
+            selected_payment_method_type = "ach_mandate_gc"
+            selected_payment_method_id = charge_state.account.default_ach_mandate
+        elif charge_state.account.default_autogiro_mandate:
+            if billing_address_country == "se" or not account.taxable:
+                selected_currency = 'sek'
+            else:
+                raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
+            selected_payment_method_type = "autogiro_mandate_gc"
+            selected_payment_method_id = charge_state.account.default_autogiro_mandate
+        elif charge_state.account.default_gc_bacs_mandate:
+            if billing_address_country == "gb" or not account.taxable:
+                selected_currency = 'gbp'
+            else:
+                raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
+            selected_payment_method_type = "bacs_mandate_gc"
+            selected_payment_method_id = charge_state.account.default_gc_bacs_mandate
+        elif charge_state.account.default_becs_mandate:
+            if billing_address_country == "au" or not account.taxable:
+                selected_currency = 'aud'
+            else:
+                raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
+            selected_payment_method_type = "becs_mandate_gc"
+            selected_payment_method_id = charge_state.account.default_becs_mandate
+        elif charge_state.account.default_becs_nz_mandate:
+            if billing_address_country == "nz" or not account.taxable:
+                selected_currency = 'nzd'
+            else:
+                raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
+            selected_payment_method_type = "becs_nz_mandate_gc"
+            selected_payment_method_id = charge_state.account.default_becs_nz_mandate
+        elif charge_state.account.default_betalingsservice_mandate:
+            if billing_address_country == "dk" or not account.taxable:
+                selected_currency = 'dkk'
+            else:
+                raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
+            selected_payment_method_type = "betalingsservice_mandate_gc"
+            selected_payment_method_id = charge_state.account.default_betalingsservice_mandate
+        elif charge_state.account.default_pad_mandate:
+            if billing_address_country == "ca" or not account.taxable:
+                selected_currency = 'cad'
+            else:
+                raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
+            selected_payment_method_type = "pad_mandate_gc"
+            selected_payment_method_id = charge_state.account.default_pad_mandate
+        elif charge_state.account.default_gc_sepa_mandate:
+            mandate = apps.gocardless_client.mandates.get(charge_state.account.default_gc_sepa_mandate.mandate_id)
+            bank_account = apps.gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
+            if bank_account.country_code.lower() == billing_address_country or not account.taxable:
+                selected_currency = 'eur'
+            else:
+                raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
+            selected_payment_method_type = "sepa_mandate_gc"
+            selected_payment_method_id = charge_state.account.default_gc_sepa_mandate
         else:
-            address_and_method_match = True
-    else:
-        if vat.need_billing_evidence():
-            account_evidence = find_account_evidence(charge_state.account, billing_address_country)
-            address_and_method_match = account_evidence is not None
-        else:
-            address_and_method_match = True
+            raise ChargeError(None, "No payment method on file", must_reject=False)
 
-    if not address_and_method_match:
-        raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
-
-    charge_state.vat_rate = vat_rate
-    charge_state.country_code = billing_address_country
     charge_state.ready_to_complete = True
-    charge_state.evidence_billing_address = default_billing_address
-    charge_state.ledger_item.amount = -order_total
-    charge_state.ledger_item.save()
     charge_state.save()
 
+    if not selected_currency:
+        raise ChargeError(None, "No mutually supported currency", must_reject=False)
+
     if needs_payment:
-        amount = models.ExchangeRate.get_rate("gbp", currency) * left_to_be_paid
-        amount_int = int(round(amount * decimal.Decimal(100)))
-
-        ledger_item_type = None
-        if selected_payment_method_type == "stripe_pm":
-            if selected_payment_method_id["type"] == "sepa_debit":
-                ledger_item_type = models.LedgerItem.TYPE_SEPA
-            else:
-                ledger_item_type = models.LedgerItem.TYPE_CARD
-        elif selected_payment_method_type == "gc_mandate":
-            ledger_item_type = models.LedgerItem.TYPE_GOCARDLESS
-
         ledger_item = models.LedgerItem(
-            account=charge_state.account,
-            descriptor="Automatic top-up",
+            account=account,
             amount=left_to_be_paid,
-            type=ledger_item_type
+            vat_rate=vat_rate,
+            country_code=billing_address_country,
+            evidence_billing_address=account.billing_address,
+            charged_amount=charged_amount
         )
 
+        amount = models.ExchangeRate.get_rate("gbp", selected_currency) * charged_amount
+        amount_int = int(round(amount * decimal.Decimal(100)))
+
         if selected_payment_method_type == "stripe_pm":
+            ledger_item.descriptor = "Top-up by card"
+            ledger_item.type = models.LedgerItem.TYPE_CARD
             try:
                 payment_intent = stripe.PaymentIntent.create(
                     amount=amount_int,
-                    currency=currency,
+                    currency=selected_currency,
                     customer=charge_state.account.get_stripe_id(),
                     description='Top-up',
                     receipt_email=charge_state.account.user.email,
                     statement_descriptor_suffix="Top-up",
-                    payment_method=selected_payment_method_id["id"],
-                    payment_method_types=[selected_payment_method_id["type"]],
+                    payment_method=selected_payment_method_id,
                     confirm=True,
                     off_session=True,
                 )
@@ -511,67 +548,194 @@ def attempt_charge_off_session(charge_state):
                 ledger_item.save()
                 raise ChargeError(ledger_item, message, must_reject=False)
 
-            known_payment_method, _ = models.KnownStripePaymentMethod.objects.update_or_create(
-                account=charge_state.account, method_id=payment_intent["payment_method"],
-                defaults={
-                    "country_code": payment_method_country
-                }
+            ledger_item.type_id = payment_intent['id']
+            ledger_item.save()
+            charge_state.payment_ledger_item = ledger_item
+            charge_state.save()
+            update_from_payment_intent(payment_intent, ledger_item)
+        elif selected_payment_method_type == "bacs_mandate_stripe":
+            payment_intent = stripe.PaymentIntent.create(
+                amount=amount_int,
+                currency=selected_currency,
+                customer=charge_state.account.get_stripe_id(),
+                description='Top-up',
+                receipt_email=charge_state.account.user.email,
+                statement_descriptor_suffix="Top-up",
+                payment_method=selected_payment_method_id,
+                payment_method_types=["bacs_debit"],
+                confirm=True,
+                off_session=True,
             )
 
-            ledger_item.save()
+            ledger_item.descriptor = "Top-up by BACS Direct Debit"
+            ledger_item.type = models.LedgerItem.TYPE_CARD
+            ledger_item.state = models.LedgerItem.STATE_PROCESSING
             ledger_item.type_id = payment_intent['id']
-            charge_state.payment_ledger_item = ledger_item
-            charge_state.evidence_stripe_pm = known_payment_method
-            charge_state.save()
             ledger_item.save()
+            charge_state.payment_ledger_item = ledger_item
+            charge_state.save()
             update_from_payment_intent(payment_intent, ledger_item)
-        elif selected_payment_method_type == "gc_mandate":
+        elif selected_payment_method_type == "sepa_mandate_stripe":
+            payment_intent = stripe.PaymentIntent.create(
+                amount=amount_int,
+                currency=selected_currency,
+                customer=charge_state.account.get_stripe_id(),
+                description='Top-up',
+                receipt_email=charge_state.account.user.email,
+                statement_descriptor_suffix="Top-up",
+                payment_method=selected_payment_method_id,
+                payment_method_types=["sepa_debit"],
+                confirm=True,
+                off_session=True,
+            )
+
+            ledger_item.descriptor = "Top-up by SEPA Direct Debit"
+            ledger_item.type = models.LedgerItem.TYPE_SEPA
+            ledger_item.state = models.LedgerItem.STATE_PROCESSING
+            ledger_item.type_id = payment_intent['id']
+            ledger_item.save()
+            charge_state.payment_ledger_item = ledger_item
+            charge_state.save()
+            update_from_payment_intent(payment_intent, ledger_item)
+        elif selected_payment_method_type == "ach_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
-                "currency": currency.upper(),
+                "currency": selected_currency.upper(),
                 "description": "Top up",
                 "retry_if_possible": False,
                 "links": {
-                    "mandate": selected_payment_method_id.id
+                    "mandate": selected_payment_method_id.mandate_id
                 }
             })
-            if selected_payment_method_id.scheme == "ach":
-                charge_state.evidence_ach_mandate = models.ACHMandate.sync_mandate(
-                     selected_payment_method_id.id, charge_state.account)
-            elif selected_payment_method_id.scheme == "autogiro":
-                charge_state.evidence_autogiro_mandate = models.AutogiroMandate.sync_mandate(
-                    selected_payment_method_id.id, charge_state.account)
-            elif selected_payment_method_id.scheme == "bacs":
-                charge_state.evidence_gc_bacs_mandate = models.GCBACSMandate.sync_mandate(
-                    selected_payment_method_id.id, charge_state.account)
-            elif selected_payment_method_id.scheme == "becs":
-                charge_state.evidence_becs_mandate = models.BECSMandate.sync_mandate(
-                    selected_payment_method_id.id, charge_state.account)
-            elif selected_payment_method_id.scheme == "becs_nz":
-                charge_state.evidence_becs_nz_mandate = models.BECSNZMandate.sync_mandate(
-                    selected_payment_method_id.id, charge_state.account)
-            elif selected_payment_method_id.scheme == "betalingsservice":
-                charge_state.evidence_betalingsservice_mandate = models.BetalingsserviceMandate.sync_mandate(
-                    selected_payment_method_id.id, charge_state.account)
-            elif selected_payment_method_id.scheme == "pad":
-                charge_state.evidence_pad_mandate = models.PADMandate.sync_mandate(
-                    selected_payment_method_id.id, charge_state.account)
-            elif selected_payment_method_id.scheme in ("sepa_core", "sepa_cor1"):
-                charge_state.evidence_gc_sepa_mandate = models.GCSEPAMandate.sync_mandate(
-                    selected_payment_method_id.id, charge_state.account)
 
-            ledger_item.save()
-            charge_state.payment_ledger_item = ledger_item
-            charge_state.save()
+            ledger_item.descriptor = "Top-up by ACH Direct Debit"
+            ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+            ledger_item.evidence_ach_mandate = selected_payment_method_id
+            ledger_item.save()
+        elif selected_payment_method_type == "autogiro_mandate_gc":
+            payment = apps.gocardless_client.payments.create(params={
+                "amount": amount_int,
+                "currency": selected_currency.upper(),
+                "description": "Top up",
+                "retry_if_possible": False,
+                "links": {
+                    "mandate": selected_payment_method_id.mandate_id
+                }
+            })
+
+            ledger_item.descriptor = "Top-up by Autogiro Direct Debit"
+            ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+            ledger_item.type_id = payment.id
+            ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+            ledger_item.evidence_autogiro_mandate = selected_payment_method_id
+            ledger_item.save()
+        elif selected_payment_method_type == "bacs_mandate_gc":
+            payment = apps.gocardless_client.payments.create(params={
+                "amount": amount_int,
+                "currency": selected_currency.upper(),
+                "description": "Top up",
+                "retry_if_possible": False,
+                "links": {
+                    "mandate": selected_payment_method_id.mandate_id
+                }
+            })
+
+            ledger_item.descriptor = "Top-up by BACS Direct Debit"
+            ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+            ledger_item.type_id = payment.id
+            ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+            ledger_item.evidence_gc_bacs_mandate = selected_payment_method_id
+            ledger_item.save()
+        elif selected_payment_method_type == "becs_mandate_gc":
+            payment = apps.gocardless_client.payments.create(params={
+                "amount": amount_int,
+                "currency": selected_currency.upper(),
+                "description": "Top up",
+                "retry_if_possible": False,
+                "links": {
+                    "mandate": selected_payment_method_id.mandate_id
+                }
+            })
+
+            ledger_item.descriptor = "Top-up by BECS Direct Debit"
+            ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+            ledger_item.type_id = payment.id
+            ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+            ledger_item.evidence_becs_mandate = selected_payment_method_id
+            ledger_item.save()
+        elif selected_payment_method_type == "becs_nz_mandate_gc":
+            payment = apps.gocardless_client.payments.create(params={
+                "amount": amount_int,
+                "currency": selected_currency.upper(),
+                "description": "Top up",
+                "retry_if_possible": False,
+                "links": {
+                    "mandate": selected_payment_method_id.mandate_id
+                }
+            })
+
+            ledger_item.descriptor = "Top-up by BECS NZ Direct Debit"
+            ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+            ledger_item.type_id = payment.id
+            ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+            ledger_item.evidence_becs_nz_mandate = selected_payment_method_id
+            ledger_item.save()
+        elif selected_payment_method_type == "betalingsservice_mandate_gc":
+            payment = apps.gocardless_client.payments.create(params={
+                "amount": amount_int,
+                "currency": selected_currency.upper(),
+                "description": "Top up",
+                "retry_if_possible": False,
+                "links": {
+                    "mandate": selected_payment_method_id.mandate_id
+                }
+            })
+
+            ledger_item.descriptor = "Top-up by Betalingsservice"
+            ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+            ledger_item.type_id = payment.id
+            ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+            ledger_item.evidence_betalingsservice_mandate = selected_payment_method_id
+            ledger_item.save()
+        elif selected_payment_method_type == "pad_mandate_gc":
+            payment = apps.gocardless_client.payments.create(params={
+                "amount": amount_int,
+                "currency": selected_currency.upper(),
+                "description": "Top up",
+                "retry_if_possible": False,
+                "links": {
+                    "mandate": selected_payment_method_id.mandate_id
+                }
+            })
+
+            ledger_item.descriptor = "Top-up by PAD Direct Debit"
+            ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+            ledger_item.type_id = payment.id
+            ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+            ledger_item.evidence_pad_mandate = selected_payment_method_id
+            ledger_item.save()
+        elif selected_payment_method_type == "sepa_mandate_gc":
+            payment = apps.gocardless_client.payments.create(params={
+                "amount": amount_int,
+                "currency": selected_currency.upper(),
+                "description": "Top up",
+                "retry_if_possible": False,
+                "links": {
+                    "mandate": selected_payment_method_id.mandate_id
+                }
+            })
+
+            ledger_item.descriptor = "Top-up by SEPA Direct Debit"
+            ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+            ledger_item.type_id = payment.id
+            ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+            ledger_item.evidence_gc_sepa_mandate = selected_payment_method_id
             ledger_item.save()
     else:
-        for key in account_evidence:
-            setattr(charge_state, key, account_evidence[key])
         charge_state.ledger_item.state = models.LedgerItem.STATE_COMPLETED
         charge_state.ledger_item.save()
-        charge_state.save()
 
 
 def charge_account(account: models.Account, amount: decimal.Decimal, descriptor: str, type_id: str, can_reject=True,
@@ -589,7 +753,6 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
         ledger_item=ledger_item,
         return_uri=return_uri,
         notif_queue=notif_queue,
-        base_amount=amount,
         can_reject=can_reject
     )
 
@@ -673,9 +836,6 @@ def update_from_payment_intent(payment_intent, ledger_item: models.LedgerItem = 
                 )
 
     if payment_intent["status"] == "succeeded":
-        amount = decimal.Decimal(payment_intent["amount_received"]) / decimal.Decimal(100)
-        amount = models.ExchangeRate.get_rate(payment_intent['currency'], 'gbp') * amount
-        ledger_item.amount = amount
         ledger_item.state = models.LedgerItem.STATE_COMPLETED
         ledger_item.save()
         if account:
@@ -687,9 +847,8 @@ def update_from_payment_intent(payment_intent, ledger_item: models.LedgerItem = 
                     "country_code": payment_method_country
                 }
             )
-            if ledger_item.charge_state_payment:
-                ledger_item.charge_state_payment.evidence_stripe_pm = known_payment_method
-                ledger_item.charge_state_payment.save()
+            ledger_item.evidence_stripe_pm = known_payment_method
+            ledger_item.save()
     elif payment_intent["status"] == "processing":
         ledger_item.state = models.LedgerItem.STATE_PROCESSING
         ledger_item.save()
@@ -698,16 +857,18 @@ def update_from_payment_intent(payment_intent, ledger_item: models.LedgerItem = 
         ledger_item.save()
     elif (payment_intent["status"] == "requires_payment_method" and payment_intent["last_payment_error"]) \
             or payment_intent["status"] == "canceled":
-        ledger_item.state = models.LedgerItem.STATE_FAILED
         try:
             charge_state = ledger_item.charge_state_payment
         except django.core.exceptions.ObjectDoesNotExist:
-            return
-        error = payment_intent["last_payment_error"]["message"] if payment_intent["last_payment_error"] \
-            else "Payment failed"
-        charge_state.last_error = error
-        charge_state.save()
+            charge_state = None
+        ledger_item.state = models.LedgerItem.STATE_FAILED
         ledger_item.save()
+        if charge_state:
+            error = payment_intent["last_payment_error"]["message"] if payment_intent["last_payment_error"] \
+                else "Payment failed"
+            charge_state.last_error = error
+            charge_state.save()
+            ledger_item.save()
 
 
 def update_from_source(source, ledger_item=None):
@@ -848,6 +1009,29 @@ def update_from_checkout_session(session, ledger_item=None):
                     "country_code": payment_method_country
                 }
             )
+
+
+def update_from_gc_payment(payment_id, ledger_item=None):
+    ledger_item = models.LedgerItem.objects.filter(
+        type=models.LedgerItem.TYPE_GOCARDLESS, type_id=payment_id
+    ).first() if not ledger_item else ledger_item
+
+    if not ledger_item:
+        return
+
+    payment = apps.gocardless_client.payments.get(payment_id)
+    if payment.status == "pending_submission":
+        ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+        ledger_item.save()
+    elif payment.status == "submitted":
+        ledger_item.state = models.LedgerItem.STATE_PROCESSING
+        ledger_item.save()
+    elif payment.status in ("confirmed", "paid_out"):
+        ledger_item.state = models.LedgerItem.STATE_COMPLETED
+        ledger_item.save()
+    elif payment.status in ("failed", "cancelled", "customer_approval_denied", "charged_back"):
+        ledger_item.state = models.LedgerItem.STATE_FAILED
+        ledger_item.save()
 
 
 def setup_intent_succeeded(setup_intent):

@@ -74,7 +74,7 @@ spec:
       initContainers:
         - name: django
           image: as207960/billing-django:(version)
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           command: ["sh", "-c", "python3 manage.py collectstatic --noinput && python3 manage.py migrate && python3 manage.py sync-keycloak"]
           ports:
             - containerPort: 8000
@@ -119,7 +119,7 @@ spec:
       containers:
         - name: gunicorn
           image: as207960/billing-django:(version)
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           command: ["gunicorn", "-w", "8", "-b", "[::]:8000", "--forwarded-allow-ips", "*", "--access-logfile", "-", "--timeout=90", "as207960_billing.wsgi:application"]
           ports:
             - containerPort: 8000
@@ -193,7 +193,7 @@ spec:
       containers:
         - name: rpc
           image: as207960/billing-django:(version)
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           command: ["sh", "-c", "python3 manage.py run-rpc"]
           ports:
             - containerPort: 8000
@@ -259,7 +259,7 @@ spec:
           containers:
             - name: django
               image: as207960/billing-django:(version)
-              imagePullPolicy: Always
+              imagePullPolicy: IfNotPresent
               command: ["sh", "-c", "python3 manage.py sync-exchange"]
               volumeMounts:
                 - mountPath: "/app/static/"
@@ -324,7 +324,7 @@ spec:
           containers:
             - name: django
               image: as207960/billing-django:(version)
-              imagePullPolicy: Always
+              imagePullPolicy: IfNotPresent
               command: ["sh", "-c", "python3 manage.py attempt-reconcile"]
               volumeMounts:
                 - mountPath: "/app/static/"
@@ -389,7 +389,7 @@ spec:
           containers:
             - name: django
               image: as207960/billing-django:(version)
-              imagePullPolicy: Always
+              imagePullPolicy: IfNotPresent
               command: ["sh", "-c", "python3 manage.py run-billing"]
               volumeMounts:
                 - mountPath: "/app/static/"
@@ -454,7 +454,7 @@ spec:
           containers:
             - name: django
               image: as207960/billing-django:(version)
-              imagePullPolicy: Always
+              imagePullPolicy: IfNotPresent
               command: ["sh", "-c", "python3 manage.py update-pending"]
               volumeMounts:
                 - mountPath: "/app/static/"
@@ -519,7 +519,7 @@ spec:
           containers:
             - name: django
               image: as207960/billing-django:(version)
-              imagePullPolicy: Always
+              imagePullPolicy: IfNotPresent
               command: ["sh", "-c", "python3 manage.py fail-old"]
               volumeMounts:
                 - mountPath: "/app/static/"

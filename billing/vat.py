@@ -3,6 +3,34 @@ from django.utils import timezone
 import datetime
 import pytz
 
+DO_NOT_SELL = [
+    "al",  # Albania
+    "bh",  # Bahrain
+    "bd",  # Bangladesh
+    "bb",  # Barbados
+    "by",  # Belarus
+    "cl",  # Chile
+    "co",  # Colombia
+    "in",  # India
+    "kz",  # Kazakhstan
+    "xk",  # Kosovo (provisional ISO code)
+    "kw",  # Kuwait
+    "mx",  # Mexico
+    "md",  # Moldova
+    "ma",  # Morocco
+    "om",  # Oman
+    "ru",  # Russia
+    "sa",  # Saudi Arabia
+    "rs",  # Serbia
+    "kr",  # South Korea
+    "tr",  # Turkey
+    "ug",  # Uganda
+    "ua",  # Ukraine
+    "ae",  # UAE
+    "uy",  # Uruguay
+    "uz",  # Uzbekistan
+]
+
 VAT_RATES_PRE_2021 = {}
 VAT_RATES_PRE_2021_DATE = datetime.datetime(2020, 12, 31, 23, 00, 00, tzinfo=pytz.utc)
 
@@ -38,10 +66,11 @@ VAT_RATES_FROM_2021 = {
 
 
 def get_vat_rate(country):
-    if timezone.now() < VAT_RATES_PRE_2021_DATE:
-        vat_rates = VAT_RATES_PRE_2021
-    else:
-        vat_rates = VAT_RATES_FROM_2021
+    # if timezone.now() < VAT_RATES_PRE_2021_DATE:
+    #     vat_rates = VAT_RATES_PRE_2021
+    # else:
+    #     vat_rates = VAT_RATES_FROM_2021
+    vat_rates = VAT_RATES_FROM_2021
 
     return vat_rates.get(country.lower())
 

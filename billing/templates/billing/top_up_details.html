@@ -1,0 +1,62 @@
+{% extends 'billing/base.html' %}
+{% load mathfilters %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Your top-up</h1>
+        <div class="row">
+            <div class="col-12 col-lg-6">
+
+                <p>
+                    Top-up ID: <b>{{ ledger_item.id }}</b><br/>
+                    Created on: <b>{{ ledger_item.timestamp }}</b>
+                    {% if ledger_item.completed_timestamp %}
+                        <br/>Paid on: <b>{{ ledger_item.completed_timestamp }}</b>
+                    {% endif %}
+                    {% if ledger_item.evidence_billing_address and ledger_item.evidence_billing_address.formatted_vat_id %}
+                        <br/><b>Your VAT ID:</b> {{ ledger_item.evidence_billing_address.formatted_vat_id }}
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-12 col-lg-6">
+                {% if ledger_item.evidence_billing_address %}
+                    Billed to:<br/>
+                    <b>
+                        {{ ledger_item.evidence_billing_address.formatted|linebreaksbr }}
+                    </b>
+                {% endif %}
+            </div>
+        </div>
+        <div class="row d-flex flex-column align-items-center">
+            <div class="col-12 col-md-6">
+                <table class="table table-borderless">
+                    <tbody>
+                    <tr>
+                        <th scope="row" class="font-weight-normal">{{ ledger_item.descriptor }}</th>
+                        <td>&pound;{{ ledger_item.amount|floatformat:2 }}</td>
+                    </tr>
+                    {% if has_vat %}
+                        <tr>
+                            <th scope="row" class="font-weight-normal">VAT @ {{ ledger_item.vat_rate|mul:100|floatformat:2 }}%</th>
+                            <td>&pound;{{ vat_charged|floatformat:2 }}</td>
+                        </tr>
+                    {% endif %}
+                    <tr class="border-top">
+                        <th scope="row">
+                            Charged to your payment method
+                        </th>
+                        <td>&pound;{{ charged_amount|floatformat:2 }}</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            {% if billing_country_name %}
+                {% if has_vat %}
+                    <p>We charged you the sales taxes applicable in {{ billing_country_name }}.</p>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

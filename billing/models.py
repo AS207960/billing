@@ -5,7 +5,6 @@ import urllib.parse
 import inflect
 import stripe
 import threading
-import gocardless_pro.errors
 import as207960_utils.models
 from dateutil import relativedelta
 from django.conf import settings
@@ -16,50 +15,75 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.shortcuts import reverse
 from django.core import validators
+from django.utils import timezone
 from django_countries.fields import CountryField
 
-from . import utils, vat
+from . import utils, vat, apps
 
 p = inflect.engine()
-gocardless_client = gocardless_pro.Client(access_token=settings.GOCARDLESS_TOKEN, environment=settings.GOCARDLESS_ENV)
 
 
 class Account(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     stripe_customer_id = models.CharField(max_length=255, blank=True, null=True)
     default_stripe_payment_method_id = models.CharField(max_length=255, blank=True, null=True)
-    default_gc_mandate_id = models.CharField(max_length=255, blank=True, null=True)
+    default_ach_mandate = models.ForeignKey(
+        'ACHMandate', on_delete=models.PROTECT, blank=True, null=True, related_name='default_accounts')
+    default_autogiro_mandate = models.ForeignKey(
+        'AutogiroMandate', on_delete=models.PROTECT, blank=True, null=True, related_name='default_accounts')
+    default_bacs_mandate = models.ForeignKey(
+        'BACSMandate', on_delete=models.PROTECT, blank=True, null=True, related_name='default_accounts')
+    default_gc_bacs_mandate = models.ForeignKey(
+        'GCBACSMandate', on_delete=models.PROTECT, blank=True, null=True, related_name='default_accounts')
+    default_becs_mandate = models.ForeignKey(
+        'BECSMandate', on_delete=models.PROTECT, blank=True, null=True, related_name='default_accounts')
+    default_becs_nz_mandate = models.ForeignKey(
+        'BECSNZMandate', on_delete=models.PROTECT, blank=True, null=True, related_name='default_accounts')
+    default_betalingsservice_mandate = models.ForeignKey(
+        'BetalingsserviceMandate', on_delete=models.PROTECT, blank=True, null=True, related_name='default_accounts')
+    default_pad_mandate = models.ForeignKey(
+        'PADMandate', on_delete=models.PROTECT, blank=True, null=True, related_name='default_accounts')
+    default_sepa_mandate = models.ForeignKey(
+        'SEPAMandate', on_delete=models.PROTECT, blank=True, null=True, related_name='default_accounts')
+    default_gc_sepa_mandate = models.ForeignKey(
+        'GCSEPAMandate', on_delete=models.PROTECT, blank=True, null=True, related_name='default_accounts')
+    billing_address = models.ForeignKey(
+        'billing.AccountBillingAddress', on_delete=models.PROTECT, blank=True, null=True, related_name='account_current'
+    )
 
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name} {self.user.email} ({self.user.username})"
 
     @property
     def balance(self):
-        return (
+        balance = (
             self.ledgeritem_set
            .filter(state=LedgerItem.STATE_COMPLETED)
            .aggregate(balance=models.Sum('amount'))
            .get('balance') or decimal.Decimal(0)
         ).quantize(decimal.Decimal('1.00'))
+        return balance if balance != 0 else decimal.Decimal(0)
 
     @property
     def processing_and_completed_balance(self):
-        return (
+        balance = (
             self.ledgeritem_set
             .filter(Q(state=LedgerItem.STATE_COMPLETED) | Q(state=LedgerItem.STATE_PROCESSING))
             .aggregate(balance=models.Sum('amount'))
             .get('balance') or decimal.Decimal(0)
         ).quantize(decimal.Decimal('1.00'))
+        return balance if balance != 0 else decimal.Decimal(0)
 
     @property
     def pending_balance(self):
-        return (
+        balance = (
             self.ledgeritem_set
             .filter(Q(state=LedgerItem.STATE_PENDING) | Q(state=LedgerItem.STATE_PROCESSING_CANCELLABLE) |
                     Q(state=LedgerItem.STATE_PROCESSING))
             .aggregate(balance=models.Sum('amount'))
             .get('balance') or decimal.Decimal(0)
         ).quantize(decimal.Decimal('1.00'))
+        return balance if balance != 0 else decimal.Decimal(0)
 
     def get_stripe_id(self):
         if self.stripe_customer_id:
@@ -83,7 +107,34 @@ class Account(models.Model):
             })
             t.setDaemon(True)
             t.start()
+
         super().save(*args, **kwargs)
+
+    @property
+    def taxable(self):
+        if not self.billing_address:
+            return True
+        else:
+            return not self.billing_address.vat_id
+
+    @property
+    def can_sell(self):
+        if not self.billing_address:
+            return False, "We need a billing address for your account."
+        if self.billing_address.country_code.code.lower() in vat.DO_NOT_SELL:
+            return False, "We can't sell to customers in your country. " \
+                          "Please do get in touch if this is something you'd like us to look at changing."
+        if self.billing_address.country_code.code.lower() == 'ca':
+            postal_code_match = utils.canada_postcode_re.fullmatch(self.billing_address.postal_code)
+            if not postal_code_match:
+                return False, "We can't sell to you until we have a valid postal code."
+            else:
+                postal_code_data = postal_code_match.groupdict()
+                if postal_code_data["district"] == "S":
+                    return False, "We can't sell to customers in Saskatchewan. " \
+                                  "Please do get in touch if this is something you'd like us to look at changing."
+
+        return True, None
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
@@ -158,6 +209,146 @@ class NotificationSubscription(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
 
 
+class StripeMandate(models.Model):
+    id = as207960_utils.models.TypedUUIDField('billing_mandate', primary_key=True)
+    account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
+    mandate_id = models.CharField(max_length=255)
+    payment_method = models.CharField(max_length=255)
+    active = models.BooleanField(default=False)
+
+    @classmethod
+    def sync_mandate(cls, mandate_id, account):
+        mandate_obj = cls.objects.filter(mandate_id=mandate_id).first()
+        mandate = stripe.Mandate.retrieve(mandate_id)
+        is_active = mandate["status"] == "active"
+        if is_active and not (account.default_stripe_payment_method_id or account.default_gc_mandate_id):
+            account.default_stripe_payment_method_id = mandate["payment_method"]
+            account.save()
+        if not mandate_obj:
+            if account:
+                mandate_obj = cls(
+                    mandate_id=mandate_id,
+                    active=is_active,
+                    payment_method=mandate["payment_method"],
+                    account=account
+                )
+                mandate_obj.save()
+        else:
+            mandate_obj.active = is_active
+            if not is_active and mandate_obj.payment_method == mandate_obj.account.default_stripe_payment_method_id:
+                mandate_obj.account.default_stripe_payment_method_id = None
+                mandate_obj.account.save()
+            mandate_obj.save()
+
+        if is_active:
+            payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
+            KnownStripePaymentMethod.objects.update_or_create(
+                account=account, method_id=payment_method["id"],
+                defaults={
+                    "country_code": utils.country_from_stripe_payment_method(payment_method)
+                }
+            )
+
+    class Meta:
+        abstract = True
+
+
+class GCMandate(models.Model):
+    id = as207960_utils.models.TypedUUIDField('billing_mandate', primary_key=True)
+    account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
+    mandate_id = models.CharField(max_length=255)
+    active = models.BooleanField(default=False)
+
+    @classmethod
+    def sync_mandate(cls, mandate_id, account):
+        mandate_obj = cls.objects.filter(mandate_id=mandate_id).first()
+        mandate = apps.gocardless_client.mandates.get(mandate_id)
+        is_active = mandate.status in (
+            "pending_customer_approval", "pending_submission", "submitted", "active"
+        )
+        if is_active and not (account.default_stripe_payment_method_id or account.default_gc_mandate_id):
+            account.default_gc_mandate_id = mandate.id
+            account.save()
+        if not mandate_obj:
+            if account:
+                mandate_obj = cls(
+                    mandate_id=mandate.id,
+                    active=is_active,
+                    account=account
+                )
+                mandate_obj.save()
+        else:
+            mandate_obj.active = is_active
+            if not is_active and mandate.id == mandate_obj.account.default_gc_mandate_id:
+                mandate_obj.account.default_gc_mandate_id = None
+                mandate_obj.account.save()
+            mandate_obj.save()
+        return mandate_obj
+
+    class Meta:
+        abstract = True
+
+
+class ACHMandate(GCMandate):
+    class Meta:
+        verbose_name = "ACH Mandate"
+        verbose_name_plural = "ACH Mandates"
+
+
+class AutogiroMandate(GCMandate):
+    class Meta:
+        verbose_name = "Autogiro Mandate"
+        verbose_name_plural = "Autogiro Mandates"
+
+
+class BACSMandate(StripeMandate):
+    class Meta:
+        verbose_name = "Stripe BACS Mandate"
+        verbose_name_plural = "Stripe BACS Mandates"
+
+
+class GCBACSMandate(GCMandate):
+    class Meta:
+        verbose_name = "GoCardless BACS Mandate"
+        verbose_name_plural = "GoCardless BACS Mandates"
+
+
+class BECSMandate(GCMandate):
+    class Meta:
+        verbose_name = "BECS Mandate"
+        verbose_name_plural = "BECS Mandates"
+
+
+class BECSNZMandate(GCMandate):
+    class Meta:
+        verbose_name = "BECS NZ Mandate"
+        verbose_name_plural = "BECS NZ Mandates"
+
+
+class BetalingsserviceMandate(GCMandate):
+    class Meta:
+        verbose_name = "Betalingsservice Mandate"
+        verbose_name_plural = "Betalingsservice Mandates"
+
+
+class PADMandate(GCMandate):
+    class Meta:
+        verbose_name = "PAD Mandate"
+        verbose_name_plural = "PAD Mandates"
+
+
+class SEPAMandate(StripeMandate):
+    class Meta:
+        verbose_name = "Stripe SEPA Mandate"
+        verbose_name_plural = "Stripe SEPA Mandates"
+
+
+class GCSEPAMandate(GCMandate):
+    class Meta:
+        verbose_name = "GoCardless SEPA Mandate"
+        verbose_name_plural = "GoCardless SEPA Mandates"
+
+
 class LedgerItem(models.Model):
     STATE_PENDING = "P"
     STATE_PROCESSING_CANCELLABLE = "A"
@@ -215,157 +406,7 @@ class LedgerItem(models.Model):
     type_id = models.CharField(max_length=255, blank=True, null=True)
     is_reversal = models.BooleanField(default=False, blank=True)
     last_state_change_timestamp = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        ordering = ['-timestamp']
-
-    @property
-    def balance_at(self):
-        queryset = self.account.ledgeritem_set \
-            .filter(timestamp__lte=self.timestamp)
-
-        queryset = queryset.filter(Q(state=self.STATE_COMPLETED) | Q(id=self.id))
-
-        return (
-            queryset
-           .aggregate(balance=models.Sum('amount'))
-           .get('balance') or decimal.Decimal(0)
-        ).quantize(decimal.Decimal('1.00'))
-
-
-class StripeMandate(models.Model):
-    id = as207960_utils.models.TypedUUIDField('billing_mandate', primary_key=True)
-    account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
-    mandate_id = models.CharField(max_length=255)
-    payment_method = models.CharField(max_length=255)
-    active = models.BooleanField(default=False)
-
-    @classmethod
-    def sync_mandate(cls, mandate_id, account):
-        mandate_obj = cls.objects.filter(mandate_id=mandate_id).first()
-        mandate = stripe.Mandate.retrieve(mandate_id)
-        is_active = mandate["status"] == "active"
-        if is_active and not (account.default_stripe_payment_method_id or account.default_gc_mandate_id):
-            account.default_stripe_payment_method_id = mandate["payment_method"]
-            account.save()
-        if not mandate_obj:
-            if account:
-                mandate_obj = cls(
-                    mandate_id=mandate_id,
-                    active=is_active,
-                    payment_method=mandate["payment_method"],
-                    account=account
-                )
-                mandate_obj.save()
-        else:
-            mandate_obj.active = is_active
-            if not is_active and mandate_obj.payment_method == mandate_obj.account.default_stripe_payment_method_id:
-                mandate_obj.account.default_stripe_payment_method_id = None
-                mandate_obj.account.save()
-            mandate_obj.save()
-
-        if is_active:
-            payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
-            KnownStripePaymentMethod.objects.update_or_create(
-                account=account, method_id=payment_method["id"],
-                defaults={
-                    "country_code": utils.country_from_stripe_payment_method(payment_method)
-                }
-            )
-
-    class Meta:
-        abstract = True
-
-
-class GCMandate(models.Model):
-    id = as207960_utils.models.TypedUUIDField('billing_mandate', primary_key=True)
-    account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
-    mandate_id = models.CharField(max_length=255)
-    active = models.BooleanField(default=False)
-
-    @classmethod
-    def sync_mandate(cls, mandate_id, account):
-        mandate_obj = cls.objects.filter(mandate_id=mandate_id).first()
-        mandate = gocardless_client.mandates.get(mandate_id)
-        is_active = mandate.status in (
-            "pending_customer_approval", "pending_submission", "submitted", "active"
-        )
-        if is_active and not (account.default_stripe_payment_method_id or account.default_gc_mandate_id):
-            account.default_gc_mandate_id = mandate.id
-            account.save()
-        if not mandate_obj:
-            if account:
-                mandate_obj = cls(
-                    mandate_id=mandate.id,
-                    active=is_active,
-                    account=account
-                )
-                mandate_obj.save()
-        else:
-            mandate_obj.active = is_active
-            if not is_active and mandate.id == mandate_obj.account.default_gc_mandate_id:
-                mandate_obj.account.default_gc_mandate_id = None
-                mandate_obj.account.save()
-            mandate_obj.save()
-        return mandate_obj
-
-    class Meta:
-        abstract = True
-
-
-class ACHMandate(GCMandate):
-    pass
-
-
-class AutogiroMandate(GCMandate):
-    pass
-
-
-class BACSMandate(StripeMandate):
-    pass
-
-
-class GCBACSMandate(GCMandate):
-    pass
-
-
-class BECSMandate(GCMandate):
-    pass
-
-
-class BECSNZMandate(GCMandate):
-    pass
-
-
-class BetalingsserviceMandate(GCMandate):
-    pass
-
-
-class PADMandate(GCMandate):
-    pass
-
-
-class SEPAMandate(StripeMandate):
-    pass
-
-
-class GCSEPAMandate(GCMandate):
-    pass
-
-
-class ChargeState(models.Model):
-    id = as207960_utils.models.TypedUUIDField('billing_charge', primary_key=True)
-    account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
-    payment_ledger_item = models.OneToOneField(
-        LedgerItem, on_delete=models.SET_NULL, blank=True, null=True, related_name='charge_state_payment'
-    )
-    ledger_item = models.OneToOneField(
-        LedgerItem, on_delete=models.PROTECT, related_name='charge_state'
-    )
-    return_uri = models.URLField(blank=True, null=True)
-    notif_queue = models.CharField(max_length=255, blank=True, null=True)
-    last_error = models.TextField(blank=True, null=True)
-    base_amount = models.DecimalField(decimal_places=2, max_digits=9, default=0)
+    charged_amount = models.DecimalField(decimal_places=2, max_digits=9, default=0)
     vat_rate = models.DecimalField(decimal_places=2, max_digits=9, default=0)
     country_code = models.CharField(max_length=2, validators=[validators.MinLengthValidator(2)], blank=True, null=True)
     evidence_billing_address = models.ForeignKey(AccountBillingAddress, on_delete=models.PROTECT, blank=True, null=True)
@@ -382,9 +423,45 @@ class ChargeState(models.Model):
     evidence_pad_mandate = models.ForeignKey(PADMandate, on_delete=models.PROTECT, blank=True, null=True)
     evidence_sepa_mandate = models.ForeignKey(SEPAMandate, on_delete=models.PROTECT, blank=True, null=True)
     evidence_gc_sepa_mandate = models.ForeignKey(GCSEPAMandate, on_delete=models.PROTECT, blank=True, null=True)
+    completed_timestamp = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def save(self, *args, **kwargs):
+        if self.state == self.STATE_COMPLETED and not self.completed_timestamp:
+            self.completed_timestamp = timezone.now()
+        super().save(*args, **kwargs)
+
+    @property
+    def balance_at(self):
+        queryset = self.account.ledgeritem_set \
+            .filter(timestamp__lte=self.timestamp)
+
+        queryset = queryset.filter(Q(state=self.STATE_COMPLETED) | Q(id=self.id))
+
+        balance = (
+            queryset
+           .aggregate(balance=models.Sum('amount'))
+           .get('balance') or decimal.Decimal(0)
+        ).quantize(decimal.Decimal('1.00'))
+        return balance if balance != 0 else decimal.Decimal(0)
+
+
+class ChargeState(models.Model):
+    id = as207960_utils.models.TypedUUIDField('billing_charge', primary_key=True)
+    account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
+    payment_ledger_item = models.OneToOneField(
+        LedgerItem, on_delete=models.SET_NULL, blank=True, null=True, related_name='charge_state_payment'
+    )
+    ledger_item = models.OneToOneField(
+        LedgerItem, on_delete=models.PROTECT, related_name='charge_state'
+    )
+    return_uri = models.URLField(blank=True, null=True)
+    notif_queue = models.CharField(max_length=255, blank=True, null=True)
+    last_error = models.TextField(blank=True, null=True)
     ready_to_complete = models.BooleanField(default=False, blank=True, null=True)
     can_reject = models.BooleanField(default=True, blank=True, null=True)
-    completed_timestamp = models.DateTimeField(blank=True, null=True)
 
     def full_redirect_uri(self):
         if self.return_uri:

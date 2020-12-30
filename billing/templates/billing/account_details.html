@@ -9,743 +9,782 @@
                 <p>{{ error }}</p>
             </div>
         {% endif %}
-        <h2>Billing address</h2>
-        {% if billing_addresses %}
-            <div class="row row-cols-1 row-cols-lg-2">
-                {% for address in billing_addresses %}
-                    <div class="col mb-4 d-flex">
-                        <div class="card flex-grow-1">
-                            <div class="card-header">
-                                <div style="min-height: 24px">
-                                    {% if address.default %}
-                                        <span class="badge badge-pill badge-info">Default</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <p class="card-text">
-                                    {{ address.formatted|linebreaksbr }}
-                                    {% if address.formatted_vat_id %}
-                                        <br/><b>Vat ID:</b> {{ address.formatted_vat_id }}
-                                    {% endif %}
-                                </p>
-                                <form action="{% url 'edit_billing_address' address.id %}" method="post">
-                                    {% csrf_token %}
-                                    <div class="btn-group">
-                                        {% if not address.default %}
-                                            <button type="submit" class="btn btn-primary btn-sm" name="action"
-                                                    value="default">
-                                                &#x1f4b8; Make default
-                                            </button>
-                                        {% endif %}
-                                        <button type="submit" class="btn btn-danger btn-sm" name="action"
-                                                value="delete">
-                                            &#x1f5d1; Delete
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
+        {% if billing_address %}
+            <h2>Billing address</h2>
+            <div class="row d-flex justify-content-center mb-3">
+                <div class="col col-md-6 col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <p class="card-text">
+                                {{ billing_address.formatted|linebreaksbr }}
+                                {% if billing_address.formatted_vat_id %}
+                                    <br/><b>VAT ID:</b> {{ billing_address.formatted_vat_id }}
+                                {% endif %}
+                            </p>
+                            <a href="{% url 'edit_billing_address' billing_address.id %}"
+                               class="btn btn-info btn-block">Edit</a>
                         </div>
                     </div>
-                {% endfor %}
+                </div>
+            </div>
+            <p>Please <a href="https://support.as207960.net" target="_blank">contact us</a> to update your billing
+                address country or your VAT ID.</p>
+            <hr>
+            <h2>Your bank accounts &#x1f3e6;</h2>
+            <div class="alert alert-info">
+                These are bank accounts we know are yours. They're used as evidence for tax residency purposes, and if
+                we receive a payment from one of these without a known reference we'll automatically credit it to your
+                account.
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-dark">
+                    <tr>
+                        <th>Account country</th>
+                        <th>Account number</th>
+                        <th>Bank code</th>
+                        <th>Branch code</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% if known_bank_accounts %}
+                        {% for account in known_bank_accounts %}
+                            <tr>
+                                <td>{{ account.country_code|upper }}</td>
+                                <td>
+                                    {{ account.account_code }}
+                                </td>
+                                <td>{{ account.bank_code }}</td>
+                                <td>{% if account.branch_code %}{{ account.branch_code }}{% else %}N/A{% endif %}</td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4">No accounts</td>
+                        </tr>
+                    {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            <hr>
+            <h2>Saved cards &#x1f4b3;</h2>
+            <div class="table-responsive table-striped table-hover table-striped">
+                <table class="table">
+                    <thead class="thead-dark">
+                    <tr>
+                        <th>Account country</th>
+                        <th>Billing name</th>
+                        <th>Brand</th>
+                        <th>Last 4 digits</th>
+                        <th>Expiry</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% if cards %}
+                        {% for card in cards %}
+                            <tr>
+                                <td>{{ card.card.country }}</td>
+                                <td>
+                                    {{ card.billing_details.name }}
+                                    {% if card.id == user.account.default_stripe_payment_method_id %}
+                                        <span class="badge badge-info">Default</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ card.card.brand|upper }}</td>
+                                <td>*** *** **** {{ card.card.last4 }}</td>
+                                <td>{{ card.card.exp_month|stringformat:"02d" }} / {{ card.card.exp_year }}</td>
+                                <td>
+                                    <form action="{% url 'edit_card' card.id %}" method="post">
+                                        {% csrf_token %}
+                                        <div class="btn-group">
+                                            <a href="{% url 'edit_card' card.id %}" class="btn btn-info btn-sm">
+                                                &#x1f58a; Edit
+                                            </a>
+                                            {% if card.id != user.account.default_stripe_payment_method_id %}
+                                                {% if not taxable or billing_address.country_code.code|upper == card.card.country %}
+                                                    <button type="submit" class="btn btn-primary btn-sm" name="action"
+                                                            value="default">
+                                                        &#x1f4b8; Make default
+                                                    </button>
+                                                {% endif %}
+                                            {% endif %}
+                                            <button type="submit" class="btn btn-danger btn-sm" name="action"
+                                                    value="delete">
+                                                &#x1f5d1; Delete
+                                            </button>
+                                        </div>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6">No saved cards</td>
+                        </tr>
+                    {% endif %}
+                    <tr>
+                        <td colspan="6" class="text-center">
+                            <a href="{% url 'add_card' %}" class="btn btn-success btn-sm">
+                                &#x1f195; Add new card &#x1f195;
+                            </a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <hr>
+            {% if ach_mandates or billing_address.country_code.code|lower == "us" or not taxable %}
+                <h2>ACH Direct Debit Mandates &#x1f4b5;</h2>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="thead-dark">
+                        <tr>
+                            <th>Account number</th>
+                            <th>Account type</th>
+                            <th>Bank</th>
+                            <th>Reference</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% if ach_mandates %}
+                            {% for mandate in ach_mandates %}
+                                <tr>
+                                    <td>
+                                        ****{{ mandate.last4 }}
+                                        {% if mandate.status == "pending" %}
+                                            <span class="badge badge-warning">Pending</span>
+                                        {% elif mandate.status == "revoked" %}
+                                            <span class="badge badge-danger">Revoked</span>
+                                        {% elif mandate.status == "refused" %}
+                                            <span class="badge badge-danger">Refused</span>
+                                        {% endif %}
+                                        {% if mandate.is_default %}
+                                            <span class="badge badge-info">Default</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{% if mandate.account_type == "checking" %}
+                                        Checking{% elif mandate.account_type == "savings" %}Savings{% endif %}</td>
+                                    <td>{{ mandate.bank }}</td>
+                                    <td>{{ mandate.ref }}</td>
+                                    <td>
+                                        <form action="{% url 'edit_ach_mandate' mandate.id %}" method="post">
+                                            {% csrf_token %}
+                                            <div class="btn-group">
+                                                <a href="{{ mandate.url }}"
+                                                   class="btn btn-info btn-sm">&#x1f440; View mandate</a>
+                                                {% if not mandate.is_default and mandate.active %}
+                                                    {% if not taxable or billing_address.country_code.code|lower == "us" %}
+                                                        <button type="submit" class="btn btn-primary btn-sm"
+                                                                name="action"
+                                                                value="default">
+                                                            &#x1f4b8; Make default
+                                                        </button>
+                                                    {% endif %}
+                                                {% endif %}
+                                                <button type="submit" class="btn btn-danger btn-sm" name="action"
+                                                        value="delete">
+                                                    &#x1f5d1; Delete
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5">No mandates</td>
+                            </tr>
+                        {% endif %}
+                        {% if billing_address.country_code.code|lower == "us" or not taxable %}
+                            <tr>
+                                <td colspan="5" class="text-center">
+                                    <a href="{% url 'setup_new_ach' %}" class="btn btn-success btn-sm">
+                                        &#x1f195; New mandate &#x1f195;
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+            {% if autogiro_mandates or billing_address.country_code.code|lower == "se" or not taxable %}
+                <h2>Autogiro Mandates &#x1f3e6;</h2>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="thead-dark">
+                        <tr>
+                            <th>Account number</th>
+                            <th>Bank</th>
+                            <th>Reference</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% if autogiro_mandates %}
+                            {% for mandate in autogiro_mandates %}
+                                <tr>
+                                    <td>
+                                        ****{{ mandate.last4 }}
+                                        {% if mandate.status == "pending" %}
+                                            <span class="badge badge-warning">Pending</span>
+                                        {% elif mandate.status == "revoked" %}
+                                            <span class="badge badge-danger">Revoked</span>
+                                        {% elif mandate.status == "refused" %}
+                                            <span class="badge badge-danger">Refused</span>
+                                        {% endif %}
+                                        {% if mandate.is_default %}
+                                            <span class="badge badge-info">Default</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ mandate.bank }}</td>
+                                    <td>{{ mandate.ref }}</td>
+                                    <td>
+                                        <form action="{% url 'edit_autogiro_mandate' mandate.id %}" method="post">
+                                            {% csrf_token %}
+                                            <div class="btn-group">
+                                                <a href="{{ mandate.url }}"
+                                                   class="btn btn-info btn-sm">&#x1f440; View mandate</a>
+                                                {% if not mandate.is_default and mandate.active %}
+                                                    {% if not taxable or billing_address.country_code.code|lower == "se" %}
+                                                        <button type="submit" class="btn btn-primary btn-sm"
+                                                                name="action"
+                                                                value="default">
+                                                            &#x1f4b8; Make default
+                                                        </button>
+                                                    {% endif %}
+                                                {% endif %}
+                                                <button type="submit" class="btn btn-danger btn-sm" name="action"
+                                                        value="delete">
+                                                    &#x1f5d1; Delete
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4">No mandates</td>
+                            </tr>
+                        {% endif %}
+                        {% if billing_address.country_code.code|lower == "se" or not taxable %}
+                            <tr>
+                                <td colspan="4" class="text-center">
+                                    <a href="{% url 'setup_new_autogiro' %}" class="btn btn-success btn-sm">
+                                        &#x1f195; New mandate &#x1f195;
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+            {% if bacs_mandates or billing_address.country_code.code|lower == "gb" or not taxable %}
+                <h2>BACS Direct Debit Mandates &#x1f3e6;</h2>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="thead-dark">
+                        <tr>
+                            <th>Account number</th>
+                            <th>Bank</th>
+                            <th>Reference</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% if bacs_mandates %}
+                            {% for mandate in bacs_mandates %}
+                                <tr>
+                                    <td>
+                                        ****{{ mandate.last4 }}
+                                        {% if mandate.status == "pending" %}
+                                            <span class="badge badge-warning">Pending</span>
+                                        {% elif mandate.status == "revoked" %}
+                                            <span class="badge badge-danger">Revoked</span>
+                                        {% elif mandate.status == "refused" %}
+                                            <span class="badge badge-danger">Refused</span>
+                                        {% endif %}
+                                        {% if mandate.is_default %}
+                                            <span class="badge badge-info">Default</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ mandate.bank }}</td>
+                                    <td>{{ mandate.ref }}</td>
+                                    <td>
+                                        <form action="{% url 'edit_bacs_mandate' mandate.id %}" method="post">
+                                            {% csrf_token %}
+                                            <div class="btn-group">
+                                                <a href="{{ mandate.url }}"
+                                                   class="btn btn-info btn-sm">&#x1f440; View mandate</a>
+                                                {% if not mandate.is_default and mandate.active %}
+                                                    {% if not taxable or billing_address.country_code.code|lower == "gb" %}
+                                                        <button type="submit" class="btn btn-primary btn-sm"
+                                                                name="action"
+                                                                value="default">
+                                                            &#x1f4b8; Make default
+                                                        </button>
+                                                    {% endif %}
+                                                {% endif %}
+                                                <button type="submit" class="btn btn-danger btn-sm" name="action"
+                                                        value="delete">
+                                                    &#x1f5d1; Delete
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4">No mandates</td>
+                            </tr>
+                        {% endif %}
+                        {% if billing_address.country_code.code|lower == "gb" or not taxable %}
+                            <tr>
+                                <td colspan="4" class="text-center">
+                                    <a href="{% url 'setup_new_bacs' %}" class="btn btn-success btn-sm">
+                                        &#x1f195; New mandate &#x1f195;
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+            {% if becs_mandates or billing_address.country_code.code|lower == "au" or not taxable %}
+                <h2>BECS Direct Debit Mandates &#x1f3e6;</h2>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="thead-dark">
+                        <tr>
+                            <th>Account number</th>
+                            <th>Bank</th>
+                            <th>Reference</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% if becs_mandates %}
+                            {% for mandate in becs_mandates %}
+                                <tr>
+                                    <td>
+                                        ****{{ mandate.last4 }}
+                                        {% if mandate.status == "pending" %}
+                                            <span class="badge badge-warning">Pending</span>
+                                        {% elif mandate.status == "revoked" %}
+                                            <span class="badge badge-danger">Revoked</span>
+                                        {% elif mandate.status == "refused" %}
+                                            <span class="badge badge-danger">Refused</span>
+                                        {% endif %}
+                                        {% if mandate.is_default %}
+                                            <span class="badge badge-info">Default</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ mandate.bank }}</td>
+                                    <td>{{ mandate.ref }}</td>
+                                    <td>
+                                        <form action="{% url 'edit_becs_mandate' mandate.id %}" method="post">
+                                            {% csrf_token %}
+                                            <div class="btn-group">
+                                                <a href="{{ mandate.url }}"
+                                                   class="btn btn-info btn-sm">&#x1f440; View mandate</a>
+                                                {% if not mandate.is_default and mandate.active %}
+                                                    {% if not taxable or billing_address.country_code.code|lower == "au" %}
+                                                        <button type="submit" class="btn btn-primary btn-sm"
+                                                                name="action"
+                                                                value="default">
+                                                            &#x1f4b8; Make default
+                                                        </button>
+                                                    {% endif %}
+                                                {% endif %}
+                                                <button type="submit" class="btn btn-danger btn-sm" name="action"
+                                                        value="delete">
+                                                    &#x1f5d1; Delete
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+
+                        {% else %}
+                            <tr>
+                                <td colspan="4">No mandates</td>
+                            </tr>
+                        {% endif %}
+                        {% if billing_address.country_code.code|lower == "au" or not taxable %}
+                            <tr>
+                                <td colspan="4" class="text-center">
+                                    <a href="{% url 'setup_new_becs' %}" class="btn btn-success btn-sm">
+                                        &#x1f195; New mandate &#x1f195;
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+            {% if becs_nz_mandates or billing_address.country_code.code|lower == "nz" or not taxable %}
+                <h2>BECS NZ Direct Debit Mandates &#x1f3e6;</h2>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="thead-dark">
+                        <tr>
+                            <th>Account number</th>
+                            <th>Bank</th>
+                            <th>Reference</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% if becs_nz_mandates %}
+                            {% for mandate in becs_nz_mandates %}
+                                <tr>
+                                    <td>
+                                        ****{{ mandate.last4 }}
+                                        {% if mandate.status == "pending" %}
+                                            <span class="badge badge-warning">Pending</span>
+                                        {% elif mandate.status == "revoked" %}
+                                            <span class="badge badge-danger">Revoked</span>
+                                        {% elif mandate.status == "refused" %}
+                                            <span class="badge badge-danger">Refused</span>
+                                        {% endif %}
+                                        {% if mandate.is_default %}
+                                            <span class="badge badge-info">Default</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ mandate.bank }}</td>
+                                    <td>{{ mandate.ref }}</td>
+                                    <td>
+                                        <form action="{% url 'edit_becs_nz_mandate' mandate.id %}" method="post">
+                                            {% csrf_token %}
+                                            <div class="btn-group">
+                                                <a href="{{ mandate.url }}"
+                                                   class="btn btn-info btn-sm">&#x1f440; View mandate</a>
+                                                {% if not mandate.is_default and mandate.active %}
+                                                    {% if not taxable or billing_address.country_code.code|lower == "nz" %}
+                                                        <button type="submit" class="btn btn-primary btn-sm"
+                                                                name="action"
+                                                                value="default">
+                                                            &#x1f4b8; Make default
+                                                        </button>
+                                                    {% endif %}
+                                                {% endif %}
+                                                <button type="submit" class="btn btn-danger btn-sm" name="action"
+                                                        value="delete">
+                                                    &#x1f5d1; Delete
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+
+                        {% else %}
+                            <tr>
+                                <td colspan="4">No mandates</td>
+                            </tr>
+                        {% endif %}
+
+                        {% if billing_address.country_code.code|lower == "nz" or not taxable %}
+                            <tr>
+                                <td colspan="4" class="text-center">
+                                    <a href="{% url 'setup_new_becs_nz' %}" class="btn btn-success btn-sm">
+                                        &#x1f195; New mandate &#x1f195;
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+            {% if betalingsservice_mandates or billing_address.country_code.code|lower == "dk" or not taxable %}
+                <h2>Betalingsservice Mandates &#x1f3e6;</h2>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="thead-dark">
+                        <tr>
+                            <th>Account number</th>
+                            <th>Bank</th>
+                            <th>Reference</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% if betalingsservice_mandates %}
+                            {% for mandate in betalingsservice_mandates %}
+                                <tr>
+                                    <td>
+                                        ****{{ mandate.last4 }}
+                                        {% if mandate.status == "pending" %}
+                                            <span class="badge badge-warning">Pending</span>
+                                        {% elif mandate.status == "revoked" %}
+                                            <span class="badge badge-danger">Revoked</span>
+                                        {% elif mandate.status == "refused" %}
+                                            <span class="badge badge-danger">Refused</span>
+                                        {% endif %}
+                                        {% if mandate.is_default %}
+                                            <span class="badge badge-info">Default</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ mandate.bank }}</td>
+                                    <td>{{ mandate.ref }}</td>
+                                    <td>
+                                        <form action="{% url 'edit_betalingsservice_mandate' mandate.id %}"
+                                              method="post">
+                                            {% csrf_token %}
+                                            <div class="btn-group">
+                                                <a href="{{ mandate.url }}"
+                                                   class="btn btn-info btn-sm">&#x1f440; View mandate</a>
+                                                {% if not mandate.is_default and mandate.active %}
+                                                    {% if not taxable or billing_address.country_code.code|lower == "dk" %}
+                                                        <button type="submit" class="btn btn-primary btn-sm"
+                                                                name="action"
+                                                                value="default">
+                                                            &#x1f4b8; Make default
+                                                        </button>
+                                                    {% endif %}
+                                                {% endif %}
+                                                <button type="submit" class="btn btn-danger btn-sm" name="action"
+                                                        value="delete">
+                                                    &#x1f5d1; Delete
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+
+                        {% else %}
+                            <tr>
+                                <td colspan="4">No mandates</td>
+                            </tr>
+                        {% endif %}
+                        {% if billing_address.country_code.code|lower == "dk" or not taxable %}
+                            <tr>
+                                <td colspan="4" class="text-center">
+                                    <a href="{% url 'setup_new_betalingsservice' %}" class="btn btn-success btn-sm">
+                                        &#x1f195; New mandate &#x1f195;
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+            {% if pad_mandates or billing_address.country_code.code|lower == "ca" or not taxable %}
+                <h2>PAD Direct Debit Mandates &#x1f3e6;</h2>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="thead-dark">
+                        <tr>
+                            <th>Account number</th>
+                            <th>Bank</th>
+                            <th>Reference</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% if pad_mandates %}
+                            {% for mandate in pad_mandates %}
+                                <tr>
+                                    <td>
+                                        ****{{ mandate.last4 }}
+                                        {% if mandate.status == "pending" %}
+                                            <span class="badge badge-warning">Pending</span>
+                                        {% elif mandate.status == "revoked" %}
+                                            <span class="badge badge-danger">Revoked</span>
+                                        {% elif mandate.status == "refused" %}
+                                            <span class="badge badge-danger">Refused</span>
+                                        {% endif %}
+                                        {% if mandate.is_default %}
+                                            <span class="badge badge-info">Default</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ mandate.bank }}</td>
+                                    <td>{{ mandate.ref }}</td>
+                                    <td>
+                                        <form action="{% url 'edit_pad_mandate' mandate.id %}" method="post">
+                                            {% csrf_token %}
+                                            <div class="btn-group">
+                                                <a href="{{ mandate.url }}"
+                                                   class="btn btn-info btn-sm">&#x1f440; View mandate</a>
+                                                {% if not mandate.is_default and mandate.active %}
+                                                    {% if not taxable or billing_address.country_code.code|lower == "ca" %}
+                                                        <button type="submit" class="btn btn-primary btn-sm"
+                                                                name="action"
+                                                                value="default">
+                                                            &#x1f4b8; Make default
+                                                        </button>
+                                                    {% endif %}
+                                                {% endif %}
+                                                <button type="submit" class="btn btn-danger btn-sm" name="action"
+                                                        value="delete">
+                                                    &#x1f5d1; Delete
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4">No mandates</td>
+                            </tr>
+                        {% endif %}
+                        {% if billing_address.country_code.code|lower == "ca" or not taxable %}
+                            <tr>
+                                <td colspan="4" class="text-center">
+                                    <a href="{% url 'setup_new_pad' %}" class="btn btn-success btn-sm">
+                                        &#x1f195; New mandate &#x1f195;
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+            <h2>SEPA Direct Debit Mandates &#x1f3e6;</h2>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-dark">
+                    <tr>
+                        <th>Account country</th>
+                        <th>Account number</th>
+                        <th>Bank</th>
+                        <th>Reference</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% if sepa_mandates %}
+                        {% for mandate in sepa_mandates %}
+                            <tr>
+                                <td>{{ mandate.cc }}</td>
+                                <td>
+                                    ****{{ mandate.last4 }}
+                                    {% if mandate.status == "pending" %}
+                                        <span class="badge badge-warning">Pending</span>
+                                    {% elif mandate.status == "revoked" %}
+                                        <span class="badge badge-danger">Revoked</span>
+                                    {% elif mandate.status == "refused" %}
+                                        <span class="badge badge-danger">Refused</span>
+                                    {% endif %}
+                                    {% if mandate.is_default %}
+                                        <span class="badge badge-info">Default</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ mandate.bank }}</td>
+                                <td>{{ mandate.ref }}</td>
+                                <td>
+                                    <form action="{% url 'edit_sepa_mandate' mandate.id %}" method="post">
+                                        {% csrf_token %}
+                                        <div class="btn-group">
+                                            <a href="{{ mandate.url }}"
+                                               class="btn btn-info btn-sm">&#x1f440; View mandate</a>
+                                            {% if not mandate.is_default and mandate.active %}
+                                                {% if not taxable or billing_address.country_code.code|upper == mandate.cc %}
+                                                    <button type="submit" class="btn btn-primary btn-sm" name="action"
+                                                            value="default">
+                                                        &#x1f4b8; Make default
+                                                    </button>
+                                                {% endif %}
+                                            {% endif %}
+                                            <button type="submit" class="btn btn-danger btn-sm" name="action"
+                                                    value="delete">
+                                                &#x1f5d1; Delete
+                                            </button>
+                                        </div>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5">No mandates</td>
+                        </tr>
+                    {% endif %}
+                    <tr>
+                        <td colspan="5" class="text-center">
+                            <a href="{% url 'setup_new_sepa' %}" class="btn btn-success btn-sm">
+                                &#x1f195; New mandate &#x1f195;
+                            </a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <hr>
+            <h2>My subscriptions</h2>
+            <div class="table-responsive table-striped table-hover table-striped">
+                <table class="table">
+                    <thead class="thead-dark">
+                    <tr>
+                        <th>State</th>
+                        <th>Plan</th>
+                        <th>Current usage</th>
+                        <th>Next charge</th>
+                        <th>Last billed</th>
+                        <th>Amount unpaid</th>
+                        <th>Next bill</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% if subscriptions %}
+                        {% for subscription in subscriptions %}
+                            <tr>
+                                <td>
+                                    {% if subscription.state == "A" %}
+                                        <span class="badge badge-success">Active</span>
+                                    {% elif subscription.state == "P" %}
+                                        <span class="badge badge-warning">Past due</span>
+                                    {% elif subscription.state == "C" %}
+                                        <span class="badge badge-danger">Cancelled</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ subscription.plan.name }}</td>
+                                <td>{{ subscription.usage_in_period_label }}</td>
+                                <td>&pound;{{ subscription.next_charge|floatformat:2 }}</td>
+                                <td>{{ subscription.last_billed }}</td>
+                                <td>&pound;{{ subscription.amount_unpaid|floatformat:2 }}</td>
+                                <td>{{ subscription.next_bill }}</td>
+                                <td>
+                                    {#                                <form action="{% url 'edit_subscription' subscription.id %}" method="post">#}
+                                    {#                                    {% csrf_token %}#}
+                                    {#                                    <div class="btn-group">#}
+                                    {#                                        {% if subscription.state == "P" %}#}
+                                    {#                                            <button type="submit" class="btn btn-success btn-sm" name="action"#}
+                                    {#                                                    value="retry">#}
+                                    {#                                                &#x1f501; Retry now#}
+                                    {#                                            </button>#}
+                                    {#                                        {% endif %}#}
+                                    {#                                    </div>#}
+                                    {#                                </form>#}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="8">No subscriptions</td>
+                        </tr>
+                    {% endif %}
+                    </tbody>
+                </table>
             </div>
         {% else %}
-            <p>No addresses available</p>
+            <p class="lead">We don't have a billing address for your account. Please set one up.</p>
+            <a href="{% url 'add_billing_address' %}" class="btn btn-success btn-block">&#x1f195; Setup billing address
+                &#x1f195;</a>
         {% endif %}
-        <a href="{% url 'add_billing_address' %}" class="btn btn-success btn-block">&#x1f195; Add new &#x1f195;</a>
-        <hr>
-        <h2>Your bank accounts &#x1f3e6;</h2>
-        <div class="alert alert-info">
-            These are bank accounts we know are yours. They're used as evidence for tax residency purposes, and if we
-            receive a payment from one of these without a known reference we'll automatically credit it to your
-            account.
-        </div>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="thead-dark">
-                <tr>
-                    <th>Account country</th>
-                    <th>Account number</th>
-                    <th>Bank code</th>
-                    <th>Branch code</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% if known_bank_accounts %}
-                    {% for account in known_bank_accounts %}
-                        <tr>
-                            <td>{{ account.country_code|upper }}</td>
-                            <td>
-                                {{ account.account_code }}
-                            </td>
-                            <td>{{ account.bank_code }}</td>
-                            <td>{% if account.branch_code %}{{ account.branch_code }}{% else %}N/A{% endif %}</td>
-                        </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="4">No accounts</td>
-                    </tr>
-                {% endif %}
-                </tbody>
-            </table>
-        </div>
-        <hr>
-        <h2>Saved cards &#x1f4b3;</h2>
-        <div class="table-responsive table-striped table-hover table-striped">
-            <table class="table">
-                <thead class="thead-dark">
-                <tr>
-                    <th>Billing name</th>
-                    <th>Brand</th>
-                    <th>Last 4 digits</th>
-                    <th>Expiry</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                {% if cards %}
-                    {% for card in cards %}
-                        <tr>
-                            <td>
-                                {{ card.billing_details.name }}
-                                {% if card.id == user.account.default_stripe_payment_method_id %}
-                                    <span class="badge badge-info">Default</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ card.card.brand|upper }}</td>
-                            <td>*** *** **** {{ card.card.last4 }}</td>
-                            <td>{{ card.card.exp_month|stringformat:"02d" }} / {{ card.card.exp_year }}</td>
-                            <td>
-                                <form action="{% url 'edit_card' card.id %}" method="post">
-                                    {% csrf_token %}
-                                    <div class="btn-group">
-                                        <a href="{% url 'edit_card' card.id %}" class="btn btn-info btn-sm">
-                                            &#x1f58a; Edit
-                                        </a>
-                                        {% if card.id != user.account.default_stripe_payment_method_id %}
-                                            <button type="submit" class="btn btn-primary btn-sm" name="action"
-                                                    value="default">
-                                                &#x1f4b8; Make default
-                                            </button>
-                                        {% endif %}
-                                        <button type="submit" class="btn btn-danger btn-sm" name="action"
-                                                value="delete">
-                                            &#x1f5d1; Delete
-                                        </button>
-                                    </div>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="5">No saved cards</td>
-                    </tr>
-                {% endif %}
-                <tr>
-                    <td colspan="5" class="text-center">
-                        <a href="{% url 'add_card' %}" class="btn btn-success btn-sm">
-                            &#x1f195; Add new card &#x1f195;
-                        </a>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <h2>ACH Direct Debit Mandates &#x1f4b5;</h2>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="thead-dark">
-                <tr>
-                    <th>Account number</th>
-                    <th>Account type</th>
-                    <th>Bank</th>
-                    <th>Reference</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                {% if ach_mandates %}
-                    {% for mandate in ach_mandates %}
-                        <tr>
-                            <td>
-                                ****{{ mandate.last4 }}
-                                {% if mandate.status == "pending" %}
-                                    <span class="badge badge-warning">Pending</span>
-                                {% elif mandate.status == "revoked" %}
-                                    <span class="badge badge-danger">Revoked</span>
-                                {% elif mandate.status == "refused" %}
-                                    <span class="badge badge-danger">Refused</span>
-                                {% endif %}
-                                {% if mandate.is_default %}
-                                    <span class="badge badge-info">Default</span>
-                                {% endif %}
-                            </td>
-                            <td>{% if mandate.account_type == "checking" %}
-                                Checking{% elif mandate.account_type == "savings" %}Savings{% endif %}</td>
-                            <td>{{ mandate.bank }}</td>
-                            <td>{{ mandate.ref }}</td>
-                            <td>
-                                <form action="{% url 'edit_ach_mandate' mandate.id %}" method="post">
-                                    {% csrf_token %}
-                                    <div class="btn-group">
-                                        <a href="{{ mandate.url }}"
-                                           class="btn btn-info btn-sm">&#x1f440; View mandate</a>
-                                        {% if not mandate.is_default and mandate.active %}
-                                            <button type="submit" class="btn btn-primary btn-sm" name="action"
-                                                    value="default">
-                                                &#x1f4b8; Make default
-                                            </button>
-                                        {% endif %}
-                                        <button type="submit" class="btn btn-danger btn-sm" name="action"
-                                                value="delete">
-                                            &#x1f5d1; Delete
-                                        </button>
-                                    </div>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="5">No mandates</td>
-                    </tr>
-                {% endif %}
-                <tr>
-                    <td colspan="5" class="text-center">
-                        <a href="{% url 'top_up_new_ach' %}" class="btn btn-success btn-sm">
-                            &#x1f195; New mandate &#x1f195;
-                        </a>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <h2>Autogiro Mandates &#x1f3e6;</h2>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="thead-dark">
-                <tr>
-                    <th>Account number</th>
-                    <th>Bank</th>
-                    <th>Reference</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                {% if autogiro_mandates %}
-                    {% for mandate in autogiro_mandates %}
-                        <tr>
-                            <td>
-                                ****{{ mandate.last4 }}
-                                {% if mandate.status == "pending" %}
-                                    <span class="badge badge-warning">Pending</span>
-                                {% elif mandate.status == "revoked" %}
-                                    <span class="badge badge-danger">Revoked</span>
-                                {% elif mandate.status == "refused" %}
-                                    <span class="badge badge-danger">Refused</span>
-                                {% endif %}
-                                {% if mandate.is_default %}
-                                    <span class="badge badge-info">Default</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ mandate.bank }}</td>
-                            <td>{{ mandate.ref }}</td>
-                            <td>
-                                <form action="{% url 'edit_autogiro_mandate' mandate.id %}" method="post">
-                                    {% csrf_token %}
-                                    <div class="btn-group">
-                                        <a href="{{ mandate.url }}"
-                                           class="btn btn-info btn-sm">&#x1f440; View mandate</a>
-                                        {% if not mandate.is_default and mandate.active %}
-                                            <button type="submit" class="btn btn-primary btn-sm" name="action"
-                                                    value="default">
-                                                &#x1f4b8; Make default
-                                            </button>
-                                        {% endif %}
-                                        <button type="submit" class="btn btn-danger btn-sm" name="action"
-                                                value="delete">
-                                            &#x1f5d1; Delete
-                                        </button>
-                                    </div>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="4">No mandates</td>
-                    </tr>
-                {% endif %}
-                <tr>
-                    <td colspan="4" class="text-center">
-                        <a href="{% url 'top_up_new_autogiro' %}" class="btn btn-success btn-sm">
-                            &#x1f195; New mandate &#x1f195;
-                        </a>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <h2>BACS Direct Debit Mandates &#x1f3e6;</h2>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="thead-dark">
-                <tr>
-                    <th>Account number</th>
-                    <th>Bank</th>
-                    <th>Reference</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                {% if bacs_mandates %}
-                    {% for mandate in bacs_mandates %}
-                        <tr>
-                            <td>
-                                ****{{ mandate.last4 }}
-                                {% if mandate.status == "pending" %}
-                                    <span class="badge badge-warning">Pending</span>
-                                {% elif mandate.status == "revoked" %}
-                                    <span class="badge badge-danger">Revoked</span>
-                                {% elif mandate.status == "refused" %}
-                                    <span class="badge badge-danger">Refused</span>
-                                {% endif %}
-                                {% if mandate.is_default %}
-                                    <span class="badge badge-info">Default</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ mandate.bank }}</td>
-                            <td>{{ mandate.ref }}</td>
-                            <td>
-                                <form action="{% url 'edit_bacs_mandate' mandate.id %}" method="post">
-                                    {% csrf_token %}
-                                    <div class="btn-group">
-                                        <a href="{{ mandate.url }}"
-                                           class="btn btn-info btn-sm">&#x1f440; View mandate</a>
-                                        {% if not mandate.is_default and mandate.active %}
-                                            <button type="submit" class="btn btn-primary btn-sm" name="action"
-                                                    value="default">
-                                                &#x1f4b8; Make default
-                                            </button>
-                                        {% endif %}
-                                        <button type="submit" class="btn btn-danger btn-sm" name="action"
-                                                value="delete">
-                                            &#x1f5d1; Delete
-                                        </button>
-                                    </div>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="4">No mandates</td>
-                    </tr>
-                {% endif %}
-                <tr>
-                    <td colspan="4" class="text-center">
-                        <a href="{% url 'top_up_new_bacs' %}" class="btn btn-success btn-sm">
-                            &#x1f195; New mandate &#x1f195;
-                        </a>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <h2>BECS Direct Debit Mandates &#x1f3e6;</h2>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="thead-dark">
-                <tr>
-                    <th>Account number</th>
-                    <th>Bank</th>
-                    <th>Reference</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                {% if becs_mandates %}
-                    {% for mandate in becs_mandates %}
-                        <tr>
-                            <td>
-                                ****{{ mandate.last4 }}
-                                {% if mandate.status == "pending" %}
-                                    <span class="badge badge-warning">Pending</span>
-                                {% elif mandate.status == "revoked" %}
-                                    <span class="badge badge-danger">Revoked</span>
-                                {% elif mandate.status == "refused" %}
-                                    <span class="badge badge-danger">Refused</span>
-                                {% endif %}
-                                {% if mandate.is_default %}
-                                    <span class="badge badge-info">Default</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ mandate.bank }}</td>
-                            <td>{{ mandate.ref }}</td>
-                            <td>
-                                <form action="{% url 'edit_becs_mandate' mandate.id %}" method="post">
-                                    {% csrf_token %}
-                                    <div class="btn-group">
-                                        <a href="{{ mandate.url }}"
-                                           class="btn btn-info btn-sm">&#x1f440; View mandate</a>
-                                        {% if not mandate.is_default and mandate.active %}
-                                            <button type="submit" class="btn btn-primary btn-sm" name="action"
-                                                    value="default">
-                                                &#x1f4b8; Make default
-                                            </button>
-                                        {% endif %}
-                                        <button type="submit" class="btn btn-danger btn-sm" name="action"
-                                                value="delete">
-                                            &#x1f5d1; Delete
-                                        </button>
-                                    </div>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-
-                {% else %}
-                    <tr>
-                        <td colspan="4">No mandates</td>
-                    </tr>
-                {% endif %}
-                <tr>
-                    <td colspan="4" class="text-center">
-                        <a href="{% url 'top_up_new_becs' %}" class="btn btn-success btn-sm">
-                            &#x1f195; New mandate &#x1f195;
-                        </a>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <h2>BECS NZ Direct Debit Mandates &#x1f3e6;</h2>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="thead-dark">
-                <tr>
-                    <th>Account number</th>
-                    <th>Bank</th>
-                    <th>Reference</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                {% if becs_nz_mandates %}
-                    {% for mandate in becs_nz_mandates %}
-                        <tr>
-                            <td>
-                                ****{{ mandate.last4 }}
-                                {% if mandate.status == "pending" %}
-                                    <span class="badge badge-warning">Pending</span>
-                                {% elif mandate.status == "revoked" %}
-                                    <span class="badge badge-danger">Revoked</span>
-                                {% elif mandate.status == "refused" %}
-                                    <span class="badge badge-danger">Refused</span>
-                                {% endif %}
-                                {% if mandate.is_default %}
-                                    <span class="badge badge-info">Default</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ mandate.bank }}</td>
-                            <td>{{ mandate.ref }}</td>
-                            <td>
-                                <form action="{% url 'edit_becs_nz_mandate' mandate.id %}" method="post">
-                                    {% csrf_token %}
-                                    <div class="btn-group">
-                                        <a href="{{ mandate.url }}"
-                                           class="btn btn-info btn-sm">&#x1f440; View mandate</a>
-                                        {% if not mandate.is_default and mandate.active %}
-                                            <button type="submit" class="btn btn-primary btn-sm" name="action"
-                                                    value="default">
-                                                &#x1f4b8; Make default
-                                            </button>
-                                        {% endif %}
-                                        <button type="submit" class="btn btn-danger btn-sm" name="action"
-                                                value="delete">
-                                            &#x1f5d1; Delete
-                                        </button>
-                                    </div>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-
-                {% else %}
-                    <tr>
-                        <td colspan="4">No mandates</td>
-                    </tr>
-                {% endif %}
-                <tr>
-                    <td colspan="4" class="text-center">
-                        <a href="{% url 'top_up_new_becs_nz' %}" class="btn btn-success btn-sm">
-                            &#x1f195; New mandate &#x1f195;
-                        </a>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <h2>Betalingsservice Mandates &#x1f3e6;</h2>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="thead-dark">
-                <tr>
-                    <th>Account number</th>
-                    <th>Bank</th>
-                    <th>Reference</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                {% if betalingsservice_mandates %}
-                    {% for mandate in betalingsservice_mandates %}
-                        <tr>
-                            <td>
-                                ****{{ mandate.last4 }}
-                                {% if mandate.status == "pending" %}
-                                    <span class="badge badge-warning">Pending</span>
-                                {% elif mandate.status == "revoked" %}
-                                    <span class="badge badge-danger">Revoked</span>
-                                {% elif mandate.status == "refused" %}
-                                    <span class="badge badge-danger">Refused</span>
-                                {% endif %}
-                                {% if mandate.is_default %}
-                                    <span class="badge badge-info">Default</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ mandate.bank }}</td>
-                            <td>{{ mandate.ref }}</td>
-                            <td>
-                                <form action="{% url 'edit_betalingsservice_mandate' mandate.id %}" method="post">
-                                    {% csrf_token %}
-                                    <div class="btn-group">
-                                        <a href="{{ mandate.url }}"
-                                           class="btn btn-info btn-sm">&#x1f440; View mandate</a>
-                                        {% if not mandate.is_default and mandate.active %}
-                                            <button type="submit" class="btn btn-primary btn-sm" name="action"
-                                                    value="default">
-                                                &#x1f4b8; Make default
-                                            </button>
-                                        {% endif %}
-                                        <button type="submit" class="btn btn-danger btn-sm" name="action"
-                                                value="delete">
-                                            &#x1f5d1; Delete
-                                        </button>
-                                    </div>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-
-                {% else %}
-                    <tr>
-                        <td colspan="4">No mandates</td>
-                    </tr>
-                {% endif %}
-                <tr>
-                    <td colspan="4" class="text-center">
-                        <a href="{% url 'top_up_new_betalingsservice' %}" class="btn btn-success btn-sm">
-                            &#x1f195; New mandate &#x1f195;
-                        </a>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <h2>PAD Direct Debit Mandates &#x1f3e6;</h2>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="thead-dark">
-                <tr>
-                    <th>Account number</th>
-                    <th>Bank</th>
-                    <th>Reference</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                {% if pad_mandates %}
-                    {% for mandate in pad_mandates %}
-                        <tr>
-                            <td>
-                                ****{{ mandate.last4 }}
-                                {% if mandate.status == "pending" %}
-                                    <span class="badge badge-warning">Pending</span>
-                                {% elif mandate.status == "revoked" %}
-                                    <span class="badge badge-danger">Revoked</span>
-                                {% elif mandate.status == "refused" %}
-                                    <span class="badge badge-danger">Refused</span>
-                                {% endif %}
-                                {% if mandate.is_default %}
-                                    <span class="badge badge-info">Default</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ mandate.bank }}</td>
-                            <td>{{ mandate.ref }}</td>
-                            <td>
-                                <form action="{% url 'edit_pad_mandate' mandate.id %}" method="post">
-                                    {% csrf_token %}
-                                    <div class="btn-group">
-                                        <a href="{{ mandate.url }}"
-                                           class="btn btn-info btn-sm">&#x1f440; View mandate</a>
-                                        {% if not mandate.is_default and mandate.active %}
-                                            <button type="submit" class="btn btn-primary btn-sm" name="action"
-                                                    value="default">
-                                                &#x1f4b8; Make default
-                                            </button>
-                                        {% endif %}
-                                        <button type="submit" class="btn btn-danger btn-sm" name="action"
-                                                value="delete">
-                                            &#x1f5d1; Delete
-                                        </button>
-                                    </div>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="4">No mandates</td>
-                    </tr>
-                {% endif %}
-                <tr>
-                    <td colspan="4" class="text-center">
-                        <a href="{% url 'top_up_new_pad' %}" class="btn btn-success btn-sm">
-                            &#x1f195; New mandate &#x1f195;
-                        </a>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <h2>SEPA Direct Debit Mandates &#x1f3e6;</h2>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="thead-dark">
-                <tr>
-                    <th>Account country</th>
-                    <th>Account number</th>
-                    <th>Bank</th>
-                    <th>Reference</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                {% if sepa_mandates %}
-                    {% for mandate in sepa_mandates %}
-                        <tr>
-                            <td>{{ mandate.cc }}</td>
-                            <td>
-                                ****{{ mandate.last4 }}
-                                {% if mandate.status == "pending" %}
-                                    <span class="badge badge-warning">Pending</span>
-                                {% elif mandate.status == "revoked" %}
-                                    <span class="badge badge-danger">Revoked</span>
-                                {% elif mandate.status == "refused" %}
-                                    <span class="badge badge-danger">Refused</span>
-                                {% endif %}
-                                {% if mandate.is_default %}
-                                    <span class="badge badge-info">Default</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ mandate.bank }}</td>
-                            <td>{{ mandate.ref }}</td>
-                            <td>
-                                <form action="{% url 'edit_sepa_mandate' mandate.id %}" method="post">
-                                    {% csrf_token %}
-                                    <div class="btn-group">
-                                        <a href="{{ mandate.url }}"
-                                           class="btn btn-info btn-sm">&#x1f440; View mandate</a>
-                                        {% if not mandate.is_default and mandate.active %}
-                                            <button type="submit" class="btn btn-primary btn-sm" name="action"
-                                                    value="default">
-                                                &#x1f4b8; Make default
-                                            </button>
-                                        {% endif %}
-                                        <button type="submit" class="btn btn-danger btn-sm" name="action"
-                                                value="delete">
-                                            &#x1f5d1; Delete
-                                        </button>
-                                    </div>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="5">No mandates</td>
-                    </tr>
-                {% endif %}
-                <tr>
-                    <td colspan="5" class="text-center">
-                        <a href="{% url 'top_up_new_sepa' %}" class="btn btn-success btn-sm">
-                            &#x1f195; New mandate &#x1f195;
-                        </a>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <hr>
-        <h2>My subscriptions</h2>
-        <div class="table-responsive table-striped table-hover table-striped">
-            <table class="table">
-                <thead class="thead-dark">
-                <tr>
-                    <th>State</th>
-                    <th>Plan</th>
-                    <th>Current usage</th>
-                    <th>Next charge</th>
-                    <th>Last billed</th>
-                    <th>Amount unpaid</th>
-                    <th>Next bill</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                {% if subscriptions %}
-                    {% for subscription in subscriptions %}
-                        <tr>
-                            <td>
-                                {% if subscription.state == "A" %}
-                                    <span class="badge badge-success">Active</span>
-                                {% elif subscription.state == "P" %}
-                                    <span class="badge badge-warning">Past due</span>
-                                {% elif subscription.state == "C" %}
-                                    <span class="badge badge-danger">Cancelled</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ subscription.plan.name }}</td>
-                            <td>{{ subscription.usage_in_period_label }}</td>
-                            <td>&pound;{{ subscription.next_charge|floatformat:2 }}</td>
-                            <td>{{ subscription.last_billed }}</td>
-                            <td>&pound;{{ subscription.amount_unpaid|floatformat:2 }}</td>
-                            <td>{{ subscription.next_bill }}</td>
-                            <td>
-{#                                <form action="{% url 'edit_subscription' subscription.id %}" method="post">#}
-{#                                    {% csrf_token %}#}
-{#                                    <div class="btn-group">#}
-{#                                        {% if subscription.state == "P" %}#}
-{#                                            <button type="submit" class="btn btn-success btn-sm" name="action"#}
-{#                                                    value="retry">#}
-{#                                                &#x1f501; Retry now#}
-{#                                            </button>#}
-{#                                        {% endif %}#}
-{#                                    </div>#}
-{#                                </form>#}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="8">No subscriptions</td>
-                    </tr>
-                {% endif %}
-                </tbody>
-            </table>
-        </div>
     </div>
 {% endblock %}

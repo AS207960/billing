@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 import stripe
-from billing import models, views
+from billing import models, tasks
 
 
 class Command(BaseCommand):
@@ -12,16 +12,20 @@ class Command(BaseCommand):
                 Q(state=models.LedgerItem.STATE_PENDING) | Q(state=models.LedgerItem.STATE_PROCESSING)
         ):
             if ledger_item.type in (
-                    models.LedgerItem.TYPE_CARD, models.LedgerItem.TYPE_SEPA
+                    models.LedgerItem.TYPE_CARD, models.LedgerItem.TYPE_SEPA, models.LedgerItem.TYPE_SOFORT,
+                    models.LedgerItem.TYPE_GIROPAY, models.LedgerItem.TYPE_BANCONTACT, models.LedgerItem.TYPE_EPS,
+                    models.LedgerItem.TYPE_IDEAL
             ):
                 payment_intent = stripe.PaymentIntent.retrieve(ledger_item.type_id)
-                views.tasks.update_from_payment_intent(payment_intent, ledger_item)
+                tasks.update_from_payment_intent(payment_intent, ledger_item)
             elif ledger_item.type == models.LedgerItem.TYPE_SOURCES:
                 source = stripe.Source.retrieve(ledger_item.type_id)
-                views.tasks.update_from_source(source, ledger_item)
+                tasks.update_from_source(source, ledger_item)
             elif ledger_item.type == models.LedgerItem.TYPE_CHARGES:
                 charge = stripe.Charge.retrieve(ledger_item.type_id)
-                views.tasks.update_from_charge(charge, ledger_item)
+                tasks.update_from_charge(charge, ledger_item)
             elif ledger_item.type == models.LedgerItem.TYPE_CHECKOUT:
                 session = stripe.checkout.Session.retrieve(ledger_item.type_id)
-                views.tasks.update_from_checkout_session(session, ledger_item)
+                tasks.update_from_checkout_session(session, ledger_item)
+            elif ledger_item.type == models.LedgerItem.TYPE_GOCARDLESS:
+                tasks.update_from_gc_payment(ledger_item.type_id, ledger_item)

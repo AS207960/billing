@@ -11,71 +11,68 @@
                 <p>
                     Order ID: <b>{{ charge.id }}</b><br/>
                     Created on: <b>{{ charge.ledger_item.timestamp }}</b>
-                    {% if charge.completed_timestamp %}
-                        <br/>Paid on: <b>{{ charge.completed_timestamp }}</b>
+                    {% if charge.ledger_item.completed_timestamp %}
+                        <br/>Paid on: <b>{{ charge.ledger_item.completed_timestamp }}</b>
                     {% endif %}
-                    {% if charge.evidence_billing_address and charge.evidence_billing_address.formatted_vat_id %}
-                        <br/><b>Vat ID:</b> {{ charge.evidence_billing_address.formatted_vat_id }}
+                    {% if charge.payment_ledger_item and charge.payment_ledger_item.evidence_billing_address and charge.payment_ledger_item.evidence_billing_address.formatted_vat_id %}
+                        <br/><b>Your VAT ID:</b>
+                        {{ charge.payment_ledger_item.evidence_billing_address.formatted_vat_id }}
                     {% endif %}
                 </p>
             </div>
             <div class="col-12 col-lg-6">
-                {% if charge.evidence_billing_address %}
+                {% if charge.payment_ledger_item and charge.payment_ledger_item.evidence_billing_address %}
                     Billed to:<br/>
                     <b>
-                        {{ charge.evidence_billing_address.formatted|linebreaksbr }}
+                        {{ charge.payment_ledger_item.evidence_billing_address.formatted|linebreaksbr }}
                     </b>
                 {% endif %}
             </div>
         </div>
-        </p>
-        <h2>&pound;{{ charge.ledger_item.amount|mul:-1|floatformat:2 }} for {{ charge.ledger_item.descriptor }}</h2>
         <div class="row d-flex flex-column align-items-center">
             <div class="col-12 col-md-6">
+                <h2>&pound;{{ charge.ledger_item.amount|mul:-1|floatformat:2 }}
+                    for {{ charge.ledger_item.descriptor }}</h2>
                 <table class="table table-borderless">
                     <tbody>
                     <tr>
                         <th scope="row" class="font-weight-normal">{{ charge.ledger_item.descriptor }}</th>
-                        <td>&pound;{{ charge.base_amount|floatformat:2 }}</td>
+                        <td>&pound;{{ charge.ledger_item.amount|mul:-1|floatformat:2 }}</td>
                     </tr>
-                    {% if has_vat %}
-                        <tr>
-                            <th scope="row" class="font-weight-normal">VAT @ {{ charge.vat_rate|mul:100|floatformat:2 }}%</th>
-                            <td>&pound;{{ vat_charged|floatformat:2 }}</td>
-                        </tr>
-                    {% endif %}
-                    <tr class="border-top">
-                        <th scope="row">Total</th>
-                        <td>&pound;{{ order_total|floatformat:2 }}</td>
-                    </tr>
-                    <tr class="border-top">
+                    <tr>
                         <th scope="row" class="font-weight-normal">From account balance</th>
                         <td>&pound;{{ from_account_balance|floatformat:2 }}</td>
                     </tr>
-                    <tr>
-                        <th scope="row">
-                            {% if charge.payment_ledger_item %}
-                                {{ charge.payment_ledger_item.descriptor }}
-                            {% else %}
-                                Charged to your payment method
-                            {% endif %}
-                        </th>
+                    <tr class="border-top">
+                        <th scope="row">Left to be paid</th>
                         <td>&pound;{{ left_to_be_paid|floatformat:2 }}</td>
                     </tr>
+                    {% if has_vat %}
+                        <tr>
+                            <th scope="row" class="font-weight-normal">VAT
+                                @ {{ charge.payment_ledger_item.vat_rate|mul:100|floatformat:2 }}%
+                            </th>
+                            <td>&pound;{{ vat_charged|floatformat:2 }}</td>
+                        </tr>
+                    {% endif %}
+                    {% if charge.payment_ledger_item %}
+                        <tr class="border-top">
+                            <th scope="row">
+                                {{ charge.payment_ledger_item.descriptor }}
+                                <a class="btn btn-sm btn-info" href="{% url 'toup_up_details' charge.payment_ledger_item.id %}">&#x1f440; View details</a>
+                            </th>
+                            <td>&pound;{{ charged_amount|floatformat:2 }}</td>
+                        </tr>
+                    {% endif %}
                     </tbody>
                 </table>
             </div>
-        </div>
 
-        {% if billing_country_name %}
-            {% if has_vat %}
-                <p>We charged you the sales taxes applicable in {{ billing_country_name }}.</p>
-            {% else %}
-                <p>
-                    We didn't charge you sales taxes as this is not applicable to our customers
-                    in {{ billing_country_name }}.
-                </p>
+            {% if billing_country_name %}
+                {% if has_vat %}
+                    <p>We charged you the sales taxes applicable in {{ billing_country_name }}.</p>
+                {% endif %}
             {% endif %}
-        {% endif %}
+        </div>
     </div>
 {% endblock %}

@@ -1,12 +1,10 @@
-import decimal
-
+import secrets
 import stripe
 import stripe.error
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render, reverse
-from django.utils import timezone
 from django.views.decorators.http import require_POST
 from .. import forms, models, tasks
 from ..apps import gocardless_client
@@ -16,8 +14,6 @@ from ..apps import gocardless_client
 def account_details(request):
     account = request.user.account  # type: models.Account
     cards = []
-
-    billing_addresses = models.AccountBillingAddress.objects.filter(account=account, deleted=False)
     known_bank_accounts = models.KnownBankAccount.objects.filter(account=account)
 
     if account.stripe_customer_id:
@@ -38,7 +34,7 @@ def account_details(request):
             "url": mandate["payment_method_details"]["sepa_debit"]["url"],
             "status": "active" if m.active else "revoked",
             "active": m.active,
-            "is_default": mandate["payment_method"] == account.default_stripe_payment_method_id,
+            "is_default": account.default_sepa_mandate == m
         }
 
     def map_bacs_mandate(m):
@@ -52,10 +48,10 @@ def account_details(request):
             "url": mandate["payment_method_details"]["bacs_debit"]["url"],
             "status": mandate["payment_method_details"]["bacs_debit"]["network_status"],
             "active": m.active,
-            "is_default": mandate["payment_method"] == account.default_stripe_payment_method_id,
+            "is_default": account.default_bacs_mandate == m
         }
 
-    def map_gc_mandate(m, v):
+    def map_gc_mandate(m, v, d):
         mandate = gocardless_client.mandates.get(m.mandate_id)
         bank_account = gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
         return {
@@ -72,45 +68,45 @@ def account_details(request):
                 else mandate.status
             ),
             "url": reverse(v, args=(m.id,)),
-            "is_default": mandate.id == account.default_gc_mandate_id
+            "is_default": d == m
         }
 
     ach_mandates = list(map(
-        lambda m: map_gc_mandate(m, 'view_ach_mandate'),
+        lambda m: map_gc_mandate(m, 'view_ach_mandate', account.default_ach_mandate),
         models.ACHMandate.objects.filter(account=account, active=True)
     ))
     autogiro_mandates = list(map(
-        lambda m: map_gc_mandate(m, 'view_autogiro_mandate'),
+        lambda m: map_gc_mandate(m, 'view_autogiro_mandate', account.default_autogiro_mandate),
         models.AutogiroMandate.objects.filter(account=account, active=True)
     ))
     bacs_mandates = list(map(map_bacs_mandate, models.BACSMandate.objects.filter(account=account, active=True)))
     bacs_mandates += list(map(
-        lambda m: map_gc_mandate(m, 'view_bacs_mandate'),
+        lambda m: map_gc_mandate(m, 'view_bacs_mandate', account.default_bacs_mandate),
         models.GCBACSMandate.objects.filter(account=account, active=True))
     )
     becs_mandates = list(map(
-        lambda m: map_gc_mandate(m, 'view_becs_mandate'),
+        lambda m: map_gc_mandate(m, 'view_becs_mandate', account.default_becs_mandate),
         models.BECSMandate.objects.filter(account=account, active=True)
     ))
     becs_nz_mandates = list(map(
-        lambda m: map_gc_mandate(m, 'view_becs_nz_mandate')
+        lambda m: map_gc_mandate(m, 'view_becs_nz_mandate', account.default_becs_nz_mandate)
         , models.BECSNZMandate.objects.filter(account=account, active=True)
     ))
     betalingsservice_mandates = list(map(
-        lambda m: map_gc_mandate(m, 'view_betalingsservice_mandate'),
+        lambda m: map_gc_mandate(m, 'view_betalingsservice_mandate', account.default_betalingsservice_mandate),
         models.BetalingsserviceMandate.objects.filter(account=account, active=True)
     ))
     pad_mandates = list(map(
-        lambda m: map_gc_mandate(m, 'view_pad_mandate'),
+        lambda m: map_gc_mandate(m, 'view_pad_mandate', account.default_pad_mandate),
         models.PADMandate.objects.filter(account=account, active=True)
     ))
     sepa_mandates = list(map(map_sepa_mandate, models.SEPAMandate.objects.filter(account=account, active=True)))
     sepa_mandates += list(map(
-        lambda m: map_gc_mandate(m, 'view_sepa_mandate'),
+        lambda m: map_gc_mandate(m, 'view_sepa_mandate', account.default_sepa_mandate),
         models.GCSEPAMandate.objects.filter(account=account, active=True)
     ))
 
-    subscriptions = request.user.account.subscription_set.all()
+    subscriptions = account.subscription_set.all()
 
     return render(request, "billing/account_details.html", {
         "account": account,
@@ -125,8 +121,9 @@ def account_details(request):
         "sepa_mandates": sepa_mandates,
         "subscriptions": subscriptions,
         "error": request.session.pop("error", None),
-        "billing_addresses": billing_addresses,
-        "known_bank_accounts": known_bank_accounts
+        "billing_address": account.billing_address,
+        "known_bank_accounts": known_bank_accounts,
+        "taxable": account.taxable,
     })
 
 
@@ -169,9 +166,23 @@ def edit_card(request, pm_id):
             return redirect('account_details')
 
         elif action == "default":
-            request.user.account.default_stripe_payment_method_id = pm_id
-            request.user.account.default_gc_mandate_id = None
-            request.user.account.save()
+            if (
+                    request.user.account.billing_address and
+                    request.user.account.billing_address.country_code.code.upper() == payment_method["card"]["country"]
+            ) or not request.user.account.taxable:
+                request.user.account.default_stripe_payment_method_id = pm_id
+                request.user.account.default_ach_mandate = None
+                request.user.account.default_autogiro_mandate = None
+                request.user.account.default_bacs_mandate = None
+                request.user.account.default_gc_bacs_mandate = None
+                request.user.account.default_becs_mandate = None
+                request.user.account.default_becs_nz_mandate = None
+                request.user.account.default_betalingsservice_mandate = None
+                request.user.account.default_pad_mandate = None
+                request.user.account.default_sepa_mandate = None
+                request.user.account.default_gc_sepa_mandate = None
+                request.user.account.save()
+
             return redirect('account_details')
         else:
             form = forms.EditCardForm(request.POST)
@@ -226,23 +237,49 @@ def edit_card(request, pm_id):
 
 @login_required
 def add_billing_address(request):
+    return_uri = request.GET["return_uri"] if "return_uri" in request.GET else reverse('account_details')
+
+    if request.user.account.billing_address:
+        return redirect(return_uri)
+
     if request.method == "POST":
         form = forms.BillingAddressForm(request.POST)
         if form.is_valid():
             form.instance.account = request.user.account
-
-            default_billing_address = models.AccountBillingAddress.objects \
-                .filter(account=request.user.account, deleted=False, default=True).first()
-            if not default_billing_address:
-                form.instance.default = True
-
             form.save()
-            if "return_uri" in request.GET:
-                return redirect(request.GET["return_uri"])
-            else:
-                return redirect('account_details')
+
+            request.user.account.billing_address = form.instance
+            request.user.account.save()
+
+            redirect(return_uri)
     else:
         form = forms.BillingAddressForm()
+
+    return render(request, "billing/billing_address_form.html", {
+        "form": form,
+        "title": "Add billing address"
+    })
+
+
+@login_required
+def edit_billing_address(request, address_id):
+    billing_address = get_object_or_404(models.AccountBillingAddress, id=address_id)
+    return_uri = request.GET["return_uri"] if "return_uri" in request.GET else reverse('account_details')
+
+    if billing_address.account != request.user.account:
+        return HttpResponseForbidden()
+
+    billing_address.id = None
+
+    if request.method == "POST":
+        form = forms.BillingAddressForm(request.POST, instance=billing_address)
+        if form.is_valid():
+            form.save()
+            request.user.account.billing_address = form.instance
+            request.user.account.save()
+            return redirect(return_uri)
+    else:
+        form = forms.BillingAddressForm(instance=billing_address)
 
     return render(request, "billing/billing_address_form.html", {
         "form": form,
@@ -250,27 +287,43 @@ def add_billing_address(request):
     })
 
 
-@login_required
-@require_POST
-def edit_billing_address(request, address_id):
-    billing_address = get_object_or_404(models.AccountBillingAddress, id=address_id)
+def make_mandate_default(mandate):
+    gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
+    bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate.links.customer_bank_account)
+    if (
+            mandate.account.billing_address and
+            mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
+    ):
+        mandate.account.default_gc_mandate_id = mandate.mandate_id
+        mandate.account.default_stripe_payment_method_id = None
+        mandate.account.save()
+    
 
-    if billing_address.account != request.user.account:
-        return HttpResponseForbidden()
+def make_prefilled_customer(user):
+    prefilled_customer = {
+        "email": user.email
+    }
+    if user.account.billing_address.street_1:
+        prefilled_customer["address_line1"] = user.account.billing_address.street_1
+    if user.account.billing_address.street_2:
+        prefilled_customer["address_line2"] = user.account.billing_address.street_2
+    if user.account.billing_address.street_3:
+        prefilled_customer["address_line3"] = user.account.billing_address.street_3
+    if user.account.billing_address.city:
+        prefilled_customer["city"] = user.account.billing_address.city
+    if user.account.billing_address.province:
+        prefilled_customer["region"] = user.account.billing_address.province
+    if user.account.billing_address.postal_code:
+        prefilled_customer["postal_code"] = user.account.billing_address.postal_code
+    if user.account.billing_address.country_code:
+        prefilled_customer["country_code"] = user.account.billing_address.country_code.code
+    if user.account.billing_address.organisation:
+        prefilled_customer["company_name"] = user.account.billing_address.organisation
+    else:
+        prefilled_customer["given_name"] = user.first_name
+        prefilled_customer["family_name"] = user.last_name
 
-    action = request.POST.get("action")
-
-    if action == "delete":
-        billing_address.deleted = True
-        billing_address.default = False
-        billing_address.save()
-
-    elif action == "default":
-        request.user.account.accountbillingaddress_set.update(default=False)
-        billing_address.default = True
-        billing_address.save()
-
-    return redirect('account_details')
+    return prefilled_customer
 
 
 @login_required
@@ -290,6 +343,54 @@ def view_ach_mandate(request, m_id):
 
 
 @login_required
+def setup_new_ach(request):
+    session_id = secrets.token_hex(16)
+    request.session["gc_ach_session_id"] = session_id
+
+    if not (
+            request.user.account.billing_address and
+            request.user.account.billing_address.country_code.code.lower() == "us"
+    ):
+        return redirect("account_details")
+
+    if "redirect_uri" in request.GET:
+        request.session["gc_setup_redirect_uri"] = request.GET["redirect_uri"]
+
+    prefilled_bank_account = {}
+    if "dd_account_type" in request.session:
+        prefilled_bank_account["account_type"] = request.session.pop("dd_account_type")
+
+    redirect_flow = gocardless_client.redirect_flows.create(params={
+        "description": "Authorize top-ups to your Glauca account",
+        "session_token": session_id,
+        "success_redirect_url": request.build_absolute_uri(reverse('setup_new_ach_complete')),
+        "prefilled_customer": make_prefilled_customer(request.user),
+        "prefilled_bank_account": prefilled_bank_account,
+        "scheme": "ach"
+    })
+
+    return redirect(redirect_flow.redirect_url)
+
+
+@login_required
+def setup_new_ach_complete(request):
+    account = request.user.account  # type: models.Account
+
+    redirect_flow = gocardless_client.redirect_flows.complete(
+        request.GET.get("redirect_flow_id"),
+        params={
+            "session_token": request.session.get("gc_ach_session_id")
+        }
+    )
+
+    m = models.ACHMandate.sync_mandate(redirect_flow.links.mandate, account)
+    request.session["selected_payment_method"] = f"ach_mandate_gc;{m.id}"
+
+    redirect_uri = request.session.pop("gc_setup_redirect_uri", reverse('account_details'))
+    return redirect(redirect_uri)
+
+
+@login_required
 @require_POST
 def edit_ach_mandate(request, m_id):
     action = request.POST.get("action")
@@ -305,9 +406,24 @@ def edit_ach_mandate(request, m_id):
         mandate.save()
 
     elif action == "default" and mandate.active:
-        request.user.account.default_gc_mandate_id = mandate.mandate_id
-        request.user.account.default_stripe_payment_method_id = None
-        request.user.account.save()
+        gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
+        bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate.links.customer_bank_account)
+        if (
+                mandate.account.billing_address and
+                mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
+        ) or not mandate.account.taxable:
+            mandate.account.default_stripe_payment_method_id = None
+            mandate.account.default_ach_mandate = mandate
+            mandate.account.default_autogiro_mandate = None
+            mandate.account.default_bacs_mandate = None
+            mandate.account.default_gc_bacs_mandate = None
+            mandate.account.default_becs_mandate = None
+            mandate.account.default_becs_nz_mandate = None
+            mandate.account.default_betalingsservice_mandate = None
+            mandate.account.default_pad_mandate = None
+            mandate.account.default_sepa_mandate = None
+            mandate.account.default_gc_sepa_mandate = None
+            mandate.account.save()
 
     return redirect('account_details')
 
@@ -329,6 +445,49 @@ def view_autogiro_mandate(request, m_id):
 
 
 @login_required
+def setup_new_autogiro(request):
+    session_id = secrets.token_hex(16)
+    request.session["gc_autogiro_session_id"] = session_id
+
+    if not (
+            request.user.account.billing_address and
+            request.user.account.billing_address.country_code.code.lower() == "se"
+    ):
+        return redirect("account_details")
+
+    if "redirect_uri" in request.GET:
+        request.session["gc_setup_redirect_uri"] = request.GET["redirect_uri"]
+
+    redirect_flow = gocardless_client.redirect_flows.create(params={
+        "description": "Authorize top-ups to your Glauca account",
+        "session_token": session_id,
+        "success_redirect_url": request.build_absolute_uri(reverse('setup_new_autogiro_complete')),
+        "prefilled_customer": make_prefilled_customer(request.user),
+        "scheme": "autogiro"
+    })
+
+    return redirect(redirect_flow.redirect_url)
+
+
+@login_required
+def setup_new_autogiro_complete(request):
+    account = request.user.account  # type: models.Account
+
+    redirect_flow = gocardless_client.redirect_flows.complete(
+        request.GET.get("redirect_flow_id"),
+        params={
+            "session_token": request.session.get("gc_autogiro_session_id")
+        }
+    )
+
+    m = models.AutogiroMandate.sync_mandate(redirect_flow.links.mandate, account)
+    request.session["selected_payment_method"] = f"autogiro_mandate_gc;{m.id}"
+
+    redirect_uri = request.session.pop("gc_setup_redirect_uri", reverse('account_details'))
+    return redirect(redirect_uri)
+
+
+@login_required
 @require_POST
 def edit_autogiro_mandate(request, m_id):
     action = request.POST.get("action")
@@ -344,9 +503,24 @@ def edit_autogiro_mandate(request, m_id):
         mandate.save()
 
     elif action == "default" and mandate.active:
-        request.user.account.default_gc_mandate_id = mandate.mandate_id
-        request.user.account.default_stripe_payment_method_id = None
-        request.user.account.save()
+        gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
+        bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate.links.customer_bank_account)
+        if (
+                mandate.account.billing_address and
+                mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
+        ) or not mandate.account.taxable:
+            mandate.account.default_stripe_payment_method_id = None
+            mandate.account.default_ach_mandate = None
+            mandate.account.default_autogiro_mandate = mandate
+            mandate.account.default_bacs_mandate = None
+            mandate.account.default_gc_bacs_mandate = None
+            mandate.account.default_becs_mandate = None
+            mandate.account.default_becs_nz_mandate = None
+            mandate.account.default_betalingsservice_mandate = None
+            mandate.account.default_pad_mandate = None
+            mandate.account.default_sepa_mandate = None
+            mandate.account.default_gc_sepa_mandate = None
+            mandate.account.save()
 
     return redirect('account_details')
 
@@ -368,6 +542,49 @@ def view_bacs_mandate(request, m_id):
 
 
 @login_required
+def setup_new_bacs(request):
+    session_id = secrets.token_hex(16)
+    request.session["gc_bacs_session_id"] = session_id
+
+    if not (
+            request.user.account.billing_address and
+            request.user.account.billing_address.country_code.code.lower() == "gb"
+    ):
+        return redirect("account_details")
+
+    if "redirect_uri" in request.GET:
+        request.session["gc_setup_redirect_uri"] = request.GET["redirect_uri"]
+
+    redirect_flow = gocardless_client.redirect_flows.create(params={
+        "description": "Authorize top-ups to your Glauca account",
+        "session_token": session_id,
+        "success_redirect_url": request.build_absolute_uri(reverse('setup_new_bacs_complete')),
+        "prefilled_customer": make_prefilled_customer(request.user),
+        "scheme": "bacs"
+    })
+
+    return redirect(redirect_flow.redirect_url)
+
+
+@login_required
+def setup_new_bacs_complete(request):
+    account = request.user.account  # type: models.Account
+
+    redirect_flow = gocardless_client.redirect_flows.complete(
+        request.GET.get("redirect_flow_id"),
+        params={
+            "session_token": request.session.get("gc_bacs_session_id")
+        }
+    )
+
+    m = models.GCBACSMandate.sync_mandate(redirect_flow.links.mandate, account)
+    request.session["selected_payment_method"] = f"bacs_mandate_gc;{m.id}"
+
+    redirect_uri = request.session.pop("gc_setup_redirect_uri", reverse('account_details'))
+    return redirect(redirect_uri)
+
+
+@login_required
 @require_POST
 def edit_bacs_mandate(request, m_id):
     action = request.POST.get("action")
@@ -383,9 +600,24 @@ def edit_bacs_mandate(request, m_id):
             gc_mandate.save()
 
         elif action == "default" and gc_mandate.active:
-            request.user.account.default_gc_mandate_id = gc_mandate.mandate_id
-            request.user.account.default_stripe_payment_method_id = None
-            request.user.account.save()
+            gc_mandate_obj = gocardless_client.mandates.get(gc_mandate.mandate_id)
+            bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate_obj.links.customer_bank_account)
+            if (
+                    gc_mandate.account.billing_address and
+                    gc_mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
+            ) or not gc_mandate.account.taxable:
+                gc_mandate.account.default_stripe_payment_method_id = None
+                gc_mandate.account.default_ach_mandate = None
+                gc_mandate.account.default_autogiro_mandate = None
+                gc_mandate.account.default_bacs_mandate = None
+                gc_mandate.account.default_gc_bacs_mandate = mandate
+                gc_mandate.account.default_becs_mandate = None
+                gc_mandate.account.default_becs_nz_mandate = None
+                gc_mandate.account.default_betalingsservice_mandate = None
+                gc_mandate.account.default_pad_mandate = None
+                gc_mandate.account.default_sepa_mandate = None
+                gc_mandate.account.default_gc_sepa_mandate = None
+                gc_mandate.account.save()
     else:
         mandate = get_object_or_404(models.BACSMandate, id=m_id)
 
@@ -398,9 +630,22 @@ def edit_bacs_mandate(request, m_id):
             mandate.save()
 
         elif action == "default" and mandate.active:
-            request.user.account.default_stripe_payment_method_id = mandate.payment_method
-            request.user.account.default_gc_mandate_id = None
-            request.user.account.save()
+            if (
+                mandate.account.billing_address and
+                mandate.account.billing_address.country_code.code.lower() == "gb"
+            ) or not mandate.account.taxable:
+                mandate.account.default_stripe_payment_method_id = None
+                mandate.account.default_ach_mandate = None
+                mandate.account.default_autogiro_mandate = None
+                mandate.account.default_bacs_mandate = mandate
+                mandate.account.default_gc_bacs_mandate = None
+                mandate.account.default_becs_mandate = None
+                mandate.account.default_becs_nz_mandate = None
+                mandate.account.default_betalingsservice_mandate = None
+                mandate.account.default_pad_mandate = None
+                mandate.account.default_sepa_mandate = None
+                mandate.account.default_gc_sepa_mandate = None
+                mandate.account.save()
 
     return redirect('account_details')
 
@@ -422,6 +667,49 @@ def view_becs_mandate(request, m_id):
 
 
 @login_required
+def setup_new_becs(request):
+    session_id = secrets.token_hex(16)
+    request.session["gc_becs_session_id"] = session_id
+
+    if not (
+            request.user.account.billing_address and
+            request.user.account.billing_address.country_code.code.lower() == "au"
+    ):
+        return redirect("account_details")
+
+    if "redirect_uri" in request.GET:
+        request.session["gc_setup_redirect_uri"] = request.GET["redirect_uri"]
+
+    redirect_flow = gocardless_client.redirect_flows.create(params={
+        "description": "Authorize top-ups to your Glauca account",
+        "session_token": session_id,
+        "success_redirect_url": request.build_absolute_uri(reverse('setup_new_becs_complete')),
+        "prefilled_customer": make_prefilled_customer(request.user),
+        "scheme": "becs"
+    })
+
+    return redirect(redirect_flow.redirect_url)
+
+
+@login_required
+def setup_new_becs_complete(request):
+    account = request.user.account  # type: models.Account
+
+    redirect_flow = gocardless_client.redirect_flows.complete(
+        request.GET.get("redirect_flow_id"),
+        params={
+            "session_token": request.session.get("gc_becs_session_id")
+        }
+    )
+
+    m = models.BECSMandate.sync_mandate(redirect_flow.links.mandate, account)
+    request.session["selected_payment_method"] = f"becs_mandate_gc;{m.id}"
+
+    redirect_uri = request.session.pop("gc_setup_redirect_uri", reverse('account_details'))
+    return redirect(redirect_uri)
+
+
+@login_required
 @require_POST
 def edit_becs_mandate(request, m_id):
     action = request.POST.get("action")
@@ -437,9 +725,24 @@ def edit_becs_mandate(request, m_id):
         mandate.save()
 
     elif action == "default" and mandate.active:
-        request.user.account.default_gc_mandate_id = mandate.mandate_id
-        request.user.account.default_stripe_payment_method_id = None
-        request.user.account.save()
+        gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
+        bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate.links.customer_bank_account)
+        if (
+                mandate.account.billing_address and
+                mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
+        ) or not mandate.account.taxable:
+            mandate.account.default_stripe_payment_method_id = None
+            mandate.account.default_ach_mandate = None
+            mandate.account.default_autogiro_mandate = None
+            mandate.account.default_bacs_mandate = None
+            mandate.account.default_gc_bacs_mandate = None
+            mandate.account.default_becs_mandate = mandate
+            mandate.account.default_becs_nz_mandate = None
+            mandate.account.default_betalingsservice_mandate = None
+            mandate.account.default_pad_mandate = None
+            mandate.account.default_sepa_mandate = None
+            mandate.account.default_gc_sepa_mandate = None
+            mandate.account.save()
 
     return redirect('account_details')
 
@@ -460,6 +763,50 @@ def view_becs_nz_mandate(request, m_id):
     return redirect(pdf.url)
 
 
+
+@login_required
+def setup_new_becs_nz(request):
+    session_id = secrets.token_hex(16)
+    request.session["gc_becs_nz_session_id"] = session_id
+
+    if not (
+            request.user.account.billing_address and
+            request.user.account.billing_address.country_code.code.lower() == "nz"
+    ):
+        return redirect("account_details")
+
+    if "redirect_uri" in request.GET:
+        request.session["gc_setup_redirect_uri"] = request.GET["redirect_uri"]
+
+    redirect_flow = gocardless_client.redirect_flows.create(params={
+        "description": "Authorize top-ups to your Glauca account",
+        "session_token": session_id,
+        "success_redirect_url": request.build_absolute_uri(reverse('setup_new_becs_nz_complete')),
+        "prefilled_customer": make_prefilled_customer(request.user),
+        "scheme": "becs_nz"
+    })
+
+    return redirect(redirect_flow.redirect_url)
+
+
+@login_required
+def setup_new_becs_nz_complete(request):
+    account = request.user.account  # type: models.Account
+
+    redirect_flow = gocardless_client.redirect_flows.complete(
+        request.GET.get("redirect_flow_id"),
+        params={
+            "session_token": request.session.get("gc_becs_nz_session_id")
+        }
+    )
+
+    m = models.BECSNZMandate.sync_mandate(redirect_flow.links.mandate, account)
+    request.session["selected_payment_method"] = f"becs_nz_mandate_gc;{m.id}"
+
+    redirect_uri = request.session.pop("gc_setup_redirect_uri", reverse('account_details'))
+    return redirect(redirect_uri)
+
+
 @login_required
 @require_POST
 def edit_becs_nz_mandate(request, m_id):
@@ -476,9 +823,24 @@ def edit_becs_nz_mandate(request, m_id):
         mandate.save()
 
     elif action == "default" and mandate.active:
-        request.user.account.default_gc_mandate_id = mandate.mandate_id
-        request.user.account.default_stripe_payment_method_id = None
-        request.user.account.save()
+        gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
+        bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate.links.customer_bank_account)
+        if (
+                mandate.account.billing_address and
+                mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
+        ) or not mandate.account.taxable:
+            mandate.account.default_stripe_payment_method_id = None
+            mandate.account.default_ach_mandate = None
+            mandate.account.default_autogiro_mandate = None
+            mandate.account.default_bacs_mandate = None
+            mandate.account.default_gc_bacs_mandate = None
+            mandate.account.default_becs_mandate = None
+            mandate.account.default_becs_nz_mandate = mandate
+            mandate.account.default_betalingsservice_mandate = None
+            mandate.account.default_pad_mandate = None
+            mandate.account.default_sepa_mandate = None
+            mandate.account.default_gc_sepa_mandate = None
+            mandate.account.save()
 
     return redirect('account_details')
 
@@ -500,6 +862,49 @@ def view_betalingsservice_mandate(request, m_id):
 
 
 @login_required
+def setup_new_betalingsservice(request):
+    session_id = secrets.token_hex(16)
+    request.session["gc_betalingsservice_session_id"] = session_id
+
+    if not (
+            request.user.account.billing_address and
+            request.user.account.billing_address.country_code.code.lower() == "dk"
+    ):
+        return redirect("account_details")
+
+    if "redirect_uri" in request.GET:
+        request.session["gc_setup_redirect_uri"] = request.GET["redirect_uri"]
+
+    redirect_flow = gocardless_client.redirect_flows.create(params={
+        "description": "Authorize top-ups to your Glauca account",
+        "session_token": session_id,
+        "success_redirect_url": request.build_absolute_uri(reverse('setup_new_betalingsservice_complete')),
+        "prefilled_customer": make_prefilled_customer(request.user),
+        "scheme": "betalingsservice"
+    })
+
+    return redirect(redirect_flow.redirect_url)
+
+
+@login_required
+def setup_new_betalingsservice_complete(request):
+    account = request.user.account  # type: models.Account
+
+    redirect_flow = gocardless_client.redirect_flows.complete(
+        request.GET.get("redirect_flow_id"),
+        params={
+            "session_token": request.session.get("gc_betalingsservice_session_id")
+        }
+    )
+
+    m = models.BetalingsserviceMandate.sync_mandate(redirect_flow.links.mandate, account)
+    request.session["selected_payment_method"] = f"betalingsservice_mandate_gc;{m.id}"
+
+    redirect_uri = request.session.pop("gc_setup_redirect_uri", reverse('account_details'))
+    return redirect(redirect_uri)
+
+
+@login_required
 @require_POST
 def edit_betalingsservice_mandate(request, m_id):
     action = request.POST.get("action")
@@ -515,9 +920,24 @@ def edit_betalingsservice_mandate(request, m_id):
         mandate.save()
 
     elif action == "default" and mandate.active:
-        request.user.account.default_gc_mandate_id = mandate.mandate_id
-        request.user.account.default_stripe_payment_method_id = None
-        request.user.account.save()
+        gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
+        bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate.links.customer_bank_account)
+        if (
+                mandate.account.billing_address and
+                mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
+        ) or not mandate.account.taxable:
+            mandate.account.default_stripe_payment_method_id = None
+            mandate.account.default_ach_mandate = None
+            mandate.account.default_autogiro_mandate = None
+            mandate.account.default_bacs_mandate = None
+            mandate.account.default_gc_bacs_mandate = None
+            mandate.account.default_becs_mandate = None
+            mandate.account.default_becs_nz_mandate = None
+            mandate.account.default_betalingsservice_mandate = mandate
+            mandate.account.default_pad_mandate = None
+            mandate.account.default_sepa_mandate = None
+            mandate.account.default_gc_sepa_mandate = None
+            mandate.account.save()
 
     return redirect('account_details')
 
@@ -539,6 +959,49 @@ def view_pad_mandate(request, m_id):
 
 
 @login_required
+def setup_new_pad(request):
+    session_id = secrets.token_hex(16)
+    request.session["gc_pad_session_id"] = session_id
+
+    if not (
+            request.user.account.billing_address and
+            request.user.account.billing_address.country_code.code.lower() == "ca"
+    ):
+        return redirect("account_details")
+
+    if "redirect_uri" in request.GET:
+        request.session["gc_setup_redirect_uri"] = request.GET["redirect_uri"]
+
+    redirect_flow = gocardless_client.redirect_flows.create(params={
+        "description": "Authorize top-ups to your Glauca account",
+        "session_token": session_id,
+        "success_redirect_url": request.build_absolute_uri(reverse('setup_new_pad_complete')),
+        "prefilled_customer": make_prefilled_customer(request.user),
+        "scheme": "pad"
+    })
+
+    return redirect(redirect_flow.redirect_url)
+
+
+@login_required
+def setup_new_pad_complete(request):
+    account = request.user.account  # type: models.Account
+
+    redirect_flow = gocardless_client.redirect_flows.complete(
+        request.GET.get("redirect_flow_id"),
+        params={
+            "session_token": request.session.get("gc_pad_session_id")
+        }
+    )
+
+    m = models.PADMandate.sync_mandate(redirect_flow.links.mandate, account)
+    request.session["selected_payment_method"] = f"pad_mandate_gc;{m.id}"
+
+    redirect_uri = request.session.pop("gc_setup_redirect_uri", reverse('account_details'))
+    return redirect(redirect_uri)
+
+
+@login_required
 @require_POST
 def edit_pad_mandate(request, m_id):
     action = request.POST.get("action")
@@ -554,9 +1017,24 @@ def edit_pad_mandate(request, m_id):
         mandate.save()
 
     elif action == "default" and mandate.active:
-        request.user.account.default_gc_mandate_id = mandate.mandate_id
-        request.user.account.default_stripe_payment_method_id = None
-        request.user.account.save()
+        gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
+        bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate.links.customer_bank_account)
+        if (
+                mandate.account.billing_address and
+                mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
+        ) or not mandate.account.taxable:
+            mandate.account.default_stripe_payment_method_id = None
+            mandate.account.default_ach_mandate = None
+            mandate.account.default_autogiro_mandate = None
+            mandate.account.default_bacs_mandate = None
+            mandate.account.default_gc_bacs_mandate = None
+            mandate.account.default_becs_mandate = None
+            mandate.account.default_becs_nz_mandate = None
+            mandate.account.default_betalingsservice_mandate = None
+            mandate.account.default_pad_mandate = mandate
+            mandate.account.default_sepa_mandate = None
+            mandate.account.default_gc_sepa_mandate = None
+            mandate.account.save()
 
     return redirect('account_details')
 
@@ -578,6 +1056,43 @@ def view_sepa_mandate(request, m_id):
 
 
 @login_required
+def setup_new_sepa(request):
+    session_id = secrets.token_hex(16)
+    request.session["gc_sepa_session_id"] = session_id
+
+    if "redirect_uri" in request.GET:
+        request.session["gc_setup_redirect_uri"] = request.GET["redirect_uri"]
+
+    redirect_flow = gocardless_client.redirect_flows.create(params={
+        "description": "Authorize top-ups to your Glauca account",
+        "session_token": session_id,
+        "success_redirect_url": request.build_absolute_uri(reverse('setup_new_sepa_complete')),
+        "prefilled_customer": make_prefilled_customer(request.user),
+        "scheme": "sepa_core"
+    })
+
+    return redirect(redirect_flow.redirect_url)
+
+
+@login_required
+def setup_new_sepa_complete(request):
+    account = request.user.account  # type: models.Account
+
+    redirect_flow = gocardless_client.redirect_flows.complete(
+        request.GET.get("redirect_flow_id"),
+        params={
+            "session_token": request.session.get("gc_sepa_session_id")
+        }
+    )
+
+    m = models.GCSEPAMandate.sync_mandate(redirect_flow.links.mandate, account)
+    request.session["selected_payment_method"] = f"sepa_mandate_gc;{m.id}"
+
+    redirect_uri = request.session.pop("gc_setup_redirect_uri", reverse('account_details'))
+    return redirect(redirect_uri)
+
+
+@login_required
 @require_POST
 def edit_sepa_mandate(request, m_id):
     action = request.POST.get("action")
@@ -593,9 +1108,24 @@ def edit_sepa_mandate(request, m_id):
             gc_mandate.save()
 
         elif action == "default" and gc_mandate.active:
-            request.user.account.default_gc_mandate_id = gc_mandate.mandate_id
-            request.user.account.default_stripe_payment_method_id = None
-            request.user.account.save()
+            gc_mandate_obj = gocardless_client.mandates.get(gc_mandate.mandate_id)
+            bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate_obj.links.customer_bank_account)
+            if (
+                    gc_mandate.account.billing_address and
+                    gc_mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
+            ) or not gc_mandate.account.taxable:
+                gc_mandate.account.default_stripe_payment_method_id = None
+                gc_mandate.account.default_ach_mandate = None
+                gc_mandate.account.default_autogiro_mandate = None
+                gc_mandate.account.default_bacs_mandate = None
+                gc_mandate.account.default_gc_bacs_mandate = None
+                gc_mandate.account.default_becs_mandate = None
+                gc_mandate.account.default_becs_nz_mandate = None
+                gc_mandate.account.default_betalingsservice_mandate = None
+                gc_mandate.account.default_pad_mandate = None
+                gc_mandate.account.default_sepa_mandate = None
+                gc_mandate.account.default_gc_sepa_mandate = gc_mandate
+                gc_mandate.account.save()
     else:
         mandate = get_object_or_404(models.SEPAMandate, id=m_id)
 
@@ -608,9 +1138,24 @@ def edit_sepa_mandate(request, m_id):
             mandate.save()
 
         elif action == "default" and mandate.active:
-            request.user.account.default_stripe_payment_method_id = mandate.payment_method
-            request.user.account.default_gc_mandate_id = None
-            request.user.account.save()
+            stripe_mandate = stripe.Mandate.retrieve(mandate.mandate_id)
+            payment_method = stripe.PaymentMethod.retrieve(stripe_mandate["payment_method"])
+            if (
+                mandate.account.billing_address and
+                mandate.account.billing_address.country_code.code.upper() == payment_method["sepa_debit"]["country"]
+            ) or not mandate.account.taxable:
+                mandate.account.default_stripe_payment_method_id = None
+                mandate.account.default_ach_mandate = None
+                mandate.account.default_autogiro_mandate = None
+                mandate.account.default_bacs_mandate = None
+                mandate.account.default_gc_bacs_mandate = None
+                mandate.account.default_becs_mandate = None
+                mandate.account.default_becs_nz_mandate = None
+                mandate.account.default_betalingsservice_mandate = None
+                mandate.account.default_pad_mandate = None
+                mandate.account.default_sepa_mandate = mandate
+                mandate.account.default_gc_sepa_mandate = None
+                mandate.account.save()
 
     return redirect('account_details')
 

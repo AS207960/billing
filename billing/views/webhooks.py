@@ -3,6 +3,7 @@ import binascii
 import datetime
 import decimal
 import hmac
+import re
 import json
 
 import cryptography.exceptions
@@ -20,8 +21,9 @@ from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbid
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.core.mail import EmailMultiAlternatives
 
-from .. import tasks, models
+from .. import tasks, models, vat
 
 transferwise_live_pub = cryptography.hazmat.primitives.serialization.load_der_public_key(
     base64.b64decode(
@@ -46,6 +48,10 @@ transferwise_sandbox_pub = cryptography.hazmat.primitives.serialization.load_der
         b"VwIDAQAB",
     ),
     backend=cryptography.hazmat.backends.default_backend()
+)
+transferwise_fpid_re = re.compile(
+    r"^\((?P<id>\w{20})(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})(?P<currency>\d{3})(?P<sort_code>\d{6})\)"
+    r" (?P<account_number>\d{8})$"
 )
 
 
@@ -112,22 +118,7 @@ def gc_webhook(request):
     for event in events["events"]:
         with transaction.atomic():
             if event["resource_type"] == "payments":
-                ledger_item = models.LedgerItem.objects.filter(
-                    type=models.LedgerItem.TYPE_GOCARDLESS, type_id=event["links"]["payment"]
-                ).first()
-
-                if not ledger_item:
-                    continue
-
-                if event["action"] == "submitted":
-                    ledger_item.state = models.LedgerItem.STATE_PROCESSING
-                    ledger_item.save()
-                elif event["action"] == "confirmed":
-                    ledger_item.state = models.LedgerItem.STATE_COMPLETED
-                    ledger_item.save()
-                elif event["action"] in ("failed", "cancelled"):
-                    ledger_item.state = models.LedgerItem.STATE_FAILED
-                    ledger_item.save()
+                tasks.update_from_gc_payment(event["links"]["payment"], None)
             elif event["resource_type"] == "mandates":
                 scheme = event["details"].get("scheme")
                 if scheme == "ach":
@@ -148,6 +139,78 @@ def gc_webhook(request):
                     models.GCSEPAMandate.sync_mandate(event["links"]["mandate"], None)
 
     return HttpResponse(status=204)
+
+
+def attempt_complete_bank_transfer(ref: str, amount: decimal.Decimal, trans_account_data: dict, data):
+    found = False
+
+    if ref:
+        normalised_ref = ref.upper().replace(" ", "").replace("\n", "")
+        ledger_items = models.LedgerItem.objects.filter(
+            type=models.LedgerItem.TYPE_BACS,
+            state=models.LedgerItem.STATE_PENDING
+        )
+        ledger_item = None
+        for poss_ledger_item in ledger_items:
+            if poss_ledger_item.type_id in normalised_ref:
+                ledger_item = poss_ledger_item
+                break
+
+        if trans_account_data:
+            known_account, _ = models.KnownBankAccount.objects.update_or_create(
+                account=ledger_item.account,
+                **trans_account_data
+            )
+
+            if ledger_item and (
+                    ledger_item.evidence_billing_address.country_code.lower() == known_account.country_code.lower()
+                    or not ledger_item.account.taxable
+            ):
+                ledger_item.charged_amount = amount
+                ledger_item.amount = amount / (1 + ledger_item.vat_rate)
+                ledger_item.state = models.LedgerItem.STATE_COMPLETED
+                ledger_item.evidence_bank_account = known_account
+                ledger_item.save()
+                found = True
+
+    if not found and trans_account_data:
+        known_account = models.KnownBankAccount.objects.filter(
+            **trans_account_data
+        ).first()
+        if known_account and known_account.account.billing_address and (
+                known_account.account.billing_address.country_code.lower() == known_account.country_code.lower()
+                or not known_account.account.taxable
+        ):
+            can_sell, can_sell_reason = known_account.account.can_sell
+            if can_sell:
+                vat_rate = decimal.Decimal(0)
+                if known_account.account.taxable:
+                    country_vat_rate = vat.get_vat_rate(known_account.account.billing_address.country_code.lower())
+                    if country_vat_rate is not None:
+                        vat_rate = country_vat_rate
+
+                new_ledger_item = models.LedgerItem(
+                    account=known_account.account,
+                    descriptor=f"Top-up by bank transfer: {ref}" if ref else "Top-up by bank transfer",
+                    amount=amount / (1 + vat_rate),
+                    vat_rate=vat_rate,
+                    type=models.LedgerItem.TYPE_BACS,
+                    type_id=ref,
+                    timestamp=timezone.now(),
+                    state=models.LedgerItem.STATE_COMPLETED,
+                    evidence_bank_account=known_account,
+                    evidence_billing_address=known_account.account.billing_address
+                )
+                new_ledger_item.save()
+                found = True
+
+    if not found:
+        email_msg = EmailMultiAlternatives(
+            subject="Unmatched Bank Transaction",
+            body=json.dumps(data, indent=4, sort_keys=True),
+            to=['finance@as207960.net'],
+        )
+        email_msg.send()
 
 
 @csrf_exempt
@@ -219,18 +282,32 @@ def xfw_webhook(request):
                 break
 
         if found_t:
-            ref = found_t["details"].get("paymentReference")
-            if ref:
-                ledger_item = models.LedgerItem.objects.filter(
-                    type=models.LedgerItem.TYPE_BACS,
-                    type_id__contains=ref.upper(),
-                    state=models.LedgerItem.STATE_PENDING
-                ).first()
+            sender_account = found_t["details"].get("senderAccount")
+            trans_account_data = None
+            if sender_account:
+                try:
+                    trans_iban = schwifty.IBAN(sender_account)
+                    trans_account_data = {
+                        "country_code": trans_iban.country_code.lower(),
+                        "bank_code": trans_iban.bank_code,
+                        "branch_code": trans_iban.branch_code,
+                        "account_code": trans_iban.account_code
+                    }
+                except ValueError:
+                    fpid_match = transferwise_fpid_re.match(sender_account)
+                    if fpid_match:
+                        fpid_data = fpid_match.groupdict()
+                        trans_account_data = {
+                            "country_code": "gb",
+                            "bank_code": "",
+                            "branch_code": fpid_data["sort_code"],
+                            "account_code": fpid_data["account_number"],
+                        }
 
-                if ledger_item:
-                    ledger_item.amount = decimal.Decimal(found_t["amount"]["value"])
-                    ledger_item.state = models.LedgerItem.STATE_COMPLETED
-                    ledger_item.save()
+            amount = decimal.Decimal(found_t["amount"]["value"])
+            ref = found_t["details"].get("paymentReference")
+            
+            attempt_complete_bank_transfer(ref, amount, trans_account_data, found_t)
 
     return HttpResponse(status=204)
 
@@ -249,70 +326,32 @@ def monzo_webhook(request, secret_key):
     if payload.get("type") == 'transaction.created':
         data = payload.get("data")
         ref = data.get("metadata", {}).get("notes")
+        amount = decimal.Decimal(data.get("amount")) / decimal.Decimal(100)
+        if amount > 0:
+            trans_account_data = None
 
-        trans_account_data = None
-
-        if "counterparty" in data:
-            if "iban" in data["counterparty"]:
-                try:
-                    trans_iban = schwifty.IBAN(data["counterparty"]["iban"])
+            if "counterparty" in data:
+                if "iban" in data["counterparty"]:
+                    try:
+                        trans_iban = schwifty.IBAN(data["counterparty"]["iban"])
+                        trans_account_data = {
+                            "country_code": trans_iban.country_code.lower(),
+                            "bank_code": trans_iban.bank_code,
+                            "branch_code": trans_iban.branch_code,
+                            "account_code": trans_iban.account_code
+                        }
+                    except ValueError:
+                        pass
+                elif "account_number" in data["counterparty"] and "sort_code" in data["counterparty"]:
                     trans_account_data = {
-                        "country_code": trans_iban.country_code.lower(),
-                        "bank_code": trans_iban.bank_code,
-                        "branch_code": trans_iban.branch_code,
-                        "account_code": trans_iban.account_code
+                        "country_code": "gb",
+                        "bank_code": "",
+                        "branch_code": data["counterparty"]["sort_code"],
+                        "account_code": data["counterparty"]["account_number"],
                     }
-                except ValueError:
-                    pass
-            elif "account_number" in data["counterparty"] and "sort_code" in data["counterparty"]:
-                trans_account_data = {
-                    "country_code": "gb",
-                    "bank_code": "",
-                    "branch_code": data["counterparty"]["sort_code"],
-                    "account_code": data["counterparty"]["account_number"],
-                }
 
-        found = False
+            attempt_complete_bank_transfer(ref, amount, trans_account_data, data)
 
-        if ref:
-            normalised_ref = ref.upper().replace(" ", "").replace("\n", "")
-            ledger_items = models.LedgerItem.objects.filter(
-                type=models.LedgerItem.TYPE_BACS,
-                state=models.LedgerItem.STATE_PENDING
-            )
-            ledger_item = None
-            for poss_ledger_item in ledger_items:
-                if poss_ledger_item.type_id in normalised_ref:
-                    ledger_item = poss_ledger_item
-                    break
-
-            if ledger_item:
-                ledger_item.amount = decimal.Decimal(data.get("amount")) / decimal.Decimal(100)
-                ledger_item.state = models.LedgerItem.STATE_COMPLETED
-                ledger_item.save()
-                found = True
-
-                if trans_account_data:
-                    models.KnownBankAccount.objects.update_or_create(
-                        account=ledger_item.account,
-                        **trans_account_data
-                    )
-
-        if not found and trans_account_data:
-            known_account = models.KnownBankAccount.objects.filter(
-                **trans_account_data
-            ).first()
-            if known_account:
-                new_ledger_item = models.LedgerItem(
-                    account=known_account.account,
-                    descriptor="Top-up by bank transfer",
-                    amount=decimal.Decimal(data.get("amount")) / decimal.Decimal(100),
-                    type=models.LedgerItem.TYPE_BACS,
-                    type_id=ref,
-                    timestamp=timezone.now(),
-                    state=models.LedgerItem.STATE_COMPLETED,
-                )
-                new_ledger_item.save()
     else:
         return HttpResponseBadRequest()
 

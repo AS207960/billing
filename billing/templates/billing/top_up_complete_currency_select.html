@@ -3,106 +3,142 @@
     <div class="container my-3">
         <h1>Top-up from your bank account</h1>
         <h2>Please select which currency you will be sending.</h2>
-        <div class="card-columns">
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1ec;&#x1f1e7;</h3>
-                    <h5 class="card-title">Pound Sterling</h5>
-                    <p>
-                        <small>SWIFT, CHAPS, Faster Payments, or BACS</small>
-                    </p>
-                    <a href="{% url 'complete_top_up_bank_details' id 'GBP' %}"
-                       class="btn btn-primary align-self-stretch">Select</a>
+        {% if taxable %}
+            <p class="lead">
+                Payments must be make from an account in the same country as your billing address, otherwise we'll have
+                to
+                return
+                the funds (less any bank charges incurred).
+            </p>
+        {% endif %}
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 justify-content-center">
+            <div class="col mb-4 d-flex">
+                <div class="card text-center flex-grow-1">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                        <h3 class="display-4">&#x1f1ec;&#x1f1e7;</h3>
+                        <h5 class="card-title">Pound Sterling</h5>
+                        <p>
+                            <small>SWIFT, CHAPS, Faster Payments, or BACS</small>
+                        </p>
+                        <a href="{% url 'complete_top_up_bank_details' id 'GBP' %}"
+                           class="btn btn-primary align-self-stretch">Select</a>
+                    </div>
                 </div>
             </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1ea;&#x1f1fa;</h3>
-                    <h5 class="card-title">Euro</h5>
-                    <p>
-                        <small>SWIFT, or SEPA</small>
-                    </p>
-                    <a href="{% url 'complete_top_up_bank_details' id 'EUR' %}"
-                       class="btn btn-primary align-self-stretch">Select</a>
+            <div class="col mb-4 d-flex">
+                <div class="card text-center flex-grow-1">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                        <h3 class="display-4">&#x1f1ea;&#x1f1fa;</h3>
+                        <h5 class="card-title">Euro</h5>
+                        <p>
+                            <small>SWIFT, or SEPA</small>
+                        </p>
+                        <a href="{% url 'complete_top_up_bank_details' id 'EUR' %}" class="btn btn-primary align-self-stretch">Select</a>
+                    </div>
                 </div>
             </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1fa;&#x1f1f8;</h3>
-                    <h5 class="card-title">US Dollar</h5>
-                    <p>
-                        <small>SWIFT, ACH, or Wire</small>
-                    </p>
-                    <a href="{% url 'complete_top_up_bank_details' id 'USD' %}"
-                       class="btn btn-primary align-self-stretch">Select</a>
+            <div class="col mb-4 d-flex">
+                <div class="card text-center flex-grow-1">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                        <h3 class="display-4">&#x1f1fa;&#x1f1f8;</h3>
+                        <h5 class="card-title">US Dollar</h5>
+                        <p>
+                            <small>SWIFT, ACH, or Wire</small>
+                        </p>
+                        <a href="{% url 'complete_top_up_bank_details' id 'USD' %}" class="btn btn-primary align-self-stretch">Select</a>
+                    </div>
                 </div>
             </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1e6;&#x1f1fa;</h3>
-                    <h5 class="card-title">Australian Dollar</h5>
-                    <p>
-                        <small>SWIFT not supported, local bank transfer only</small>
-                    </p>
-                    <a href="{% url 'complete_top_up_bank_details' id 'AUD' %}"
-                       class="btn btn-primary align-self-stretch">Select</a>
+            {% if country == "au" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1e6;&#x1f1fa;</h3>
+                            <h5 class="card-title">Australian Dollar</h5>
+                            <p>
+                                <small>SWIFT not supported, local bank transfer only</small>
+                            </p>
+                            <a href="{% url 'complete_top_up_bank_details' id 'AUD' %}"
+                               class="btn btn-primary align-self-stretch">Select</a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1f3;&#x1f1ff;</h3>
-                    <h5 class="card-title">New Zealand Dollar</h5>
-                    <p>
-                        <small>SWIFT not supported, local bank transfer only</small>
-                    </p>
-                    <a href="{% url 'complete_top_up_bank_details' id 'NZD' %}"
-                       class="btn btn-primary align-self-stretch">Select</a>
+            {% endif %}
+            {% if country == "nz" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1f3;&#x1f1ff;</h3>
+                            <h5 class="card-title">New Zealand Dollar</h5>
+                            <p>
+                                <small>SWIFT not supported, local bank transfer only</small>
+                            </p>
+                            <a href="{% url 'complete_top_up_bank_details' id 'NZD' %}"
+                               class="btn btn-primary align-self-stretch">Select</a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1ed;&#x1f1fa;</h3>
-                    <h5 class="card-title">Hungarian Florint</h5>
-                    <p>
-                        <small>SWIFT not supported, local bank transfer only</small>
-                    </p>
-                    <a href="{% url 'complete_top_up_bank_details' id 'HUF' %}"
-                       class="btn btn-primary align-self-stretch">Select</a>
+            {% endif %}
+            {% if country == "hu" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1ed;&#x1f1fa;</h3>
+                            <h5 class="card-title">Hungarian Florint</h5>
+                            <p>
+                                <small>SWIFT not supported, local bank transfer only</small>
+                            </p>
+                            <a href="{% url 'complete_top_up_bank_details' id 'HUF' %}"
+                               class="btn btn-primary align-self-stretch">Select</a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1ed;&#x1f1fa;</h3>
-                    <h5 class="card-title">Romanian Leu</h5>
-                    <p>
-                        <small>SWIFT not supported, local bank transfer only</small>
-                    </p>
-                    <a href="{% url 'complete_top_up_bank_details' id 'RON' %}"
-                       class="btn btn-primary align-self-stretch">Select</a>
+            {% endif %}
+            {% if country == "ro" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1ed;&#x1f1fa;</h3>
+                            <h5 class="card-title">Romanian Leu</h5>
+                            <p>
+                                <small>SWIFT not supported, local bank transfer only</small>
+                            </p>
+                            <a href="{% url 'complete_top_up_bank_details' id 'RON' %}"
+                               class="btn btn-primary align-self-stretch">Select</a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1f8;&#x1f1ec;</h3>
-                    <h5 class="card-title">Singapore Dollar</h5>
-                    <p>
-                        <small>SWIFT not supported, FAST and MEPS only</small>
-                    </p>
-                    <a href="{% url 'complete_top_up_bank_details' id 'SGD' %}"
-                       class="btn btn-primary align-self-stretch">Select</a>
+            {% endif %}
+            {% if country == "sg" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1f8;&#x1f1ec;</h3>
+                            <h5 class="card-title">Singapore Dollar</h5>
+                            <p>
+                                <small>SWIFT not supported, FAST and MEPS only</small>
+                            </p>
+                            <a href="{% url 'complete_top_up_bank_details' id 'SGD' %}"
+                               class="btn btn-primary align-self-stretch">Select</a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1f9;&#x1f1f7;</h3>
-                    <h5 class="card-title">Turkish Lira</h5>
-                    <p>
-                        <small>SWIFT not supported, local bank transfer only</small>
-                    </p>
-                    <a href="{% url 'complete_top_up_bank_details' id 'TRY' %}"
-                       class="btn btn-primary align-self-stretch">Select</a>
+            {% endif %}
+            {% if country == "tr" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1f9;&#x1f1f7;</h3>
+                            <h5 class="card-title">Turkish Lira</h5>
+                            <p>
+                                <small>SWIFT not supported, local bank transfer only</small>
+                            </p>
+                            <a href="{% url 'complete_top_up_bank_details' id 'TRY' %}"
+                               class="btn btn-primary align-self-stretch">Select</a>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            {% endif %}
         </div>
     </div>
 {% endblock %}

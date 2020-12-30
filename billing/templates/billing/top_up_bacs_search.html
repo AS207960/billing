@@ -33,317 +33,496 @@
     </section>
     <div class="container my-3 mt-5">
         <h2>Or, enter local bank details</h2>
-        <div class="card-columns">
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1e6;&#x1f1fa;</h3>
-                    <h5 class="card-title">Australia</h5>
-                    <a href="{% url 'top_up_bacs_local' 'AU' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 justify-content-center">
+            {% if country == "au" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1e6;&#x1f1fa;</h3>
+                            <h5 class="card-title">Australia</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'AU' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1e6;&#x1f1f9;</h3>
-                    <h5 class="card-title">Austria</h5>
-                    <a href="{% url 'top_up_bacs_local' 'AT' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "at" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1e6;&#x1f1f9;</h3>
+                            <h5 class="card-title">Austria</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'AT' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1e7;&#x1f1ea;</h3>
-                    <h5 class="card-title">Belgium</h5>
-                    <a href="{% url 'top_up_bacs_local' 'BE' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "be" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1e7;&#x1f1ea;</h3>
+                            <h5 class="card-title">Belgium</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'BE' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1e8;&#x1f1e6;</h3>
-                    <h5 class="card-title">Canada</h5>
-                    <a href="{% url 'top_up_bacs_local' 'CA' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "ca" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1e8;&#x1f1e6;</h3>
+                            <h5 class="card-title">Canada</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'CA' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1e8;&#x1f1fe;</h3>
-                    <h5 class="card-title">Cyprus</h5>
-                    <a href="{% url 'top_up_bacs_local' 'CY' %}" class="btn btn-primary align-self-stretch"">
-                    Select
-                    </a>
+            {% endif %}
+            {% if country == "cy" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1e8;&#x1f1fe;</h3>
+                            <h5 class="card-title">Cyprus</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'CY' %}"
+                               class="btn btn-primary align-self-stretch">
+                            Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1e9;&#x1f1f0;</h3>
-                    <h5 class="card-title">Denmark</h5>
-                    <a href="{% url 'top_up_bacs_local' 'DK' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "dk" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1e9;&#x1f1f0;</h3>
+                            <h5 class="card-title">Denmark</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'DK' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1ea;&#x1f1ea;</h3>
-                    <h5 class="card-title">Estonia</h5>
-                    <a href="{% url 'top_up_bacs_local' 'EE' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "ee" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1ea;&#x1f1ea;</h3>
+                            <h5 class="card-title">Estonia</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'EE' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1eb;&#x1f1ee;</h3>
-                    <h5 class="card-title">Finland</h5>
-                    <a href="{% url 'top_up_bacs_local' 'FI' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "fi" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1eb;&#x1f1ee;</h3>
+                            <h5 class="card-title">Finland</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'FI' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1eb;&#x1f1f7;</h3>
-                    <h5 class="card-title">France</h5>
-                    <a href="{% url 'top_up_bacs_local' 'FR' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "fr" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1eb;&#x1f1f7;</h3>
+                            <h5 class="card-title">France</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'FR' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1e9;&#x1f1ea;</h3>
-                    <h5 class="card-title">Germany</h5>
-                    <a href="{% url 'top_up_bacs_local' 'DE' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "de" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1e9;&#x1f1ea;</h3>
+                            <h5 class="card-title">Germany</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'DE' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1ec;&#x1f1f7;</h3>
-                    <h5 class="card-title">Greece</h5>
-                    <a href="{% url 'top_up_bacs_local' 'GR' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "gr" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1ec;&#x1f1f7;</h3>
+                            <h5 class="card-title">Greece</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'GR' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1ee;&#x1f1ea;</h3>
-                    <h5 class="card-title">Ireland</h5>
-                    <a href="{% url 'top_up_bacs_local' 'IE' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "ie" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1ee;&#x1f1ea;</h3>
+                            <h5 class="card-title">Ireland</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'IE' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1ee;&#x1f1f9;</h3>
-                    <h5 class="card-title">Italy</h5>
-                    <a href="{% url 'top_up_bacs_local' 'IT' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "it" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1ee;&#x1f1f9;</h3>
+                            <h5 class="card-title">Italy</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'IT' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1f1;&#x1f1fb;</h3>
-                    <h5 class="card-title">Latvia</h5>
-                    <a href="{% url 'top_up_bacs_local' 'LV' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "lv" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1f1;&#x1f1fb;</h3>
+                            <h5 class="card-title">Latvia</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'LV' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1f1;&#x1f1f9;</h3>
-                    <h5 class="card-title">Lithuania</h5>
-                    <a href="{% url 'top_up_bacs_local' 'LT' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "lt" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1f1;&#x1f1f9;</h3>
+                            <h5 class="card-title">Lithuania</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'LT' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1f1;&#x1f1fa;</h3>
-                    <h5 class="card-title">Luxembourg</h5>
-                    <a href="{% url 'top_up_bacs_local' 'LU' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "lu" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1f1;&#x1f1fa;</h3>
+                            <h5 class="card-title">Luxembourg</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'LU' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1f2;&#x1f1f9;</h3>
-                    <h5 class="card-title">Malta</h5>
-                    <a href="{% url 'top_up_bacs_local' 'MT' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "mt" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1f2;&#x1f1f9;</h3>
+                            <h5 class="card-title">Malta</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'MT' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1f2;&#x1f1e8;</h3>
-                    <h5 class="card-title">Monaco</h5>
-                    <a href="{% url 'top_up_bacs_local' 'MC' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "mc" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1f2;&#x1f1e8;</h3>
+                            <h5 class="card-title">Monaco</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'MC' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1f3;&#x1f1f1;</h3>
-                    <h5 class="card-title">Netherlands</h5>
-                    <a href="{% url 'top_up_bacs_local' 'NL' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "nl" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1f3;&#x1f1f1;</h3>
+                            <h5 class="card-title">Netherlands</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'NL' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1f3;&#x1f1ff;</h3>
-                    <h5 class="card-title">New Zealand</h5>
-                    <a href="{% url 'top_up_bacs_local' 'NZ' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "nz" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1f3;&#x1f1ff;</h3>
+                            <h5 class="card-title">New Zealand</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'NZ' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1f5;&#x1f1f9;</h3>
-                    <h5 class="card-title">Portugal</h5>
-                    <a href="{% url 'top_up_bacs_local' 'PT' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "pt" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1f5;&#x1f1f9;</h3>
+                            <h5 class="card-title">Portugal</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'PT' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1f8;&#x1f1f2;</h3>
-                    <h5 class="card-title">San Marino</h5>
-                    <a href="{% url 'top_up_bacs_local' 'SM' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "sm" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1f8;&#x1f1f2;</h3>
+                            <h5 class="card-title">San Marino</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'SM' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1f8;&#x1f1f0;</h3>
-                    <h5 class="card-title">Slovakia</h5>
-                    <a href="{% url 'top_up_bacs_local' 'SK' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "sk" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1f8;&#x1f1f0;</h3>
+                            <h5 class="card-title">Slovakia</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'SK' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1f8;&#x1f1ee;</h3>
-                    <h5 class="card-title">Slovenia</h5>
-                    <a href="{% url 'top_up_bacs_local' 'SI' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "si" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1f8;&#x1f1ee;</h3>
+                            <h5 class="card-title">Slovenia</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'SI' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1ea;&#x1f1f8;</h3>
-                    <h5 class="card-title">Spain</h5>
-                    <button type="submit" class="btn btn-primary align-self-stretch" name="account_country" value="ES">
-                        Select
-                    </button>
+            {% endif %}
+            {% if country == "es" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1ea;&#x1f1f8;</h3>
+                            <h5 class="card-title">Spain</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'ES' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1f8;&#x1f1ea;</h3>
-                    <h5 class="card-title">Sweden</h5>
-                    <a href="{% url 'top_up_bacs_local' 'SE' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "se" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1f8;&#x1f1ea;</h3>
+                            <h5 class="card-title">Sweden</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'SE' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1fa;&#x1f1f8;</h3>
-                    <h5 class="card-title">United States</h5>
-                    <a href="{% url 'top_up_bacs_local' 'US' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "us" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1fa;&#x1f1f8;</h3>
+                            <h5 class="card-title">United States</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'US' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f1ec;&#x1f1e7;</h3>
-                    <h5 class="card-title">United Kingdom</h5>
-                    <a href="{% url 'top_up_bacs_local' 'GB' %}" class="btn btn-primary align-self-stretch">
-                        Select
-                    </a>
+            {% endif %}
+            {% if country == "gb" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f1ec;&#x1f1e7;</h3>
+                            <h5 class="card-title">United Kingdom</h5>
+                            <a href="{% url 'top_up_bank_transfer_local' 'GB' %}"
+                               class="btn btn-primary align-self-stretch">
+                                Select
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            {% endif %}
         </div>
         <hr>
         <h2>Already know how you want to pay?</h2>
-        <div class="card-columns">
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f4b5;</h3>
-                    <h5 class="card-title">ACH Direct Debit</h5>
-                    <a href="{% url 'top_up_new_ach' %}" class="btn btn-primary align-self-stretch">Select</a>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 justify-content-center">
+            {% if country == 'us' or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f4b5;</h3>
+                            <h5 class="card-title">ACH Direct Debit</h5>
+                            <a href="{% url 'setup_new_ach' %}?redirect_uri={% url 'top_up' %}"
+                               class="btn btn-primary align-self-stretch">Select</a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f3e6;</h3>
-                    <h5 class="card-title">Autogiro</h5>
-                    <a href="{% url 'top_up_new_autogiro' %}" class="btn btn-primary align-self-stretch">Select</a>
+            {% endif %}
+            {% if country == 'se' or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f3e6;</h3>
+                            <h5 class="card-title">Autogiro</h5>
+                            <a href="{% url 'setup_new_autogiro' %}?redirect_uri={% url 'top_up' %}"
+                               class="btn btn-primary align-self-stretch">Select</a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <img src="{% static 'billing/imgs/dd_logo_landscape-2.png' %}" class="mw-100 px-5 pb-3" alt="">
-                    <h5 class="card-title">BACS Direct Debit</h5>
-                    <a href="{% url 'top_up_new_bacs' %}" class="btn btn-primary align-self-stretch">Select</a>
+            {% endif %}
+            {% if country == 'gb' or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <img src="{% static 'billing/imgs/dd_logo_landscape-2.png' %}" class="mw-100 px-5 pb-3"
+                                 alt="">
+                            <h5 class="card-title">BACS Direct Debit</h5>
+                            <a href="{% url 'setup_new_bacs' %}?redirect_uri={% url 'top_up' %}"
+                               class="btn btn-primary align-self-stretch">Select</a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f3e6;</h3>
-                    <h5 class="card-title">BECS Direct Debit</h5>
-                    <a href="{% url 'top_up_new_becs' %}" class="btn btn-primary align-self-stretch">Select</a>
+            {% endif %}
+            {% if country == 'au' or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f3e6;</h3>
+                            <h5 class="card-title">BECS Direct Debit</h5>
+                            <a href="{% url 'setup_new_becs' %}?redirect_uri={% url 'top_up' %}"
+                               class="btn btn-primary align-self-stretch">Select</a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f3e6;</h3>
-                    <h5 class="card-title">BECS NZ Direct Debit</h5>
-                    <a href="{% url 'top_up_new_becs_nz' %}" class="btn btn-primary align-self-stretch">Select</a>
+            {% endif %}
+            {% if country == 'nz' or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f3e6;</h3>
+                            <h5 class="card-title">BECS NZ Direct Debit</h5>
+                            <a href="{% url 'setup_new_becs_nz' %}?redirect_uri={% url 'top_up' %}"
+                               class="btn btn-primary align-self-stretch">Select</a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f3e6;</h3>
-                    <h5 class="card-title">Betalingsservice</h5>
-                    <a href="{% url 'top_up_new_betalingsservice' %}" class="btn btn-primary align-self-stretch">Select</a>
+            {% endif %}
+            {% if country == 'dk' or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f3e6;</h3>
+                            <h5 class="card-title">Betalingsservice</h5>
+                            <a href="{% url 'setup_new_betalingsservice' %}?redirect_uri={% url 'top_up' %}"
+                               class="btn btn-primary align-self-stretch">Select</a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <h3 class="display-4">&#x1f3e6;</h3>
-                    <h5 class="card-title">PAD Direct Debit</h5>
-                    <a href="{% url 'top_up_new_pad' %}" class="btn btn-primary align-self-stretch">Select</a>
+            {% endif %}
+            {% if country == 'ca' or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card text-center flex-grow-1">
+                        <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                            <h3 class="display-4">&#x1f3e6;</h3>
+                            <h5 class="card-title">PAD Direct Debit</h5>
+                            <a href="{% url 'setup_new_pad' %}?redirect_uri={% url 'top_up' %}"
+                               class="btn btn-primary align-self-stretch">Select</a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="card text-center">
-                <div class="card-body d-flex flex-column align-items-center">
-                    <img src="{% static 'billing/imgs/SepaLogo.png' %}" class="mw-100 px-5 pb-3" alt="">
-                    <h5 class="card-title">SEPA Direct Debit</h5>
-                    <a href="{% url 'top_up_new_sepa' %}" class="btn btn-primary align-self-stretch">Select</a>
+            {% endif %}
+            <div class="col mb-4 d-flex">
+                <div class="card text-center flex-grow-1">
+                    <div class="card-body d-flex flex-column align-items-center justify-content-between">
+                        <img src="{% static 'billing/imgs/SepaLogo.png' %}" class="mw-100 px-5 pb-3" alt="">
+                        <h5 class="card-title">SEPA Direct Debit</h5>
+                        <a href="{% url 'setup_new_sepa' %}?redirect_uri={% url 'top_up' %}"
+                           class="btn btn-primary align-self-stretch">Select</a>
+                    </div>
                 </div>
             </div>
         </div>

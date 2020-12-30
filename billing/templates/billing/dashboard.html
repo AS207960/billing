@@ -45,7 +45,8 @@
                 </div>
                 <div class="card mt-3">
                     <div class="card-body">
-                        <a href="{% url 'statement_export' %}" class="btn btn-primary btn-block">&#x1f9fe; Statement export &#x1f9fe;</a>
+                        <a href="{% url 'statement_export' %}" class="btn btn-primary btn-block">&#x1f9fe; Statement
+                            export &#x1f9fe;</a>
                     </div>
                 </div>
             </div>
@@ -63,6 +64,23 @@
                         </tr>
                         </thead>
                         <tbody>
+                        {% if active_subscriptions %}
+                            <tr>
+                                <th colspan="5">Upcoming subscription renewals</th>
+                            </tr>
+                            {% for sub in active_subscriptions %}
+                                <tr class="text-muted">
+                                    <td>{{ sub.next_bill }}</td>
+                                    <td>{{ sub.plan.name }}</td>
+                                    <td>&pound;{{ sub.next_charge|floatformat:2 }}</td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                            {% endfor %}
+                            <tr>
+                                <th colspan="5">Charges</th>
+                            </tr>
+                        {% endif %}
                         {% for item in ledger_items %}
                             <tr>
                                 <td>{{ item.timestamp }}</td>
@@ -106,44 +124,63 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if item.state == "P" and item.type == "C" %}
-                                        <div class="btn-group">
-                                            <a href="{% url 'complete_top_up_card' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
-                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
-                                        </div>
-                                    {% elif item.state == "P" and item.type == "F" %}
-                                        <div class="btn-group">
-                                            <a href="{% url 'complete_top_up_bacs' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
-                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
-                                        </div>
-                                    {% elif item.state == "P" and item.type == "E" %}
-                                        <div class="btn-group">
-                                            <a href="{% url 'complete_top_up_sepa_direct_debit' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
-                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
-                                        </div>
+                                    {% if item.state == "P" %}
+                                        {% if item.type == "C" or item.type == "O" or item.type == "G" or item.type == "N" or item.type == "P" or item.type == "I" %}
+                                            <div class="btn-group">
+                                                <a href="{% url 'complete_top_up_card' item.id %}"
+                                                   class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
+                                                <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1;
+                                                    Cancel</a>
+                                            </div>
+                                        {% elif item.type == "F" %}
+                                            <div class="btn-group">
+                                                <a href="{% url 'complete_top_up_bank_transfer' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
+                                                <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1;
+                                                    Cancel</a>
+                                            </div>
+                                        {% elif item.type == "E" %}
+                                            <div class="btn-group">
+                                                {#<a href="{% url 'complete_top_up_sepa_direct_debit' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>#}
+                                                <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1;
+                                                    Cancel</a>
+                                            </div>
+                                        {% elif item.type == "S" %}
+                                            <div class="btn-group">
+                                                {#<a href="{% url 'complete_top_up_sources' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>#}
+                                                <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1;
+                                                    Cancel</a>
+                                            </div>
+                                        {% elif item.type == "H" %}
+                                            <div class="btn-group">
+                                                {#<a href="{% url 'complete_top_up_checkout' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>#}
+                                                <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1;
+                                                    Cancel</a>
+                                            </div>
+                                        {% elif item.type == "B" and item.charge_state %}
+                                            <div class="btn-group">
+                                                <a href="{% url 'complete_order' item.charge_state.id %}"
+                                                   class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
+                                                <a href="{% url 'fail_charge' item.charge_state.id %}"
+                                                   class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
+                                            </div>
+                                        {% endif %}
                                     {% elif item.state == "A" and item.type == "D" %}
                                         <div class="btn-group">
-                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
+                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1;
+                                                Cancel</a>
                                         </div>
-                                    {% elif item.state == "P" and item.type == "S" %}
-                                        <div class="btn-group">
-                                            <a href="{% url 'complete_top_up_sources' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
-                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
-                                        </div>
-                                    {% elif item.state == "P" and item.type == "H" %}
-                                        <div class="btn-group">
-                                            <a href="{% url 'complete_top_up_checkout' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
-                                            <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
-                                        </div>
-                                    {% elif item.state == "P" and item.type == "B" and item.charge_state %}
-                                        <div class="btn-group">
-                                            <a href="{% url 'complete_order' item.charge_state.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
-                                            <a href="{% url 'fail_charge' item.charge_state.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
-                                        </div>
-                                    {% elif item.state == "C" and item.type == "B" and item.charge_state %}
-                                        <div class="btn-group">
-                                            <a href="{% url 'order_details' item.charge_state.id %}" class="btn btn-info btn-sm">&#x1f440; View details</a>
-                                        </div>
+                                    {% elif item.state == "C" %}
+                                        {% if item.type == "B" and item.charge_state %}
+                                            <div class="btn-group">
+                                                <a href="{% url 'order_details' item.charge_state.id %}"
+                                                   class="btn btn-info btn-sm">&#x1f440; View details</a>
+                                            </div>
+                                        {% elif item.type == "C" or item.type == "O" or item.type == "G" or item.type == "N" or item.type == "P" or item.type == "I" or item.type == "F" or item.type == "E" or item.type == "S" or item.type == "H" %}
+                                            <div class="btn-group">
+                                                <a href="{% url 'toup_up_details' item.id %}"
+                                                   class="btn btn-info btn-sm">&#x1f440; View details</a>
+                                            </div>
+                                        {% endif %}
                                     {% endif %}
                                 </td>
                             </tr>
@@ -152,8 +189,8 @@
                     </table>
                 </div>
                 <div class="alert alert-info">
-                  All times are in UTC.<br/>
-                  (&pound;X.XX) means a value pending and not currently applied to your balance.
+                    All times are in UTC.<br/>
+                    (&pound;X.XX) means a value pending and not currently applied to your balance.
                 </div>
             </div>
         </div>
@@ -167,14 +204,14 @@
                 0x9c, 0x9b, 0x38, 0x06, 0x44, 0x01, 0x22, 0x58, 0xb4, 0x34, 0xe7, 0xe8, 0x1c, 0x3b
             ]));
 
-            navigator.serviceWorker.getRegistration("/").then(function(serviceWorkerRegistration) {
+            navigator.serviceWorker.getRegistration("/").then(function (serviceWorkerRegistration) {
                 if (serviceWorkerRegistration) {
                     var options = {
                         userVisibleOnly: true,
                         applicationServerKey: serverKey
                     };
                     serviceWorkerRegistration.pushManager.subscribe(options).then(
-                        function(pushSubscription) {
+                        function (pushSubscription) {
                             const subscriptionObject = JSON.stringify(pushSubscription);
                             fetch('/save_subscription/', {
                                 method: 'POST',
@@ -183,12 +220,12 @@
                                 },
                                 body: subscriptionObject
                             })
-                                .then(function(response) {
+                                .then(function (response) {
                                     if (!response.ok) {
                                         console.error('Bad status code from server.');
                                     }
                                 });
-                        }, function(error) {
+                        }, function (error) {
                             console.error(error);
                         }
                     );

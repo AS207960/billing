@@ -1,0 +1,15 @@
+{% extends 'billing/base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Top-up account</h1>
+        <h2>We can't sell to you</h2>
+
+        <p class="lead">{{ reason }}</p>
+
+        <a href="{{ return_uri }}" class="btn btn-secondary btn-block">
+            Return to application
+        </a>
+    </div>
+{% endblock %}

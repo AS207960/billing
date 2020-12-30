@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template import loader
+from django.db.models import Q
 from .. import forms, models
 from ..apps import gocardless_client
 
@@ -13,10 +14,14 @@ from ..apps import gocardless_client
 @login_required
 def dashboard(request):
     ledger_items = models.LedgerItem.objects.filter(account=request.user.account)
+    active_subscriptions = reversed(sorted(list(request.user.account.subscription_set.filter(
+        Q(state=models.Subscription.STATE_ACTIVE) | Q(state=models.Subscription.STATE_PAST_DUE)
+    )), key=lambda s: s.next_bill))
 
     return render(request, "billing/dashboard.html", {
         "ledger_items": ledger_items,
-        "account": request.user.account
+        "account": request.user.account,
+        "active_subscriptions": active_subscriptions
     })
 
 

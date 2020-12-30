@@ -1,12 +1,13 @@
-from django import forms
 import crispy_forms.helper
 import crispy_forms.layout
+import django.core.exceptions
+import zeep.exceptions
+from django import forms
+from django.conf import settings
 from django_countries.fields import CountryField
 from phonenumber_field.formfields import PhoneNumberField
-from django.conf import settings
-import django.core.exceptions
-from . import models, apps, vat
-import zeep.exceptions
+
+from . import models, apps, vat, utils
 
 
 class TopUpForm(forms.Form):
@@ -89,6 +90,11 @@ class BillingAddressForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        if self.instance.vat_id:
+            self.fields['vat_id'].disabled = True
+        if self.instance:
+            self.fields['country_code'].disabled = True
+
         self.helper = crispy_forms.helper.FormHelper()
         self.helper.add_input(crispy_forms.layout.Submit('submit', 'Save', css_class='btn-block'))
 
@@ -98,8 +104,21 @@ class BillingAddressForm(forms.ModelForm):
 
     def clean(self, *args, **kwargs):
         super().clean(*args, **kwargs)
+        country_code = self.cleaned_data['country_code']
+        if country_code == "CA":
+            postal_code_match = utils.canada_postcode_re.fullmatch(self.cleaned_data['postal_code'])
+            if not postal_code_match:
+                raise django.core.exceptions.ValidationError({
+                    'postal_code': ["Invalid postal code format for Canada"]
+                })
+        if country_code == "GB":
+            postal_code_match = utils.uk_postcode_re.fullmatch(self.cleaned_data['postal_code'])
+            if not postal_code_match:
+                raise django.core.exceptions.ValidationError({
+                    'postal_code': ["Invalid postal code format for the UK"]
+                })
         if self.cleaned_data['vat_id']:
-            vies_country = vat.get_vies_country_code(self.cleaned_data['country_code'])
+            vies_country = vat.get_vies_country_code(country_code)
             if vies_country:
                 try:
                     vat_resp = apps.vies_client.service.checkVatApprox(
@@ -126,7 +145,12 @@ class BillingAddressForm(forms.ModelForm):
                     raise django.core.exceptions.ValidationError({
                         'vat_id': ["Invalid VAT ID"]
                     })
-                self.cleaned_data['organisation'] = vat_resp["traderName"]
+                if vat_resp["traderName"] is not None:
+                    self.cleaned_data['organisation'] = vat_resp["traderName"]
+                if vat_resp["traderPostcode"] is not None:
+                    self.cleaned_data['postal_code'] = vat_resp["traderPostcode"]
+                if vat_resp["traderCity"] is not None:
+                    self.cleaned_data['city'] = vat_resp["traderCity"]
                 self.instance.vat_id_verification_request = vat_resp["requestIdentifier"]
 
 
@@ -203,7 +227,21 @@ class ManualTopUpForm(forms.Form):
 
 
 class BACSMarkPaidForm(forms.Form):
-    amount = forms.DecimalField(decimal_places=2, max_digits=9, label="Final amount (GBP)", min_value=0)
+    amount = forms.DecimalField(decimal_places=2, max_digits=9, label="Final amount", min_value=0)
+    currency = forms.ChoiceField(choices=(
+        ("gbp", "Pound Sterling"),
+        ("eur", "Euro"),
+        ("usd", "United States Dollar"),
+        ("cad", "Canadian Dollar"),
+        ("dkk", "Danish Krona"),
+        ("sek", "Swedish Krona"),
+        ("aud", "Australian Dollar"),
+        ("nzd", "New Zealand Dollar"),
+        ("huf", "Hungarian Florint"),
+        ("ron", "Romanian Leu"),
+        ("sgd", "Singapore Dollar"),
+        ("try", "Turkish Lira")
+    ))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

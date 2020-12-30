@@ -1,259 +1,1061 @@
 import decimal
+import enum
 import secrets
+import typing
 
-import stripe
-import stripe.error
+import django_countries
 import gocardless_pro.errors
 import schwifty
+import stripe
+import stripe.error
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseBadRequest, HttpResponseForbidden, Http404
 from django.shortcuts import get_object_or_404, redirect, render, reverse
-from .. import forms, models, utils, tasks
+import django.core.exceptions
+
+from .. import forms, models, utils, tasks, vat
 from ..apps import gocardless_client
+
+
+class HandlePaymentOutcome(enum.Enum):
+    CANCEL = enum.auto()
+    FORBIDDEN = enum.auto()
+    REDIRECT = enum.auto()
+    DONE = enum.auto()
+    RENDER = enum.auto()
+
+
+def handle_payment(
+        request, account: models.Account,
+        charged_amount: typing.Optional[decimal.Decimal] = None,
+        from_account_balance: typing.Optional[decimal.Decimal] = None,
+        original_charge: typing.Optional[decimal.Decimal] = None,
+        charge_state: typing.Optional[models.ChargeState] = None,
+        charge_descriptor: typing.Optional[str] = None
+):
+    if request.method == "POST":
+        if request.POST.get("action") == "cancel":
+            if "selected_payment_method" in request.session:
+                del request.session["selected_payment_method"]
+            if "selected_currency" in request.session:
+                del request.session["selected_currency"]
+            if "top_up_amount" in request.session:
+                del request.session["top_up_amount"]
+
+            return HandlePaymentOutcome.CANCEL, None
+        if request.POST.get("action") == "set_amount":
+            top_up_amount = decimal.Decimal(request.POST.get("amount"))
+            if top_up_amount >= 2:
+                request.session["top_up_amount"] = str(top_up_amount)
+        elif request.POST.get("action") == "set_payment_method":
+            request.session["selected_payment_method"] = f"{request.POST.get('type')};{request.POST.get('id')}"
+        elif request.POST.get("action") == "set_currency":
+            request.session["selected_currency"] = request.POST.get("currency")
+
+    if charged_amount is None:
+        is_top_up = True
+        charged_amount = decimal.Decimal(request.session["top_up_amount"]) if "top_up_amount" in request.session \
+            else decimal.Decimal(0)
+    else:
+        is_top_up = False
+    charged_amount_ext_vat = charged_amount
+
+    has_vat = False
+    vat_rate = decimal.Decimal(0)
+    vat_charged = decimal.Decimal(0)
+    available_currencies = []
+    mandate_acceptance = False
+    currency_name_lookup = {
+        "gbp": "Pound Sterling",
+        "eur": "Euro",
+        "usd": "United States Dollar",
+        "cad": "Canadian Dollar",
+        "dkk": "Danish Krona",
+        "sek": "Swedish Krona",
+        "aud": "Australian Dollar",
+        "nzd": "New Zealand Dollar",
+        "huf": "Hungarian Florint",
+        "ron": "Romanian Leu",
+        "sgd": "Singapore Dollar",
+        "try": "Turkish Lira",
+    }
+    selected_currency = request.session.get("selected_currency")
+    billing_address_country = account.billing_address.country_code.code.lower()
+    billing_country_name = dict(django_countries.countries)[billing_address_country.upper()]
+
+    if account.taxable:
+        country_vat_rate = vat.get_vat_rate(billing_address_country)
+        if country_vat_rate is not None:
+            has_vat = True
+            vat_rate = country_vat_rate
+            vat_charged = (charged_amount * country_vat_rate)
+            charged_amount += vat_charged
+
+    if charge_state:
+        needs_payment = charged_amount > 0
+    else:
+        needs_payment = True
+
+    cards = []
+    ach_mandates = []
+    autogiro_mandates = []
+    bacs_mandates = []
+    becs_mandates = []
+    becs_nz_mandates = []
+    betalingsservice_mandates = []
+    pad_mandates = []
+    sepa_mandates = []
+    selected_payment_method_type = None
+    selected_payment_method_id = None
+    to_be_charged = None
+
+    if needs_payment:
+        if not request.session.get("selected_payment_method"):
+            if account.default_stripe_payment_method_id:
+                selected_payment_method_type = "stripe_pm"
+                selected_payment_method_id = account.default_stripe_payment_method_id
+                request.session["selected_payment_method"] = f"stripe_pm;{account.default_stripe_payment_method_id}"
+            elif account.default_ach_mandate:
+                selected_payment_method_type = "ach_mandate_gc"
+                selected_payment_method_id = account.default_ach_mandate.id
+                request.session["selected_payment_method"] = f"ach_mandate_gc;{account.default_ach_mandate.id}"
+            elif account.default_autogiro_mandate:
+                selected_payment_method_type = "autogiro_mandate_gc"
+                selected_payment_method_id = account.default_autogiro_mandate.id
+                request.session["selected_payment_method"] = f"ach_mandate_gc;{account.default_autogiro_mandate.id}"
+            elif account.default_bacs_mandate:
+                selected_payment_method_type = "bacs_mandate_stripe"
+                selected_payment_method_id = account.default_bacs_mandate.id
+                request.session["selected_payment_method"] = f"bacs_mandate_stripe;{account.default_bacs_mandate.id}"
+            elif account.default_gc_bacs_mandate:
+                selected_payment_method_type = "bacs_mandate_gc"
+                selected_payment_method_id = account.default_gc_bacs_mandate.id
+                request.session["selected_payment_method"] = f"bacs_mandate_gc;{account.default_gc_bacs_mandate.id}"
+            elif account.default_becs_mandate:
+                selected_payment_method_type = "becs_mandate_gc"
+                selected_payment_method_id = account.default_becs_mandate.id
+                request.session["selected_payment_method"] = f"becs_mandate_gc;{account.default_becs_mandate.id}"
+            elif account.default_becs_nz_mandate:
+                selected_payment_method_type = "becs_nz_mandate_gc"
+                selected_payment_method_id = account.default_becs_nz_mandate.id
+                request.session["selected_payment_method"] = f"becs_nz_mandate_gc;{account.default_becs_nz_mandate.id}"
+            elif account.default_betalingsservice_mandate:
+                selected_payment_method_type = "betalingsservice_mandate_gc"
+                selected_payment_method_id = account.default_betalingsservice_mandate.id
+                request.session["selected_payment_method"] = \
+                    f"betalingsservice_mandate_gc;{account.default_betalingsservice_mandate.id}"
+            elif account.default_pad_mandate:
+                selected_payment_method_type = "pad_mandate_gc"
+                selected_payment_method_id = account.default_pad_mandate.id
+                request.session["selected_payment_method"] = f"pad_mandate_gc;{account.default_pad_mandate.id}"
+            elif account.default_sepa_mandate:
+                selected_payment_method_type = "sepa_mandate_stripe"
+                selected_payment_method_id = account.default_sepa_mandate.id
+                request.session["selected_payment_method"] = f"sepa_mandate_gc;{account.default_sepa_mandate.id}"
+            elif account.default_gc_sepa_mandate:
+                selected_payment_method_type = "sepa_mandate_gc"
+                selected_payment_method_id = account.default_gc_sepa_mandate.id
+                request.session["selected_payment_method"] = f"sepa_mandate_gc;{account.default_gc_sepa_mandate.id}"
+            else:
+                selected_payment_method_type = None
+                selected_payment_method_id = None
+        else:
+            selected_payment_method = request.session.get("selected_payment_method").split(";", 1)
+            selected_payment_method_type = selected_payment_method[0]
+            selected_payment_method_id = selected_payment_method[1] if len(selected_payment_method) > 1 else None
+
+        if selected_payment_method_type:
+            if selected_payment_method_type == "giropay":
+                if billing_address_country == "de" or not account.taxable:
+                    available_currencies = ['eur']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "bancontact":
+                if billing_address_country == "be" or not account.taxable:
+                    available_currencies = ['eur']
+                    mandate_acceptance = True
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "eps":
+                if billing_address_country == "at" or not account.taxable:
+                    available_currencies = ['eur']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "ideal":
+                if billing_address_country == "nl" or not account.taxable:
+                    available_currencies = ['eur']
+                    mandate_acceptance = True
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "p24":
+                if billing_address_country == "pl" or not account.taxable:
+                    available_currencies = ['eur']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "multibanco":
+                if billing_address_country == "pt" or not account.taxable:
+                    available_currencies = ['eur']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "sofort":
+                if billing_address_country in ("at", "be", "de", "it", "nl", "es") or not account.taxable:
+                    available_currencies = ['eur']
+                    mandate_acceptance = True
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "sepa_mandate_stripe":
+                m = get_object_or_404(models.SEPAMandate, id=selected_payment_method_id)
+                payment_method = stripe.PaymentMethod.retrieve(m.payment_method)
+                if payment_method['customer'] != account.stripe_customer_id:
+                    return HandlePaymentOutcome.FORBIDDEN, None
+                method_country = utils.country_from_stripe_payment_method(payment_method)
+                if method_country == billing_address_country or not account.taxable:
+                    available_currencies = ['eur']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "bacs_mandate_stripe":
+                m = get_object_or_404(models.BACSMandate, id=selected_payment_method_id)
+                payment_method = stripe.PaymentMethod.retrieve(m.payment_method)
+                if payment_method['customer'] != account.stripe_customer_id:
+                    return HandlePaymentOutcome.FORBIDDEN, None
+                method_country = utils.country_from_stripe_payment_method(payment_method)
+                if method_country == billing_address_country or not account.taxable:
+                    available_currencies = ['gbp']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "ach_mandate_gc":
+                m = get_object_or_404(models.ACHMandate, id=selected_payment_method_id)
+                if m.account != account:
+                    return HandlePaymentOutcome.FORBIDDEN, None
+                if billing_address_country == "us" or not account.taxable:
+                    available_currencies = ['usd']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "autogiro_mandate_gc":
+                m = get_object_or_404(models.AutogiroMandate, id=selected_payment_method_id)
+                if m.account != account:
+                    return HandlePaymentOutcome.FORBIDDEN, None
+                if billing_address_country == "se" or not account.taxable:
+                    available_currencies = ['sek']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "bacs_mandate_gc":
+                m = get_object_or_404(models.GCBACSMandate, id=selected_payment_method_id)
+                if m.account != account:
+                    return HandlePaymentOutcome.FORBIDDEN, None
+                if billing_address_country == "gb" or not account.taxable:
+                    available_currencies = ['gbp']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "becs_mandate_gc":
+                m = get_object_or_404(models.BECSMandate, id=selected_payment_method_id)
+                if m.account != account:
+                    return HandlePaymentOutcome.FORBIDDEN, None
+                if billing_address_country == "au" or not account.taxable:
+                    available_currencies = ['aud']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "becs_nz_mandate_gc":
+                m = get_object_or_404(models.BECSNZMandate, id=selected_payment_method_id)
+                if m.account != account:
+                    return HandlePaymentOutcome.FORBIDDEN, None
+                if billing_address_country == "nz" or not account.taxable:
+                    available_currencies = ['nzd']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "betalingsservice_mandate_gc":
+                m = get_object_or_404(models.BetalingsserviceMandate, id=selected_payment_method_id)
+                if m.account != account:
+                    return HandlePaymentOutcome.FORBIDDEN, None
+                if billing_address_country == "dk" or not account.taxable:
+                    available_currencies = ['dkk']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "pad_mandate_gc":
+                m = get_object_or_404(models.PADMandate, id=selected_payment_method_id)
+                if m.account != account:
+                    return HandlePaymentOutcome.FORBIDDEN, None
+                if billing_address_country == "ca" or not account.taxable:
+                    available_currencies = ['cad']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "sepa_mandate_gc":
+                m = get_object_or_404(models.GCSEPAMandate, id=selected_payment_method_id)
+                if m.account != account:
+                    return HandlePaymentOutcome.FORBIDDEN, None
+                mandate = gocardless_client.mandates.get(m.mandate_id)
+                bank_account = gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
+                if bank_account.country_code.lower() == billing_address_country or not account.taxable:
+                    available_currencies = ['eur']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "stripe_pm":
+                payment_method = stripe.PaymentMethod.retrieve(selected_payment_method_id)
+                if payment_method['customer'] != account.stripe_customer_id:
+                    return HandlePaymentOutcome.FORBIDDEN, None
+                method_country = utils.country_from_stripe_payment_method(payment_method)
+                known_payment_method, _ = models.KnownStripePaymentMethod.objects.update_or_create(
+                    account=account, method_id=selected_payment_method_id,
+                    defaults={
+                        "country_code": method_country
+                    }
+                )
+                if method_country == billing_address_country or not account.taxable:
+                    if payment_method["type"] == "card":
+                        available_currencies = ['gbp', 'eur', 'usd']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "bank_transfer":
+                if selected_payment_method_id == "gbp":
+                    available_currencies = ['gbp']
+                elif selected_payment_method_id == "eur":
+                    available_currencies = ['eur']
+                elif selected_payment_method_id == "usd":
+                    available_currencies = ['usd']
+                elif selected_payment_method_id == "aud":
+                    if billing_address_country == "au" or not account.taxable:
+                        available_currencies = ['aud']
+                    else:
+                        selected_payment_method_type = None
+                        selected_payment_method_id = None
+                elif selected_payment_method_id == "nzd":
+                    if billing_address_country == "nz" or not account.taxable:
+                        available_currencies = ['nzd']
+                    else:
+                        selected_payment_method_type = None
+                        selected_payment_method_id = None
+                elif selected_payment_method_id == "huf":
+                    if billing_address_country == "hu" or not account.taxable:
+                        available_currencies = ['huf']
+                    else:
+                        selected_payment_method_type = None
+                        selected_payment_method_id = None
+                elif selected_payment_method_id == "ron":
+                    if billing_address_country == "ro" or not account.taxable:
+                        available_currencies = ['ron']
+                    else:
+                        selected_payment_method_type = None
+                        selected_payment_method_id = None
+                elif selected_payment_method_id == "sgd":
+                    if billing_address_country == "sg" or not account.taxable:
+                        available_currencies = ['sgd']
+                    else:
+                        selected_payment_method_type = None
+                        selected_payment_method_id = None
+                elif selected_payment_method_id == "try":
+                    if billing_address_country == "tr" or not account.taxable:
+                        available_currencies = ['try']
+                    else:
+                        selected_payment_method_type = None
+                        selected_payment_method_id = None
+
+        if not selected_currency:
+            if len(available_currencies):
+                selected_currency = available_currencies[0]
+                request.session["selected_currency"] = available_currencies[0]
+        else:
+            if selected_currency not in available_currencies:
+                if len(available_currencies):
+                    selected_currency = available_currencies[0]
+                    request.session["selected_currency"] = available_currencies[0]
+                else:
+                    selected_currency = None
+                    request.session["selected_currency"] = None
+
+        if selected_currency:
+            to_be_charged = models.ExchangeRate.get_rate('gbp', selected_currency) * charged_amount
+        else:
+            to_be_charged = None
+
+        can_charge = selected_payment_method_type and to_be_charged
+
+        if can_charge and request.method == "POST" and request.POST.get("action") == "pay":
+            if charge_state:
+                charge_state.ready_to_complete = True
+                charge_state.save()
+            ledger_item = models.LedgerItem(
+                account=account,
+                amount=charged_amount_ext_vat,
+                vat_rate=vat_rate,
+                country_code=billing_address_country,
+                evidence_billing_address=account.billing_address,
+                charged_amount=charged_amount
+            )
+            amount_int = int(round(to_be_charged * decimal.Decimal(100)))
+
+            if "selected_payment_method" in request.session:
+                del request.session["selected_payment_method"]
+            if "selected_currency" in request.session:
+                del request.session["selected_currency"]
+            if "top_up_amount" in request.session:
+                del request.session["top_up_amount"]
+
+            if selected_payment_method_type == "stripe_pm":
+                payment_intent = stripe.PaymentIntent.create(
+                    amount=amount_int,
+                    currency=selected_currency,
+                    customer=account.get_stripe_id(),
+                    description='Top-up',
+                    receipt_email=request.user.email,
+                    statement_descriptor_suffix="Top-up",
+                    payment_method=selected_payment_method_id,
+                    confirm=True,
+                    return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,)))
+                )
+                ledger_item.descriptor = "Top-up by card"
+                ledger_item.type = models.LedgerItem.TYPE_CARD
+                ledger_item.type_id = payment_intent['id']
+                ledger_item.save()
+                tasks.update_from_payment_intent(payment_intent, ledger_item)
+
+                if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                    return HandlePaymentOutcome.REDIRECT, \
+                           (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+
+            elif selected_payment_method_type == "sofort":
+                payment_intent = stripe.PaymentIntent.create(
+                    confirm=True,
+                    amount=amount_int,
+                    currency="eur",
+                    payment_method_types=["sofort"],
+                    payment_method_data={
+                        "type": "sofort",
+                        "billing_details": {
+                            "email": request.user.email,
+                            "name": f"{request.user.first_name} {request.user.last_name}"
+                        },
+                        "sofort": {
+                            "country": billing_address_country.upper(),
+                        }
+                    },
+                    return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,))),
+                    customer=account.get_stripe_id(),
+                    description='Top-up',
+                    setup_future_usage="off_session",
+                    mandate_data={
+                        "customer_acceptance": {
+                            "type": "online",
+                            "online": {
+                                "ip_address": str(utils.get_ip(request)),
+                                "user_agent": request.META["HTTP_USER_AGENT"]
+                            }
+                        }
+                    }
+                )
+                ledger_item.descriptor = "Top-up by SOFORT"
+                ledger_item.type = models.LedgerItem.TYPE_SOFORT
+                ledger_item.type_id = payment_intent['id']
+                ledger_item.save()
+                tasks.update_from_payment_intent(payment_intent, ledger_item)
+
+                if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                    return HandlePaymentOutcome.REDIRECT, \
+                           (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+
+            elif selected_payment_method_type == "giropay":
+                payment_intent = stripe.PaymentIntent.create(
+                    confirm=True,
+                    amount=amount_int,
+                    currency="eur",
+                    payment_method_types=["giropay"],
+                    payment_method_data={
+                        "type": "giropay",
+                        "billing_details": {
+                            "email": request.user.email,
+                            "name": f"{request.user.first_name} {request.user.last_name}"
+                        },
+                    },
+                    return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,))),
+                    customer=account.get_stripe_id(),
+                    description='Top-up',
+                )
+                ledger_item.descriptor = "Top-up by GIROPAY"
+                ledger_item.type = models.LedgerItem.TYPE_GIROPAY
+                ledger_item.type_id = payment_intent['id']
+                ledger_item.save()
+                tasks.update_from_payment_intent(payment_intent, ledger_item)
+
+                if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                    return HandlePaymentOutcome.REDIRECT, \
+                           (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+
+            elif selected_payment_method_type == "bancontact":
+                payment_intent = stripe.PaymentIntent.create(
+                    confirm=True,
+                    amount=amount_int,
+                    currency="eur",
+                    payment_method_types=["bancontact"],
+                    payment_method_data={
+                        "type": "bancontact",
+                        "billing_details": {
+                            "email": request.user.email,
+                            "name": f"{request.user.first_name} {request.user.last_name}"
+                        },
+                    },
+                    return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,))),
+                    customer=account.get_stripe_id(),
+                    description='Top-up',
+                    setup_future_usage="off_session",
+                    mandate_data={
+                        "customer_acceptance": {
+                            "type": "online",
+                            "online": {
+                                "ip_address": str(utils.get_ip(request)),
+                                "user_agent": request.META["HTTP_USER_AGENT"]
+                            }
+                        }
+                    }
+                )
+                ledger_item.descriptor = "Top-up by Bancontact"
+                ledger_item.type = models.LedgerItem.TYPE_BANCONTACT
+                ledger_item.type_id = payment_intent['id']
+                ledger_item.save()
+                tasks.update_from_payment_intent(payment_intent, ledger_item)
+
+                if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                    return HandlePaymentOutcome.REDIRECT, \
+                           (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+
+            elif selected_payment_method_type == "eps":
+                payment_intent = stripe.PaymentIntent.create(
+                    confirm=True,
+                    amount=amount_int,
+                    currency="eur",
+                    payment_method_types=["eps"],
+                    payment_method_data={
+                        "type": "eps",
+                        "billing_details": {
+                            "email": request.user.email,
+                            "name": f"{request.user.first_name} {request.user.last_name}"
+                        },
+                    },
+                    return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,))),
+                    customer=account.get_stripe_id(),
+                    description='Top-up',
+                )
+                ledger_item.descriptor = "Top-up by EPS"
+                ledger_item.type = models.LedgerItem.TYPE_EPS
+                ledger_item.type_id = payment_intent['id']
+                ledger_item.save()
+                tasks.update_from_payment_intent(payment_intent, ledger_item)
+
+                if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                    return HandlePaymentOutcome.REDIRECT, \
+                           (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+
+            elif selected_payment_method_type == "ideal":
+                payment_intent = stripe.PaymentIntent.create(
+                    confirm=True,
+                    amount=amount_int,
+                    currency="eur",
+                    payment_method_types=["ideal"],
+                    payment_method_data={
+                        "type": "ideal",
+                        "billing_details": {
+                            "email": request.user.email,
+                            "name": f"{request.user.first_name} {request.user.last_name}"
+                        },
+                    },
+                    return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,))),
+                    customer=account.get_stripe_id(),
+                    description='Top-up',
+                    setup_future_usage="off_session",
+                    mandate_data={
+                        "customer_acceptance": {
+                            "type": "online",
+                            "online": {
+                                "ip_address": str(utils.get_ip(request)),
+                                "user_agent": request.META["HTTP_USER_AGENT"]
+                            }
+                        }
+                    }
+                )
+                ledger_item.descriptor = "Top-up by iDEAL"
+                ledger_item.type = models.LedgerItem.TYPE_IDEAL
+                ledger_item.type_id = payment_intent['id']
+                ledger_item.save()
+                tasks.update_from_payment_intent(payment_intent, ledger_item)
+
+                if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                    return HandlePaymentOutcome.REDIRECT, \
+                           (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+
+            elif selected_payment_method_type == "p24":
+                payment_intent = stripe.PaymentIntent.create(
+                    confirm=True,
+                    amount=amount_int,
+                    currency="eur",
+                    payment_method_types=["p24"],
+                    payment_method_data={
+                        "type": "p24",
+                        "billing_details": {
+                            "email": request.user.email,
+                            "name": f"{request.user.first_name} {request.user.last_name}"
+                        },
+                    },
+                    return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,))),
+                    customer=account.get_stripe_id(),
+                    description='Top-up',
+                )
+                ledger_item.descriptor = "Top-up by Przelewy24"
+                ledger_item.type = models.LedgerItem.TYPE_P24
+                ledger_item.type_id = payment_intent['id']
+                ledger_item.save()
+                tasks.update_from_payment_intent(payment_intent, ledger_item)
+
+                if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                    return HandlePaymentOutcome.REDIRECT, \
+                           (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+
+            elif selected_payment_method_type == "multibanco":
+                source = stripe.Source.create(
+                    type='multibanco',
+                    amount=amount_int,
+                    currency='eur',
+                    owner={
+                        "email": request.user.email,
+                        "name": f"{request.user.first_name} {request.user.last_name}"
+                    },
+                    redirect={
+                        "return_url": request.build_absolute_uri(reverse('complete_top_up_sources', args=(ledger_item.id,)))
+                    },
+                    statement_descriptor="AS207960 Top-up"
+                )
+
+                ledger_item.descriptor = "Top-up by Multibanco"
+                ledger_item.type = models.LedgerItem.TYPE_SOURCES
+                ledger_item.type_id = source['id']
+                ledger_item.save()
+                tasks.update_from_source(source, ledger_item)
+                return HandlePaymentOutcome.REDIRECT, (ledger_item, source["redirect"]["url"])
+
+            elif selected_payment_method_type == "bacs_mandate_stripe":
+                m = models.BACSMandate.objects.get(id=selected_payment_method_id)
+                payment_intent = stripe.PaymentIntent.create(
+                    amount=amount_int,
+                    currency=selected_currency,
+                    customer=account.get_stripe_id(),
+                    description='Top-up',
+                    receipt_email=request.user.email,
+                    statement_descriptor_suffix="Top-up",
+                    payment_method=m.payment_method,
+                    payment_method_types=["bacs_debit"],
+                    confirm=True,
+                )
+                ledger_item.descriptor = "Top-up by BACS Direct Debit"
+                ledger_item.type = models.LedgerItem.TYPE_CARD
+                ledger_item.state = models.LedgerItem.STATE_PROCESSING
+                ledger_item.type_id = payment_intent['id']
+                ledger_item.save()
+
+            elif selected_payment_method_type == "sepa_mandate_stripe":
+                m = models.SEPAMandate.objects.get(id=selected_payment_method_id)
+                payment_intent = stripe.PaymentIntent.create(
+                    amount=amount_int,
+                    currency=selected_currency,
+                    customer=account.get_stripe_id(),
+                    description='Top-up',
+                    receipt_email=request.user.email,
+                    statement_descriptor_suffix="Top-up",
+                    payment_method=m.payment_method,
+                    payment_method_types=["sepa_debit"],
+                    confirm=True,
+                )
+                ledger_item.descriptor = "Top-up by SEPA Direct Debit"
+                ledger_item.type = models.LedgerItem.TYPE_SEPA
+                ledger_item.state = models.LedgerItem.STATE_PROCESSING
+                ledger_item.type_id = payment_intent['id']
+                ledger_item.save()
+
+            elif selected_payment_method_type == "ach_mandate_gc":
+                m = models.ACHMandate.objects.get(id=selected_payment_method_id)
+                payment = gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": "USD",
+                    "description": "Top up",
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": m.mandate_id
+                    }
+                })
+
+                ledger_item.descriptor = "Top-up by ACH Direct Debit"
+                ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+                ledger_item.type_id = payment.id
+                ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+                ledger_item.evidence_ach_mandate = m
+                ledger_item.save()
+
+            elif selected_payment_method_type == "autogiro_mandate_gc":
+                m = models.AutogiroMandate.objects.get(id=selected_payment_method_id)
+                payment = gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": "SEK",
+                    "description": "Top up",
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": m.mandate_id
+                    }
+                })
+
+                ledger_item.descriptor = "Top-up by Autogiro"
+                ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+                ledger_item.type_id = payment.id
+                ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+                ledger_item.evidence_autogiro_mandate = m
+                ledger_item.save()
+
+            elif selected_payment_method_type == "bacs_mandate_gc":
+                m = models.GCBACSMandate.objects.get(id=selected_payment_method_id)
+                payment = gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": "GBP",
+                    "description": "Top up",
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": m.mandate_id
+                    }
+                })
+
+                ledger_item.descriptor = "Top-up by BACS Direct Debit"
+                ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+                ledger_item.type_id = payment.id
+                ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+                ledger_item.evidence_gc_bacs_mandate = m
+                ledger_item.save()
+
+            elif selected_payment_method_type == "becs_mandate_gc":
+                m = models.BECSMandate.objects.get(id=selected_payment_method_id)
+                payment = gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": "AUD",
+                    "description": "Top up",
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": m.mandate_id
+                    }
+                })
+
+                ledger_item.descriptor = "Top-up by BECS Direct Debit"
+                ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+                ledger_item.type_id = payment.id
+                ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+                ledger_item.evidence_becs_mandate = m
+                ledger_item.save()
+
+            elif selected_payment_method_type == "becs_nz_mandate_gc":
+                m = models.BECSNZMandate.objects.get(id=selected_payment_method_id)
+                payment = gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": "NZD",
+                    "description": "Top up",
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": m.mandate_id
+                    }
+                })
+
+                ledger_item.descriptor = "Top-up by BECS Direct Debit"
+                ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+                ledger_item.type_id = payment.id
+                ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+                ledger_item.evidence_becs_nz_mandate = m
+                ledger_item.save()
+
+            elif selected_payment_method_type == "betalingsservice_nz_mandate_gc":
+                m = models.BetalingsserviceMandate.objects.get(id=selected_payment_method_id)
+                payment = gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": "DKK",
+                    "description": "Top up",
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": m.mandate_id
+                    }
+                })
+
+                ledger_item.descriptor = "Top-up by Betalingsservice"
+                ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+                ledger_item.type_id = payment.id
+                ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+                ledger_item.evidence_betalingsservice_mandate = m
+                ledger_item.save()
+
+            elif selected_payment_method_type == "pad_mandate_gc":
+                m = models.PADMandate.objects.get(id=selected_payment_method_id)
+                payment = gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": "CAD",
+                    "description": "Top up",
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": m.mandate_id
+                    }
+                })
+
+                ledger_item.descriptor = "Top-up by PAD Direct Debit"
+                ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+                ledger_item.type_id = payment.id
+                ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+                ledger_item.evidence_pad_mandate = m
+                ledger_item.save()
+
+            elif selected_payment_method_type == "sepa_mandate_gc":
+                m = models.GCSEPAMandate.objects.get(id=selected_payment_method_id)
+                payment = gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": "EUR",
+                    "description": "Top up",
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": m.mandate_id
+                    }
+                })
+
+                ledger_item.descriptor = "Top-up by SEPA Direct Debit"
+                ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+                ledger_item.type_id = payment.id
+                ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
+                ledger_item.evidence_gc_sepa_mandate = m
+                ledger_item.save()
+
+            elif selected_payment_method_type == "bank_transfer":
+                ref = secrets.token_hex(6).upper()
+                ledger_item.descriptor = "Top-up by bank transfer"
+                ledger_item.type = models.LedgerItem.TYPE_BACS
+                ledger_item.type_id = ref
+                ledger_item.state = models.LedgerItem.STATE_PENDING
+                ledger_item.save()
+
+                return HandlePaymentOutcome.REDIRECT, (
+                    ledger_item,
+                    reverse('complete_top_up_bank_details', args=(ledger_item.id, selected_payment_method_id))
+                )
+
+            return HandlePaymentOutcome.DONE, ledger_item
+
+        if account.stripe_customer_id:
+            cards = list(map(lambda c: {
+                "id": c.id,
+                "billing_details": c.billing_details,
+                "card": {
+                    "brand": c.card.brand,
+                    "exp_month": c.card.exp_month,
+                    "exp_year": c.card.exp_year,
+                    "last4": c.card.last4,
+                    "country": dict(django_countries.countries)[c.card.country],
+                    "country_emoji": chr(ord(c.card.country[0]) + 127397) + chr(ord(c.card.country[1]) + 127397)
+                }
+            }, filter(
+                lambda c: (
+                        c.card.country.lower() == account.billing_address.country_code.code.lower()
+                        or not account.taxable
+                ),
+                stripe.PaymentMethod.list(
+                    customer=account.stripe_customer_id,
+                    type="card"
+                ).auto_paging_iter()
+            )))
+
+        def map_sepa_mandate(m):
+            mandate = stripe.Mandate.retrieve(m.mandate_id)
+            payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
+            return {
+                "id": m.id,
+                "type": "stripe",
+                "selected": selected_payment_method_type == "sepa_mandate_stripe" and selected_payment_method_id == m.id,
+                "country": payment_method["sepa_debit"]["country"],
+                "cc": dict(django_countries.countries)[payment_method["sepa_debit"]["country"]],
+                "cc_emoji": chr(ord(payment_method["sepa_debit"]["country"][0]) + 127397) +
+                            chr(ord(payment_method["sepa_debit"]["country"][1]) + 127397),
+                "last4": payment_method["sepa_debit"]["last4"],
+                "bank": payment_method["sepa_debit"]["bank_code"],
+                "ref": mandate["payment_method_details"]["sepa_debit"]["reference"],
+            }
+
+        def map_bacs_mandate(m):
+            mandate = stripe.Mandate.retrieve(m.mandate_id)
+            payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
+            return {
+                "id": m.id,
+                "type": "stripe",
+                "last4": payment_method["bacs_debit"]["last4"],
+                "bank": payment_method["bacs_debit"]["sort_code"],
+                "ref": mandate["payment_method_details"]["bacs_debit"]["reference"],
+            }
+
+        def map_ach_mandate(m):
+            mandate = gocardless_client.mandates.get(m.mandate_id)
+            bank_account = gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
+            return {
+                "id": m.id,
+                "type": "gc",
+                "selected": selected_payment_method_type == "ach_mandate_gc" and selected_payment_method_id == m.id,
+                "last4": bank_account.account_number_ending,
+                "account_type": bank_account.account_type,
+                "bank": bank_account.bank_name,
+                "ref": mandate.reference,
+            }
+
+        def map_gc_bacs_mandate(m, m_type):
+            mandate = gocardless_client.mandates.get(m.mandate_id)
+            bank_account = gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
+            return {
+                "id": m.id,
+                "type": "gc",
+                "selected": selected_payment_method_type == f"{m_type}_mandate_gc" and selected_payment_method_id == m.id,
+                "last4": bank_account.account_number_ending,
+                "bank": bank_account.bank_name,
+                "ref": mandate.reference,
+            }
+
+        def map_gc_sepa_mandate(m):
+            mandate = gocardless_client.mandates.get(m.mandate_id)
+            bank_account = gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
+            return {
+                "id": m.id,
+                "type": "gc",
+                "selected": selected_payment_method_type == "sepa_mandate_gc" and selected_payment_method_id == m.id,
+                "country": bank_account.country_code,
+                "cc": dict(django_countries.countries)[bank_account.country_code],
+                "cc_emoji": chr(ord(bank_account.country_code[0]) + 127397) +
+                            chr(ord(bank_account.country_code[1]) + 127397),
+                "last4": bank_account.account_number_ending,
+                "bank": bank_account.bank_name,
+                "ref": mandate.reference,
+            }
+
+        if account.billing_address.country_code.code.lower() == "us" or not account.taxable:
+            ach_mandates = list(map(map_ach_mandate, models.ACHMandate.objects.filter(account=account, active=True)))
+        if account.billing_address.country_code.code.lower() == "se" or not account.taxable:
+            autogiro_mandates = list(map(
+                lambda m: map_gc_bacs_mandate(m, "autogiro"),
+                models.AutogiroMandate.objects.filter(account=account, active=True)
+            ))
+        if account.billing_address.country_code.code.lower() == "gb" or not account.taxable:
+            bacs_mandates = list(map(map_bacs_mandate, models.BACSMandate.objects.filter(account=account, active=True)))
+            bacs_mandates += list(map(
+                lambda m: map_gc_bacs_mandate(m, "bacs"),
+                models.GCBACSMandate.objects.filter(account=account, active=True)
+            ))
+        if account.billing_address.country_code.code.lower() == "au" or not account.taxable:
+            becs_mandates = list(map(
+                lambda m: map_gc_bacs_mandate(m, "becs"),
+                models.BECSMandate.objects.filter(account=account, active=True)
+            ))
+        if account.billing_address.country_code.code.lower() == "nz" or not account.taxable:
+            becs_nz_mandates = list(map(
+                lambda m: map_gc_bacs_mandate(m, "becs_nz"),
+                models.BECSNZMandate.objects.filter(account=account, active=True)
+            ))
+        if account.billing_address.country_code.code.lower() == "dk" or not account.taxable:
+            betalingsservice_mandates = list(map(
+                lambda m: map_gc_bacs_mandate(m, "betalingsservice"),
+                models.BetalingsserviceMandate.objects.filter(account=account, active=True)
+            ))
+        if account.billing_address.country_code.code.lower() == "ca" or not account.taxable:
+            pad_mandates = list(map(
+                lambda m: map_gc_bacs_mandate(m, "pad"),
+                models.PADMandate.objects.filter(account=account, active=True)
+            ))
+        sepa_mandates = list(map(map_sepa_mandate, models.SEPAMandate.objects.filter(account=account, active=True)))
+        sepa_mandates += list(
+            map(map_gc_sepa_mandate, models.GCSEPAMandate.objects.filter(account=account, active=True)))
+        if account.taxable:
+            sepa_mandates = list(filter(
+                lambda m: m["country"] == account.billing_address.country_code.code.upper(), sepa_mandates
+            ))
+    else:
+        can_charge = True
+        if request.method == "POST" and request.POST.get("action") == "pay":
+            if charge_state:
+                charge_state.ledger_item.state = models.LedgerItem.STATE_COMPLETED
+                charge_state.ledger_item.save()
+            return HandlePaymentOutcome.DONE, None
+
+    return HandlePaymentOutcome.RENDER, render(
+        request,
+        "billing/complete_order.html" if charge_state else "billing/top_up.html",
+        {
+            "cards": cards,
+            "country": account.billing_address.country_code.code.lower(),
+            "ach_mandates": ach_mandates,
+            "autogiro_mandates": autogiro_mandates,
+            "bacs_mandates": bacs_mandates,
+            "becs_mandates": becs_mandates,
+            "becs_nz_mandates": becs_nz_mandates,
+            "betalingsservice_mandates": betalingsservice_mandates,
+            "pad_mandates": pad_mandates,
+            "sepa_mandates": sepa_mandates,
+            "charge_amount": original_charge if original_charge else charged_amount_ext_vat,
+            "charge_descriptor": charge_descriptor if charge_descriptor else "Top-up",
+            "charged_amount": charged_amount,
+            "top_up": is_top_up,
+            "from_account_balance": from_account_balance,
+            "left_to_be_paid": charged_amount_ext_vat if original_charge else None,
+            "has_vat": has_vat,
+            "vat_rate": vat_rate,
+            "vat_charged": vat_charged,
+            "billing_country_name": billing_country_name,
+            "taxable": account.taxable,
+            "selected_currency": selected_currency,
+            "available_currencies": list(map(lambda c: (c, currency_name_lookup[c]), available_currencies)),
+            "selected_payment_method_type": selected_payment_method_type,
+            "selected_payment_method_id": selected_payment_method_id,
+            "to_be_charged": to_be_charged,
+            "mandate_acceptance": mandate_acceptance,
+            "can_charge": can_charge,
+            "needs_payment": needs_payment,
+            "charge": charge_state
+        }
+    )
 
 
 @login_required
 def top_up(request):
-    if request.method == "POST":
-        form = forms.TopUpForm(request.POST)
-        if form.is_valid():
-            if "charge_state_id" in request.session:
-                request.session.pop("charge_state_id")
-            request.session["amount"] = str(form.cleaned_data["amount"])
-
-            if "ach_mandate" in request.POST:
-                return redirect('top_up_existing_ach_direct_debit', mandate_id=request.POST["ach_mandate"])
-            if "autogiro_mandate" in request.POST:
-                return redirect('top_up_existing_autogiro_direct_debit', mandate_id=request.POST["autogiro_mandate"])
-            if "bacs_mandate" in request.POST:
-                return redirect('top_up_existing_bacs_direct_debit', mandate_id=request.POST["bacs_mandate"])
-            if "becs_mandate" in request.POST:
-                return redirect('top_up_existing_becs_direct_debit', mandate_id=request.POST["becs_mandate"])
-            if "becs_nz_mandate" in request.POST:
-                return redirect('top_up_existing_becs_nz_direct_debit', mandate_id=request.POST["becs_nz_mandate"])
-            if "betalingsservice_mandate" in request.POST:
-                return redirect('top_up_existing_betalingsservice_direct_debit',
-                                mandate_id=request.POST["betalingsservice_mandate"])
-            if "pad_mandate" in request.POST:
-                return redirect('top_up_existing_pad_direct_debit', mandate_id=request.POST["pad_mandate"])
-            if "sepa_mandate" in request.POST:
-                return redirect('top_up_existing_sepa_direct_debit', mandate_id=request.POST["sepa_mandate"])
-            if "card" in request.POST:
-                return redirect('top_up_existing_card', card_id=request.POST["card"])
-
-            if form.cleaned_data['method'] == forms.TopUpForm.METHOD_CARD:
-                return redirect("top_up_card")
-            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_BACS:
-                return redirect("top_up_bacs")
-            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_SOFORT:
-                return redirect("top_up_sofort")
-            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_GIROPAY:
-                return redirect("top_up_giropay")
-            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_BANCONTACT:
-                return redirect("top_up_bancontact")
-            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_EPS:
-                return redirect("top_up_eps")
-            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_IDEAL:
-                return redirect("top_up_ideal")
-            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_MULTIBANCO:
-                return redirect("top_up_multibanco")
-            elif form.cleaned_data['method'] == forms.TopUpForm.METHOD_P24:
-                return redirect("top_up_p24")
-
     account = request.user.account  # type: models.Account
-    cards = []
 
-    if account.stripe_customer_id:
-        cards = list(stripe.PaymentMethod.list(
-            customer=account.stripe_customer_id,
-            type="card"
-        ).auto_paging_iter())
+    if not account.billing_address:
+        return render(request, "billing/top_up_no_address.html")
 
-    def map_sepa_mandate(m):
-        mandate = stripe.Mandate.retrieve(m.mandate_id)
-        payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
-        return {
-            "id": m.id,
-            "cc": payment_method["sepa_debit"]["country"],
-            "last4": payment_method["sepa_debit"]["last4"],
-            "bank": payment_method["sepa_debit"]["bank_code"],
-            "ref": mandate["payment_method_details"]["sepa_debit"]["reference"],
-        }
-
-    def map_bacs_mandate(m):
-        mandate = stripe.Mandate.retrieve(m.mandate_id)
-        payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
-        return {
-            "id": m.id,
-            "last4": payment_method["bacs_debit"]["last4"],
-            "bank": payment_method["bacs_debit"]["sort_code"],
-            "ref": mandate["payment_method_details"]["bacs_debit"]["reference"],
-        }
-
-    def map_ach_mandate(m):
-        mandate = gocardless_client.mandates.get(m.mandate_id)
-        bank_account = gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
-        return {
-            "id": m.id,
-            "last4": bank_account.account_number_ending,
-            "account_type": bank_account.account_type,
-            "bank": bank_account.bank_name,
-            "ref": mandate.reference,
-        }
-
-    def map_gc_bacs_mandate(m):
-        mandate = gocardless_client.mandates.get(m.mandate_id)
-        bank_account = gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
-        return {
-            "id": m.id,
-            "last4": bank_account.account_number_ending,
-            "bank": bank_account.bank_name,
-            "ref": mandate.reference,
-        }
-
-    def map_gc_sepa_mandate(m):
-        mandate = gocardless_client.mandates.get(m.mandate_id)
-        bank_account = gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
-        return {
-            "id": m.id,
-            "cc": bank_account.country_code,
-            "last4": bank_account.account_number_ending,
-            "bank": bank_account.bank_name,
-            "ref": mandate.reference,
-        }
-
-    ach_mandates = list(map(map_ach_mandate, models.ACHMandate.objects.filter(account=account, active=True)))
-    autogiro_mandates = list(
-        map(map_gc_bacs_mandate, models.AutogiroMandate.objects.filter(account=account, active=True)))
-    bacs_mandates = list(map(map_bacs_mandate, models.BACSMandate.objects.filter(account=account, active=True)))
-    bacs_mandates += list(map(map_gc_bacs_mandate, models.GCBACSMandate.objects.filter(account=account, active=True)))
-    becs_mandates = list(map(map_gc_bacs_mandate, models.BECSMandate.objects.filter(account=account, active=True)))
-    becs_nz_mandates = list(map(map_gc_bacs_mandate, models.BECSNZMandate.objects.filter(account=account, active=True)))
-    betalingsservice_mandates = list(
-        map(map_gc_bacs_mandate, models.BetalingsserviceMandate.objects.filter(account=account, active=True)))
-    pad_mandates = list(map(map_gc_bacs_mandate, models.PADMandate.objects.filter(account=account, active=True)))
-    sepa_mandates = list(map(map_sepa_mandate, models.SEPAMandate.objects.filter(account=account, active=True)))
-    sepa_mandates += list(map(map_gc_sepa_mandate, models.GCSEPAMandate.objects.filter(account=account, active=True)))
-
-    return render(request, "billing/top_up.html", {
-        "cards": cards,
-        "ach_mandates": ach_mandates,
-        "autogiro_mandates": autogiro_mandates,
-        "bacs_mandates": bacs_mandates,
-        "becs_mandates": becs_mandates,
-        "becs_nz_mandates": becs_nz_mandates,
-        "betalingsservice_mandates": betalingsservice_mandates,
-        "pad_mandates": pad_mandates,
-        "sepa_mandates": sepa_mandates
-    })
-
-
-@login_required
-def top_up_card(request):
-    account = request.user.account
-
-    if request.method != "POST":
-        return render(request, "billing/top_up_card.html", {
-            "is_new": False
-        })
-    else:
-        if "amount" not in request.session:
-            return redirect("top_up")
-        amount = decimal.Decimal(request.session.pop("amount"))
-        charge_currency = request.POST.get("currency")
-        if charge_currency not in ("eur", "gbp", "usd", "aud", "nzd", "sgd", "ron"):
-            return HttpResponseBadRequest()
-
-        amount_currency = models.ExchangeRate.get_rate('gbp', charge_currency) * amount
-        amount_int = int(round(amount_currency * decimal.Decimal(100)))
-        payment_intent = stripe.PaymentIntent.create(
-            amount=amount_int,
-            currency=charge_currency,
-            customer=account.get_stripe_id(),
-            description='Top-up',
-            receipt_email=request.user.email,
-            setup_future_usage='off_session',
-            statement_descriptor_suffix="Top-up",
-            payment_method_options={
-                "card": {
-                    "request_three_d_secure": "any"
-                }
-            }
-        )
-
-        ledger_item = models.LedgerItem(
-            account=account,
-            descriptor="Top-up by card",
-            amount=amount,
-            type=models.LedgerItem.TYPE_CARD,
-            type_id=payment_intent['id']
-        )
-        ledger_item.save()
-        redirect_uri = reverse('dashboard')
-
-        return render(request, "billing/top_up_card.html", {
-            "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
-            "client_secret": payment_intent["client_secret"],
-            "customer_name": f"{request.user.first_name} {request.user.last_name}",
-            "amount": amount_int,
-            "currency": charge_currency,
-            "redirect_uri": redirect_uri,
-            "is_new": True
+    can_sell, can_sell_reason = account.can_sell
+    if not can_sell:
+        return render(request, "billing/top_up_cant_sell.html", {
+            "reason": can_sell_reason,
+            "account": account,
         })
 
-
-@login_required
-def top_up_existing_card(request, card_id):
-    account = request.user.account
-
-    if request.method != "POST":
-        return render(request, "billing/top_up_card.html", {
-            "is_new": False
-        })
-    else:
-        if "amount" not in request.session:
-            return redirect("top_up")
-        amount = decimal.Decimal(request.session.pop("amount"))
-        charge_currency = request.POST.get("currency")
-        if charge_currency not in ("eur", "gbp", "usd", "aud", "nzd", "sgd", "ron"):
-            return HttpResponseBadRequest()
-
-        amount_currency = models.ExchangeRate.get_rate('gbp', charge_currency) * amount
-        amount_int = int(round(amount_currency * decimal.Decimal(100)))
-        payment_method = stripe.PaymentMethod.retrieve(card_id)
-
-        if payment_method['customer'] != request.user.account.stripe_customer_id:
-            return HttpResponseForbidden()
-
-        redirect_uri = reverse('dashboard')
-
-        payment_intent = stripe.PaymentIntent.create(
-            amount=amount_int,
-            currency=charge_currency,
-            customer=account.get_stripe_id(),
-            description='Top-up',
-            receipt_email=request.user.email,
-            statement_descriptor_suffix="Top-up",
-            payment_method=card_id,
-            confirm=True,
-            return_url=request.build_absolute_uri(redirect_uri)
-        )
-
-        ledger_item = models.LedgerItem(
-            account=account,
-            descriptor="Top-up by card",
-            amount=amount,
-            type=models.LedgerItem.TYPE_CARD,
-            type_id=payment_intent['id']
-        )
-        ledger_item.save()
-        tasks.update_from_payment_intent(payment_intent, ledger_item)
-
-        if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
-            return redirect(payment_intent["next_action"]["redirect_to_url"]["url"])
-
-        return redirect(redirect_uri)
+    result, extra = handle_payment(request, account, None, None, None)
+    if result == HandlePaymentOutcome.CANCEL:
+        return redirect('dashboard')
+    elif result == HandlePaymentOutcome.FORBIDDEN:
+        return HttpResponseForbidden()
+    elif result == HandlePaymentOutcome.REDIRECT:
+        _ledger_item, url = extra
+        return redirect(url)
+    elif result == HandlePaymentOutcome.RENDER:
+        return extra
+    elif result == HandlePaymentOutcome.DONE:
+        return redirect('dashboard')
 
 
 @login_required
@@ -263,39 +1065,62 @@ def complete_top_up_card(request, item_id):
     if ledger_item.account != request.user.account:
         return HttpResponseForbidden
 
-    if ledger_item.state != ledger_item.STATE_PENDING:
-        return redirect('dashboard')
-
-    if ledger_item.type != ledger_item.TYPE_CARD:
-        return HttpResponseBadRequest
+    try:
+        charge_state = ledger_item.charge_state_payment
+    except django.core.exceptions.ObjectDoesNotExist:
+        charge_state = None
 
     payment_intent = stripe.PaymentIntent.retrieve(ledger_item.type_id)
+    tasks.update_from_payment_intent(payment_intent, ledger_item)
 
-    if payment_intent["status"] == "succeeded":
-        ledger_item.state = ledger_item.STATE_COMPLETED
-        ledger_item.save()
+    if ledger_item.state != ledger_item.STATE_PENDING:
+        if charge_state:
+            return redirect('complete_order', charge_state.id)
+
         return redirect('dashboard')
 
-    return render(request, "billing/top_up_card.html", {
-        "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
-        "client_secret": payment_intent["client_secret"],
-        "customer_name": f"{request.user.first_name} {request.user.last_name}",
-        "amount": payment_intent['amount'],
-        "currency": payment_intent['currency'],
-        "is_new": True
-    })
+    if ledger_item.type not in (
+            ledger_item.TYPE_CARD, ledger_item.TYPE_SOFORT, ledger_item.TYPE_GIROPAY, ledger_item.TYPE_BANCONTACT,
+            ledger_item.TYPE_EPS, ledger_item.TYPE_IDEAL
+    ):
+        return HttpResponseBadRequest()
+
+    if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+        return redirect(payment_intent["next_action"]["redirect_to_url"]["url"])
+
+    if charge_state:
+        return redirect('complete_order', charge_state.id)
+
+    return redirect('dashboard')
 
 
 @login_required
-def top_up_bacs(request):
+def top_up_bank_transfer(request):
+    account = request.user.account  # type: models.Account
+
+    if not account.billing_address:
+        return render(request, "billing/top_up_no_address.html")
+
+    billing_address_country = account.billing_address.country_code.code.lower()
+
     if request.method == "POST":
         if "iban" in request.POST:
             try:
                 iban = schwifty.IBAN(request.POST.get("iban"))
             except ValueError as e:
                 return render(request, "billing/top_up_bacs_search.html", {
+                    "country": billing_address_country,
+                    "taxable": account.taxable,
                     "iban": request.POST.get("iban"),
                     "iban_error": str(e)
+                })
+
+            if iban.country_code.lower() != billing_address_country:
+                return render(request, "billing/top_up_bacs_search.html", {
+                    "country": billing_address_country,
+                    "taxable": account.taxable,
+                    "iban": request.POST.get("iban"),
+                    "iban_error": "IBAN country and billing address country must match."
                 })
 
             try:
@@ -303,20 +1128,31 @@ def top_up_bacs(request):
                     "iban": iban.compact
                 })
                 if not len(lookup.available_debit_schemes):
-                    return render(request, "billing/top_up_bacs_no_schemes.html")
+                    return render(request, "billing/top_up_bacs_no_schemes.html", {
+                        "country": billing_address_country,
+                        "taxable": account.taxable,
+                    })
                 else:
                     return render(request, "billing/top_up_bacs_schemes.html", {
+                        "country": billing_address_country,
                         "bank_name": lookup.bank_name,
-                        "schemes": lookup.available_debit_schemes
+                        "schemes": lookup.available_debit_schemes,
+                        "taxable": account.taxable,
                     })
             except gocardless_pro.errors.ValidationFailedError as e:
-                return render(request, "billing/top_up_bacs_no_schemes.html")
+                return render(request, "billing/top_up_bacs_no_schemes.html", {
+                    "country": billing_address_country,
+                    "taxable": account.taxable,
+                })
 
-    return render(request, "billing/top_up_bacs_search.html")
+    return render(request, "billing/top_up_bacs_search.html", {
+        "country": billing_address_country,
+        "taxable": account.taxable,
+    })
 
 
 @login_required
-def top_up_bacs_local(request, country):
+def top_up_bank_transfer_local(request, country):
     country = country.lower()
 
     if country == "gb":
@@ -418,13 +1254,13 @@ def top_up_bacs_local(request, country):
                 lookup = gocardless_client.bank_details_lookups.create(params=account_data)
                 if not len(lookup.available_debit_schemes):
                     return render(request, "billing/top_up_bacs_no_schemes.html", {
-                        "country_code": country
+                        "country": country
                     })
                 else:
                     return render(request, "billing/top_up_bacs_schemes.html", {
                         "bank_name": lookup.bank_name,
                         "schemes": lookup.available_debit_schemes,
-                        "country_code": country
+                        "country": country
                     })
             except gocardless_pro.errors.ValidationFailedError as e:
                 if e.errors:
@@ -501,29 +1337,24 @@ def show_bank_details(request, amount, ref, currency):
 
 @login_required
 def top_up_bank_details(request, currency):
-    account = request.user.account
-    if "amount" not in request.session:
-        return redirect("top_up")
-    amount = decimal.Decimal(request.session.pop("amount"))
-    ref = secrets.token_hex(6).upper()
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by bank transfer",
-        amount=amount,
-        type=models.LedgerItem.TYPE_BACS,
-        type_id=ref,
-        state=models.LedgerItem.STATE_PENDING
-    )
-    ledger_item.save()
     currency = currency.lower()
-    return show_bank_details(request, amount, ref, currency)
+    request.session["selected_payment_method"] = f"bank_transfer;{currency}"
+    return redirect("top_up")
 
 
 @login_required
-def complete_top_up_bacs(request, item_id):
+def complete_top_up_bank_transfer(request, item_id):
+    account = request.user.account  # type: models.Account
+
+    if not account.billing_address:
+        return render(request, "billing/top_up_no_address.html")
+
+    billing_address_country = account.billing_address.country_code.code.lower()
+
     return render(request, "billing/top_up_complete_currency_select.html", {
-        "id": item_id
+        "id": item_id,
+        "country": billing_address_country,
+        "taxable": account.taxable,
     })
 
 
@@ -541,810 +1372,8 @@ def complete_top_up_bank_details(request, item_id, currency):
         return HttpResponseBadRequest
 
     currency = currency.lower()
-    return show_bank_details(request, ledger_item.amount, ledger_item.type_id, currency)
-
-
-@login_required
-def top_up_new_ach(request):
-    session_id = secrets.token_hex(16)
-    request.session["gc_session_id"] = session_id
-
-    prefilled_bank_account = {}
-    if "dd_account_type" in request.session:
-        prefilled_bank_account["account_type"] = request.session.pop("dd_account_type")
-
-    redirect_flow = gocardless_client.redirect_flows.create(params={
-        "description": "Top up",
-        "session_token": session_id,
-        "success_redirect_url": request.build_absolute_uri(reverse('top_up_new_ach_complete')),
-        "prefilled_customer": {
-            "given_name": request.user.first_name,
-            "family_name": request.user.last_name,
-            "email": request.user.email,
-        },
-        "prefilled_bank_account": prefilled_bank_account,
-        "scheme": "ach"
-    })
-
-    return redirect(redirect_flow.redirect_url)
-
-
-@login_required
-def top_up_new_autogiro(request):
-    session_id = secrets.token_hex(16)
-    request.session["gc_session_id"] = session_id
-
-    redirect_flow = gocardless_client.redirect_flows.create(params={
-        "description": "Top up",
-        "session_token": session_id,
-        "success_redirect_url": request.build_absolute_uri(reverse('top_up_new_autogiro_complete')),
-        "prefilled_customer": {
-            "given_name": request.user.first_name,
-            "family_name": request.user.last_name,
-            "email": request.user.email,
-        },
-        "scheme": "autogiro"
-    })
-
-    return redirect(redirect_flow.redirect_url)
-
-
-@login_required
-def top_up_new_bacs(request):
-    session_id = secrets.token_hex(16)
-    request.session["gc_session_id"] = session_id
-
-    redirect_flow = gocardless_client.redirect_flows.create(params={
-        "description": "Top up",
-        "session_token": session_id,
-        "success_redirect_url": request.build_absolute_uri(reverse('top_up_new_bacs_complete')),
-        "prefilled_customer": {
-            "given_name": request.user.first_name,
-            "family_name": request.user.last_name,
-            "email": request.user.email,
-        },
-        "scheme": "bacs"
-    })
-
-    return redirect(redirect_flow.redirect_url)
-
-
-@login_required
-def top_up_new_becs(request):
-    session_id = secrets.token_hex(16)
-    request.session["gc_session_id"] = session_id
-
-    redirect_flow = gocardless_client.redirect_flows.create(params={
-        "description": "Top up",
-        "session_token": session_id,
-        "success_redirect_url": request.build_absolute_uri(reverse('top_up_new_becs_complete')),
-        "prefilled_customer": {
-            "given_name": request.user.first_name,
-            "family_name": request.user.last_name,
-            "email": request.user.email,
-        },
-        "scheme": "becs"
-    })
-
-    return redirect(redirect_flow.redirect_url)
-
-
-@login_required
-def top_up_new_becs_nz(request):
-    session_id = secrets.token_hex(16)
-    request.session["gc_session_id"] = session_id
-
-    redirect_flow = gocardless_client.redirect_flows.create(params={
-        "description": "Top up",
-        "session_token": session_id,
-        "success_redirect_url": request.build_absolute_uri(reverse('top_up_new_becs_nz_complete')),
-        "prefilled_customer": {
-            "given_name": request.user.first_name,
-            "family_name": request.user.last_name,
-            "email": request.user.email,
-        },
-        "scheme": "becs_nz"
-    })
-
-    return redirect(redirect_flow.redirect_url)
-
-
-@login_required
-def top_up_new_betalingsservice(request):
-    session_id = secrets.token_hex(16)
-    request.session["gc_session_id"] = session_id
-
-    redirect_flow = gocardless_client.redirect_flows.create(params={
-        "description": "Top up",
-        "session_token": session_id,
-        "success_redirect_url": request.build_absolute_uri(reverse('top_up_new_betalingsservice_complete')),
-        "prefilled_customer": {
-            "given_name": request.user.first_name,
-            "family_name": request.user.last_name,
-            "email": request.user.email,
-        },
-        "scheme": "betalingsservice"
-    })
-
-    return redirect(redirect_flow.redirect_url)
-
-
-@login_required
-def top_up_new_pad(request):
-    session_id = secrets.token_hex(16)
-    request.session["gc_session_id"] = session_id
-
-    redirect_flow = gocardless_client.redirect_flows.create(params={
-        "description": "Top up",
-        "session_token": session_id,
-        "success_redirect_url": request.build_absolute_uri(reverse('top_up_new_pad_complete')),
-        "prefilled_customer": {
-            "given_name": request.user.first_name,
-            "family_name": request.user.last_name,
-            "email": request.user.email,
-        },
-        "scheme": "pad"
-    })
-
-    return redirect(redirect_flow.redirect_url)
-
-
-@login_required
-def top_up_new_sepa(request):
-    session_id = secrets.token_hex(16)
-    request.session["gc_session_id"] = session_id
-
-    redirect_flow = gocardless_client.redirect_flows.create(params={
-        "description": "Top up",
-        "session_token": session_id,
-        "success_redirect_url": request.build_absolute_uri(reverse('top_up_new_sepa_complete')),
-        "prefilled_customer": {
-            "given_name": request.user.first_name,
-            "family_name": request.user.last_name,
-            "email": request.user.email,
-        },
-        "scheme": "sepa_core"
-    })
-
-    return redirect(redirect_flow.redirect_url)
-
-
-@login_required
-def top_up_new_ach_complete(request):
-    account = request.user.account  # type: models.Account
-
-    redirect_flow = gocardless_client.redirect_flows.complete(
-        request.GET.get("redirect_flow_id"),
-        params={
-            "session_token": request.session.get("gc_session_id")
-        }
-    )
-
-    models.ACHMandate.sync_mandate(redirect_flow.links.mandate, account)
-
-    if "amount" not in request.session:
-        return redirect("account_details")
-
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_usd = models.ExchangeRate.get_rate('gbp', 'usd') * amount
-    amount_int = int(round(amount_usd * decimal.Decimal(100)))
-
-    payment = gocardless_client.payments.create(params={
-        "amount": amount_int,
-        "currency": "USD",
-        "description": "Top up",
-        "retry_if_possible": False,
-        "links": {
-            "mandate": redirect_flow.links.mandate
-        }
-    })
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by ACH Direct Debit",
-        amount=amount,
-        type=models.LedgerItem.TYPE_GOCARDLESS,
-        type_id=payment.id,
-        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-    )
-    ledger_item.save()
-
-    return redirect('dashboard')
-
-
-@login_required
-def top_up_new_autogiro_complete(request):
-    account = request.user.account  # type: models.Account
-
-    redirect_flow = gocardless_client.redirect_flows.complete(
-        request.GET.get("redirect_flow_id"),
-        params={
-            "session_token": request.session.get("gc_session_id")
-        }
-    )
-
-    models.AutogiroMandate.sync_mandate(redirect_flow.links.mandate, account)
-
-    if "amount" not in request.session:
-        return redirect("account_details")
-
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_sek = models.ExchangeRate.get_rate('gbp', 'sek') * amount
-    amount_int = int(round(amount_sek * decimal.Decimal(100)))
-
-    payment = gocardless_client.payments.create(params={
-        "amount": amount_int,
-        "currency": "SEK",
-        "description": "Top up",
-        "retry_if_possible": False,
-        "links": {
-            "mandate": redirect_flow.links.mandate
-        }
-    })
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by Autogiro",
-        amount=amount,
-        type=models.LedgerItem.TYPE_GOCARDLESS,
-        type_id=payment.id,
-        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-    )
-    ledger_item.save()
-
-    return redirect('dashboard')
-
-
-@login_required
-def top_up_new_bacs_complete(request):
-    account = request.user.account  # type: models.Account
-
-    redirect_flow = gocardless_client.redirect_flows.complete(
-        request.GET.get("redirect_flow_id"),
-        params={
-            "session_token": request.session.get("gc_session_id")
-        }
-    )
-
-    models.GCBACSMandate.sync_mandate(redirect_flow.links.mandate, account)
-
-    if "amount" not in request.session:
-        return redirect("account_details")
-
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_int = int(round(amount * decimal.Decimal(100)))
-
-    payment = gocardless_client.payments.create(params={
-        "amount": amount_int,
-        "currency": "GBP",
-        "description": "Top up",
-        "retry_if_possible": False,
-        "links": {
-            "mandate": redirect_flow.links.mandate
-        }
-    })
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by BACS Direct Debit",
-        amount=amount,
-        type=models.LedgerItem.TYPE_GOCARDLESS,
-        type_id=payment.id,
-        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-    )
-    ledger_item.save()
-
-    return redirect('dashboard')
-
-
-@login_required
-def top_up_new_becs_complete(request):
-    account = request.user.account  # type: models.Account
-
-    redirect_flow = gocardless_client.redirect_flows.complete(
-        request.GET.get("redirect_flow_id"),
-        params={
-            "session_token": request.session.get("gc_session_id")
-        }
-    )
-
-    models.BECSMandate.sync_mandate(redirect_flow.links.mandate, account)
-
-    if "amount" not in request.session:
-        return redirect("account_details")
-
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_aud = models.ExchangeRate.get_rate('gbp', 'aud') * amount
-    amount_int = int(round(amount_aud * decimal.Decimal(100)))
-
-    payment = gocardless_client.payments.create(params={
-        "amount": amount_int,
-        "currency": "AUD",
-        "description": "Top up",
-        "retry_if_possible": False,
-        "links": {
-            "mandate": redirect_flow.links.mandate
-        }
-    })
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by BECS Direct Debit",
-        amount=amount,
-        type=models.LedgerItem.TYPE_GOCARDLESS,
-        type_id=payment.id,
-        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-    )
-    ledger_item.save()
-
-    return redirect('dashboard')
-
-
-@login_required
-def top_up_new_becs_nz_complete(request):
-    account = request.user.account  # type: models.Account
-
-    redirect_flow = gocardless_client.redirect_flows.complete(
-        request.GET.get("redirect_flow_id"),
-        params={
-            "session_token": request.session.get("gc_session_id")
-        }
-    )
-
-    models.BECSNZMandate.sync_mandate(redirect_flow.links.mandate, account)
-
-    if "amount" not in request.session:
-        return redirect("account_details")
-
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_nzd = models.ExchangeRate.get_rate('gbp', 'nzd') * amount
-    amount_int = int(round(amount_nzd * decimal.Decimal(100)))
-
-    payment = gocardless_client.payments.create(params={
-        "amount": amount_int,
-        "currency": "NZD",
-        "description": "Top up",
-        "retry_if_possible": False,
-        "links": {
-            "mandate": redirect_flow.links.mandate
-        }
-    })
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by BECS NZ Direct Debit",
-        amount=amount,
-        type=models.LedgerItem.TYPE_GOCARDLESS,
-        type_id=payment.id,
-        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-    )
-    ledger_item.save()
-
-    return redirect('dashboard')
-
-
-@login_required
-def top_up_new_betalingsservice_complete(request):
-    account = request.user.account  # type: models.Account
-
-    redirect_flow = gocardless_client.redirect_flows.complete(
-        request.GET.get("redirect_flow_id"),
-        params={
-            "session_token": request.session.get("gc_session_id")
-        }
-    )
-
-    models.BetalingsserviceMandate.sync_mandate(redirect_flow.links.mandate, account)
-
-    if "amount" not in request.session:
-        return redirect("account_details")
-
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_dkk = models.ExchangeRate.get_rate('gbp', 'dkk') * amount
-    amount_int = int(round(amount_dkk * decimal.Decimal(100)))
-
-    payment = gocardless_client.payments.create(params={
-        "amount": amount_int,
-        "currency": "DKK",
-        "description": "Top up",
-        "retry_if_possible": False,
-        "links": {
-            "mandate": redirect_flow.links.mandate
-        }
-    })
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by Betalingsservice",
-        amount=amount,
-        type=models.LedgerItem.TYPE_GOCARDLESS,
-        type_id=payment.id,
-        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-    )
-    ledger_item.save()
-
-    return redirect('dashboard')
-
-
-@login_required
-def top_up_new_pad_complete(request):
-    account = request.user.account  # type: models.Account
-
-    redirect_flow = gocardless_client.redirect_flows.complete(
-        request.GET.get("redirect_flow_id"),
-        params={
-            "session_token": request.session.get("gc_session_id")
-        }
-    )
-
-    models.PADMandate.sync_mandate(redirect_flow.links.mandate, account)
-
-    if "amount" not in request.session:
-        return redirect("account_details")
-
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_cad = models.ExchangeRate.get_rate('gbp', 'cad') * amount
-    amount_int = int(round(amount_cad * decimal.Decimal(100)))
-
-    payment = gocardless_client.payments.create(params={
-        "amount": amount_int,
-        "currency": "CAD",
-        "description": "Top up",
-        "retry_if_possible": False,
-        "links": {
-            "mandate": redirect_flow.links.mandate
-        }
-    })
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by PAD Direct Debit",
-        amount=amount,
-        type=models.LedgerItem.TYPE_GOCARDLESS,
-        type_id=payment.id,
-        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-    )
-    ledger_item.save()
-
-    return redirect('dashboard')
-
-
-@login_required
-def top_up_new_sepa_complete(request):
-    account = request.user.account  # type: models.Account
-
-    redirect_flow = gocardless_client.redirect_flows.complete(
-        request.GET.get("redirect_flow_id"),
-        params={
-            "session_token": request.session.get("gc_session_id")
-        }
-    )
-
-    models.GCSEPAMandate.sync_mandate(redirect_flow.links.mandate, account)
-
-    if "amount" not in request.session:
-        return redirect("account_details")
-
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
-    amount_int = int(round(amount_eur * decimal.Decimal(100)))
-
-    payment = gocardless_client.payments.create(params={
-        "amount": amount_int,
-        "currency": "EUR",
-        "description": "Top up",
-        "retry_if_possible": False,
-        "links": {
-            "mandate": redirect_flow.links.mandate
-        }
-    })
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by SEPA Direct Debit",
-        amount=amount,
-        type=models.LedgerItem.TYPE_GOCARDLESS,
-        type_id=payment.id,
-        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-    )
-    ledger_item.save()
-
-    return redirect('dashboard')
-
-
-@login_required
-def top_up_existing_bacs_direct_debit(request, mandate_id):
-    account = request.user.account
-
-    if "amount" not in request.session:
-        return redirect("top_up")
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_int = int(round(amount * decimal.Decimal(100)))
-
-    gc_mandate = models.GCBACSMandate.objects.filter(id=mandate_id, active=True).first()
-
-    if gc_mandate:
-        if gc_mandate.account != request.user.account:
-            return HttpResponseForbidden()
-
-        payment = gocardless_client.payments.create(params={
-            "amount": amount_int,
-            "currency": "GBP",
-            "description": "Top up",
-            "retry_if_possible": False,
-            "links": {
-                "mandate": gc_mandate.mandate_id
-            }
-        })
-
-        ledger_item = models.LedgerItem(
-            account=account,
-            descriptor="Top-up by BACS Direct Debit",
-            amount=amount,
-            type=models.LedgerItem.TYPE_GOCARDLESS,
-            type_id=payment.id,
-            state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-        )
-        ledger_item.save()
-
-        return redirect('dashboard')
-    else:
-        mandate = get_object_or_404(models.BACSMandate, id=mandate_id, active=True)
-
-        if mandate.account != request.user.account:
-            return HttpResponseForbidden()
-
-        payment_intent = stripe.PaymentIntent.create(
-            payment_method_types=['bacs_debit'],
-            payment_method=mandate.payment_method,
-            customer=account.get_stripe_id(),
-            description='Top-up',
-            confirm=True,
-            amount=amount_int,
-            receipt_email=request.user.email,
-            return_url=request.build_absolute_uri(reverse('dashboard')),
-            currency='gbp',
-        )
-
-        ledger_item = models.LedgerItem(
-            account=account,
-            descriptor="Top-up by BACS Direct Debit",
-            amount=amount,
-            type=models.LedgerItem.TYPE_CARD,
-            type_id=payment_intent['id'],
-            state=models.LedgerItem.STATE_PROCESSING
-        )
-        ledger_item.save()
-
-        return redirect('dashboard')
-
-
-@login_required
-def top_up_existing_ach_direct_debit(request, mandate_id):
-    account = request.user.account
-
-    if "amount" not in request.session:
-        return redirect("top_up")
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_usd = models.ExchangeRate.get_rate('gbp', 'usd') * amount
-    amount_int = int(round(amount_usd * decimal.Decimal(100)))
-
-    mandate = get_object_or_404(models.BACSMandate, id=mandate_id, active=True)
-
-    if mandate.account != request.user.account:
-        return HttpResponseForbidden()
-
-    payment = gocardless_client.payments.create(params={
-        "amount": amount_int,
-        "currency": "USD",
-        "description": "Top up",
-        "retry_if_possible": False,
-        "links": {
-            "mandate": mandate.mandate_id
-        }
-    })
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by ACH Direct Debit",
-        amount=amount,
-        type=models.LedgerItem.TYPE_GOCARDLESS,
-        type_id=payment.id,
-        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-    )
-    ledger_item.save()
-
-    return redirect('dashboard')
-
-
-@login_required
-def top_up_existing_autogiro_direct_debit(request, mandate_id):
-    account = request.user.account
-
-    if "amount" not in request.session:
-        return redirect("top_up")
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_sek = models.ExchangeRate.get_rate('gbp', 'sek') * amount
-    amount_int = int(round(amount_sek * decimal.Decimal(100)))
-
-    mandate = get_object_or_404(models.AutogiroMandate, id=mandate_id, active=True)
-
-    if mandate.account != request.user.account:
-        return HttpResponseForbidden()
-
-    payment = gocardless_client.payments.create(params={
-        "amount": amount_int,
-        "currency": "SEK",
-        "description": "Top up",
-        "retry_if_possible": False,
-        "links": {
-            "mandate": mandate.mandate_id
-        }
-    })
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by Autogiro",
-        amount=amount,
-        type=models.LedgerItem.TYPE_GOCARDLESS,
-        type_id=payment.id,
-        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-    )
-    ledger_item.save()
-
-    return redirect('dashboard')
-
-
-@login_required
-def top_up_existing_becs_direct_debit(request, mandate_id):
-    account = request.user.account
-
-    if "amount" not in request.session:
-        return redirect("top_up")
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_aud = models.ExchangeRate.get_rate('gbp', 'aud') * amount
-    amount_int = int(round(amount_aud * decimal.Decimal(100)))
-
-    mandate = get_object_or_404(models.BECSMandate, id=mandate_id, active=True)
-
-    if mandate.account != request.user.account:
-        return HttpResponseForbidden()
-
-    payment = gocardless_client.payments.create(params={
-        "amount": amount_int,
-        "currency": "AUD",
-        "description": "Top up",
-        "retry_if_possible": False,
-        "links": {
-            "mandate": mandate.mandate_id
-        }
-    })
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by BECS Direct Debit",
-        amount=amount,
-        type=models.LedgerItem.TYPE_GOCARDLESS,
-        type_id=payment.id,
-        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-    )
-    ledger_item.save()
-
-    return redirect('dashboard')
-
-
-@login_required
-def top_up_existing_becs_nz_direct_debit(request, mandate_id):
-    account = request.user.account
-
-    if "amount" not in request.session:
-        return redirect("top_up")
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_nzd = models.ExchangeRate.get_rate('gbp', 'nzd') * amount
-    amount_int = int(round(amount_nzd * decimal.Decimal(100)))
-
-    mandate = get_object_or_404(models.BECSNZMandate, id=mandate_id, active=True)
-
-    if mandate.account != request.user.account:
-        return HttpResponseForbidden()
-
-    payment = gocardless_client.payments.create(params={
-        "amount": amount_int,
-        "currency": "NZD",
-        "description": "Top up",
-        "retry_if_possible": False,
-        "links": {
-            "mandate": mandate.mandate_id
-        }
-    })
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by BECS NZ Direct Debit",
-        amount=amount,
-        type=models.LedgerItem.TYPE_GOCARDLESS,
-        type_id=payment.id,
-        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-    )
-    ledger_item.save()
-
-    return redirect('dashboard')
-
-
-@login_required
-def top_up_existing_betalingsservice_direct_debit(request, mandate_id):
-    account = request.user.account
-
-    if "amount" not in request.session:
-        return redirect("top_up")
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_dkk = models.ExchangeRate.get_rate('gbp', 'dkk') * amount
-    amount_int = int(round(amount_dkk * decimal.Decimal(100)))
-
-    mandate = get_object_or_404(models.BetalingsserviceMandate, id=mandate_id, active=True)
-
-    if mandate.account != request.user.account:
-        return HttpResponseForbidden()
-
-    payment = gocardless_client.payments.create(params={
-        "amount": amount_int,
-        "currency": "DKK",
-        "description": "Top up",
-        "retry_if_possible": False,
-        "links": {
-            "mandate": mandate.mandate_id
-        }
-    })
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by Betalingsservice",
-        amount=amount,
-        type=models.LedgerItem.TYPE_GOCARDLESS,
-        type_id=payment.id,
-        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-    )
-    ledger_item.save()
-
-    return redirect('dashboard')
-
-
-@login_required
-def top_up_existing_pad_direct_debit(request, mandate_id):
-    account = request.user.account
-
-    if "amount" not in request.session:
-        return redirect("top_up")
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_cad = models.ExchangeRate.get_rate('gbp', 'cad') * amount
-    amount_int = int(round(amount_cad * decimal.Decimal(100)))
-
-    mandate = get_object_or_404(models.PADMandate, id=mandate_id, active=True)
-
-    if mandate.account != request.user.account:
-        return HttpResponseForbidden()
-
-    payment = gocardless_client.payments.create(params={
-        "amount": amount_int,
-        "currency": "CAD",
-        "description": "Top up",
-        "retry_if_possible": False,
-        "links": {
-            "mandate": mandate.mandate_id
-        }
-    })
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by PAD Direct Debit",
-        amount=amount,
-        type=models.LedgerItem.TYPE_GOCARDLESS,
-        type_id=payment.id,
-        state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-    )
-    ledger_item.save()
-
-    return redirect('dashboard')
+    amount = ledger_item.amount + (ledger_item.amount * ledger_item.vat_rate)
+    return show_bank_details(request, amount, ledger_item.type_id, currency)
 
 
 @login_required
@@ -1367,453 +1396,31 @@ def complete_top_up_checkout(request, item_id):
     })
 
 
-@login_required
-def top_up_existing_sepa_direct_debit(request, mandate_id):
-    account = request.user.account  # type: models.Account
-
-    if "amount" not in request.session:
-        return redirect("top_up")
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
-    amount_int = int(round(amount_eur * decimal.Decimal(100)))
-
-    gc_mandate = models.GCSEPAMandate.objects.filter(id=mandate_id, active=True).first()
-
-    if gc_mandate:
-        if gc_mandate.account != request.user.account:
-            return HttpResponseForbidden()
-
-        payment = gocardless_client.payments.create(params={
-            "amount": amount_int,
-            "currency": "EUR",
-            "description": "Top up",
-            "retry_if_possible": False,
-            "links": {
-                "mandate": gc_mandate.mandate_id
-            }
-        })
-
-        ledger_item = models.LedgerItem(
-            account=account,
-            descriptor="Top-up by SEPA Direct Debit",
-            amount=amount,
-            type=models.LedgerItem.TYPE_GOCARDLESS,
-            type_id=payment.id,
-            state=models.LedgerItem.STATE_PROCESSING_CANCELLABLE,
-        )
-        ledger_item.save()
-
-        return redirect('dashboard')
-    else:
-        mandate = get_object_or_404(models.SEPAMandate, id=mandate_id, active=True)
-
-        if mandate.account != request.user.account:
-            return HttpResponseForbidden()
-
-        payment_intent = stripe.PaymentIntent.create(
-            payment_method_types=['sepa_debit'],
-            payment_method=mandate.payment_method,
-            customer=account.get_stripe_id(),
-            description='Top-up',
-            confirm=True,
-            amount=amount_int,
-            receipt_email=request.user.email,
-            currency='eur',
-        )
-
-        ledger_item = models.LedgerItem(
-            account=account,
-            descriptor="Top-up by SEPA Direct Debit",
-            amount=amount,
-            type=models.LedgerItem.TYPE_SEPA,
-            type_id=payment_intent['id'],
-            state=models.LedgerItem.STATE_PROCESSING
-        )
-        ledger_item.save()
-
-        return redirect('dashboard')
-
-
-@login_required
-def complete_top_up_sepa_direct_debit(request, item_id):
-    ledger_item = get_object_or_404(models.LedgerItem, id=item_id)
-
-    if ledger_item.account != request.user.account:
-        return HttpResponseForbidden
-
-    if ledger_item.state != ledger_item.STATE_PENDING:
-        return redirect('dashboard')
-
-    if ledger_item.type != ledger_item.TYPE_SEPA:
-        return HttpResponseBadRequest
-
-    payment_intent = stripe.PaymentIntent.retrieve(ledger_item.type_id)
-
-    if payment_intent["status"] == "succeeded":
-        ledger_item.state = ledger_item.STATE_COMPLETED
-        ledger_item.save()
-        return redirect('dashboard')
-
-    return render(request, "billing/top_up_sepa_direct_debit.html", {
-        "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
-        "client_secret": payment_intent["client_secret"],
-        "is_new": True
-    })
-
-
-@login_required
-def top_up_sofort(request):
-    account = request.user.account
-
-    if request.method == "POST":
-        form = forms.SOFORTForm(request.POST)
-        if form.is_valid():
-            if "amount" not in request.session:
-                return redirect("top_up")
-            amount = decimal.Decimal(request.session.pop("amount"))
-
-            redirect_uri = reverse('dashboard')
-
-            amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
-            amount_int = int(round(amount_eur * decimal.Decimal(100)))
-            payment_intent = stripe.PaymentIntent.create(
-                confirm=True,
-                amount=amount_int,
-                currency="eur",
-                payment_method_types=["sofort"],
-                payment_method_data={
-                    "type": "sofort",
-                    "billing_details": {
-                        "email": request.user.email,
-                        "name": f"{request.user.first_name} {request.user.last_name}"
-                    },
-                    "sofort": {
-                        "country": form.cleaned_data['account_country'],
-                    }
-                },
-                return_url=request.build_absolute_uri(redirect_uri),
-                customer=account.get_stripe_id(),
-                description='Top-up',
-                setup_future_usage="off_session",
-                mandate_data={
-                    "customer_acceptance": {
-                        "type": "online",
-                        "online": {
-                            "ip_address": str(utils.get_ip(request)),
-                            "user_agent": request.META["HTTP_USER_AGENT"]
-                        }
-                    }
-                }
-            )
-
-            ledger_item = models.LedgerItem(
-                account=account,
-                descriptor="Top-up by SOFORT",
-                amount=amount,
-                type=models.LedgerItem.TYPE_SOFORT,
-                type_id=payment_intent['id']
-            )
-            ledger_item.save()
-            tasks.update_from_payment_intent(payment_intent, ledger_item)
-
-            if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
-                return redirect(payment_intent["next_action"]["redirect_to_url"]["url"])
-
-            return redirect(redirect_uri)
-
-    return render(request, "billing/top_up_sofort.html")
-
-
-@login_required
-def top_up_giropay(request):
-    account = request.user.account
-
-    if "amount" not in request.session:
-        return redirect("top_up")
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
-    amount_int = int(round(amount_eur * decimal.Decimal(100)))
-
-    redirect_uri = reverse('dashboard')
-
-    payment_intent = stripe.PaymentIntent.create(
-        confirm=True,
-        amount=amount_int,
-        currency="eur",
-        payment_method_types=["giropay"],
-        payment_method_data={
-            "type": "giropay",
-            "billing_details": {
-                "email": request.user.email,
-                "name": f"{request.user.first_name} {request.user.last_name}"
-            },
-        },
-        return_url=request.build_absolute_uri(redirect_uri),
-        customer=account.get_stripe_id(),
-        description='Top-up',
-    )
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by GIROPAY",
-        amount=amount,
-        type=models.LedgerItem.TYPE_GIROPAY,
-        type_id=payment_intent['id']
-    )
-    ledger_item.save()
-    tasks.update_from_payment_intent(payment_intent, ledger_item)
-
-    if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
-        return redirect(payment_intent["next_action"]["redirect_to_url"]["url"])
-
-    return redirect(redirect_uri)
-
-
-@login_required
-def top_up_bancontact(request):
-    account = request.user.account
-
-    if request.method == "POST" and request.POST.get("accept") == "true":
-        if "amount" not in request.session:
-            return redirect("top_up")
-        amount = decimal.Decimal(request.session.pop("amount"))
-        amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
-        amount_int = int(round(amount_eur * decimal.Decimal(100)))
-
-        redirect_uri = reverse('dashboard')
-
-        payment_intent = stripe.PaymentIntent.create(
-            confirm=True,
-            amount=amount_int,
-            currency="eur",
-            payment_method_types=["bancontact"],
-            payment_method_data={
-                "type": "bancontact",
-                "billing_details": {
-                    "email": request.user.email,
-                    "name": f"{request.user.first_name} {request.user.last_name}"
-                },
-            },
-            return_url=request.build_absolute_uri(redirect_uri),
-            customer=account.get_stripe_id(),
-            description='Top-up',
-            setup_future_usage="off_session",
-            mandate_data={
-                "customer_acceptance": {
-                    "type": "online",
-                    "online": {
-                        "ip_address": str(utils.get_ip(request)),
-                        "user_agent": request.META["HTTP_USER_AGENT"]
-                    }
-                }
-            }
-        )
-
-        ledger_item = models.LedgerItem(
-            account=account,
-            descriptor="Top-up by Bancontact",
-            amount=amount,
-            type=models.LedgerItem.TYPE_BANCONTACT,
-            type_id=payment_intent['id']
-        )
-        ledger_item.save()
-        tasks.update_from_payment_intent(payment_intent, ledger_item)
-
-        if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
-            return redirect(payment_intent["next_action"]["redirect_to_url"]["url"])
-
-        return redirect(redirect_uri)
-
-    return render(request, "billing/top_up_mandate.html", {
-        "scheme": "Bancontact"
-    })
-
-
-@login_required
-def top_up_eps(request):
-    account = request.user.account
-
-    if "amount" not in request.session:
-        return redirect("top_up")
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
-    amount_int = int(round(amount_eur * decimal.Decimal(100)))
-
-    redirect_uri = reverse('dashboard')
-
-    payment_intent = stripe.PaymentIntent.create(
-        confirm=True,
-        amount=amount_int,
-        currency="eur",
-        payment_method_types=["eps"],
-        payment_method_data={
-            "type": "eps",
-            "billing_details": {
-                "email": request.user.email,
-                "name": f"{request.user.first_name} {request.user.last_name}"
-            },
-        },
-        return_url=request.build_absolute_uri(redirect_uri),
-        customer=account.get_stripe_id(),
-        description='Top-up',
-    )
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by EPS",
-        amount=amount,
-        type=models.LedgerItem.TYPE_EPS,
-        type_id=payment_intent['id']
-    )
-    ledger_item.save()
-    tasks.update_from_payment_intent(payment_intent, ledger_item)
-
-    if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
-        return redirect(payment_intent["next_action"]["redirect_to_url"]["url"])
-
-    return redirect(redirect_uri)
-
-
-@login_required
-def top_up_ideal(request):
-    account = request.user.account
-
-    if request.method == "POST" and request.POST.get("accept") == "true":
-        if "amount" not in request.session:
-            return redirect("top_up")
-        amount = decimal.Decimal(request.session.pop("amount"))
-        amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
-        amount_int = int(round(amount_eur * decimal.Decimal(100)))
-
-        redirect_uri = reverse('dashboard')
-
-        payment_intent = stripe.PaymentIntent.create(
-            confirm=True,
-            amount=amount_int,
-            currency="eur",
-            payment_method_types=["ideal"],
-            payment_method_data={
-                "type": "ideal",
-                "billing_details": {
-                    "email": request.user.email,
-                    "name": f"{request.user.first_name} {request.user.last_name}"
-                },
-            },
-            return_url=request.build_absolute_uri(redirect_uri),
-            customer=account.get_stripe_id(),
-            description='Top-up',
-            setup_future_usage="off_session",
-            mandate_data={
-                "customer_acceptance": {
-                    "type": "online",
-                    "online": {
-                        "ip_address": str(utils.get_ip(request)),
-                        "user_agent": request.META["HTTP_USER_AGENT"]
-                    }
-                }
-            }
-        )
-
-        ledger_item = models.LedgerItem(
-            account=account,
-            descriptor="Top-up by iDEAL",
-            amount=amount,
-            type=models.LedgerItem.TYPE_IDEAL,
-            type_id=payment_intent['id']
-        )
-        ledger_item.save()
-        tasks.update_from_payment_intent(payment_intent, ledger_item)
-
-        if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
-            return redirect(payment_intent["next_action"]["redirect_to_url"]["url"])
-
-        return redirect(redirect_uri)
-
-    return render(request, "billing/top_up_mandate.html", {
-        "scheme": "iDEAL"
-    })
-
-
-@login_required
-def top_up_multibanco(request):
-    account = request.user.account
-
-    if "amount" not in request.session:
-        return redirect("top_up")
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
-    amount_int = int(round(amount_eur * decimal.Decimal(100)))
-    source = stripe.Source.create(
-        type='multibanco',
-        amount=amount_int,
-        currency='eur',
-        owner={
-            "email": request.user.email,
-            "name": f"{request.user.first_name} {request.user.last_name}"
-        },
-        redirect={
-            "return_url": request.build_absolute_uri(reverse('dashboard')),
-        },
-        statement_descriptor="AS207960 Top-up"
-    )
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by Multibanco",
-        amount=amount,
-        type=models.LedgerItem.TYPE_SOURCES,
-        type_id=source['id']
-    )
-    ledger_item.save()
-    tasks.update_from_source(source, ledger_item)
-
-    return redirect(source["redirect"]["url"])
-
-
-@login_required
-def top_up_p24(request):
-    account = request.user.account
-
-    if "amount" not in request.session:
-        return redirect("top_up")
-    amount = decimal.Decimal(request.session.pop("amount"))
-    amount_eur = models.ExchangeRate.get_rate('gbp', 'eur') * amount
-    amount_int = int(round(amount_eur * decimal.Decimal(100)))
-
-    redirect_uri = reverse('dashboard')
-
-    payment_intent = stripe.PaymentIntent.create(
-        confirm=True,
-        amount=amount_int,
-        currency="eur",
-        payment_method_types=["p24"],
-        payment_method_data={
-            "type": "p24",
-            "billing_details": {
-                "email": request.user.email,
-                "name": f"{request.user.first_name} {request.user.last_name}"
-            },
-        },
-        return_url=request.build_absolute_uri(redirect_uri),
-        customer=account.get_stripe_id(),
-        description='Top-up',
-    )
-
-    ledger_item = models.LedgerItem(
-        account=account,
-        descriptor="Top-up by Przelewy24",
-        amount=amount,
-        type=models.LedgerItem.TYPE_P24,
-        type_id=payment_intent['id']
-    )
-    ledger_item.save()
-    tasks.update_from_payment_intent(payment_intent, ledger_item)
-
-    if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
-        return redirect(payment_intent["next_action"]["redirect_to_url"]["url"])
-
-    return redirect(redirect_uri)
-
+# @login_required
+# def complete_top_up_sepa_direct_debit(request, item_id):
+#     ledger_item = get_object_or_404(models.LedgerItem, id=item_id)
+#
+#     if ledger_item.account != request.user.account:
+#         return HttpResponseForbidden
+#
+#     if ledger_item.state != ledger_item.STATE_PENDING:
+#         return redirect('dashboard')
+#
+#     if ledger_item.type != ledger_item.TYPE_SEPA:
+#         return HttpResponseBadRequest
+#
+#     payment_intent = stripe.PaymentIntent.retrieve(ledger_item.type_id)
+#
+#     if payment_intent["status"] == "succeeded":
+#         ledger_item.state = ledger_item.STATE_COMPLETED
+#         ledger_item.save()
+#         return redirect('dashboard')
+#
+#     return render(request, "billing/top_up_sepa_direct_debit.html", {
+#         "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
+#         "client_secret": payment_intent["client_secret"],
+#         "is_new": True
+#     })
 
 @login_required
 def complete_top_up_sources(request, item_id):
@@ -1822,15 +1429,30 @@ def complete_top_up_sources(request, item_id):
     if ledger_item.account != request.user.account:
         return HttpResponseForbidden
 
+    try:
+        charge_state = ledger_item.charge_state_payment
+    except django.core.exceptions.ObjectDoesNotExist:
+        charge_state = None
+
+    source = stripe.Source.retrieve(ledger_item.type_id)
+    tasks.update_from_source(source, ledger_item)
+
     if ledger_item.state != ledger_item.STATE_PENDING:
+        if charge_state:
+            return redirect('complete_order', charge_state.id)
+
         return redirect('dashboard')
 
     if ledger_item.type != ledger_item.TYPE_SOURCES:
         return HttpResponseBadRequest
 
-    source = stripe.Source.retrieve(ledger_item.type_id)
-
     if source["status"] != "pending":
+        if charge_state:
+            return redirect('complete_order', charge_state.id)
+
         return redirect('dashboard')
 
     return redirect(source["redirect"]["url"])
+
+
+

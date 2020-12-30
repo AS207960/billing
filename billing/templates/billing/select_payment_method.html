@@ -1,0 +1,759 @@
+{% load mathfilters %}
+{% load crispy_forms_tags %}
+{% load static %}
+<div class="row justify-content-center">
+    {% if needs_payment %}
+    <div class="col-md-8">
+        {% if taxable %}
+            <div class="alert alert-info">
+                To charge you the appropriate sales tax we need two pieces on non contradictory evidence about your
+                country of tax residency. Your billing address and the country of your payment method must match to
+                allow this.
+                We're only showing payment methods that match.
+            </div>
+        {% endif %}
+        <h3>Saved cards &#x1f4b3;</h3>
+        <div class="table-responsive table-striped table-hover table-striped">
+            <table class="table">
+                <thead class="thead-dark">
+                <tr>
+                    <th>Billing name</th>
+                    <th>Brand</th>
+                    <th>Last 4 digits</th>
+                    <th>Expiry</th>
+                    <th>Country</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                {% if cards %}
+                    {% for card in cards %}
+                        <tr>
+                            <td>
+                                {{ card.billing_details.name }}
+                            </td>
+                            <td>{{ card.card.brand|upper }}</td>
+                            <td>**** **** **** {{ card.card.last4 }}</td>
+                            <td>{{ card.card.exp_month|stringformat:"02d" }} / {{ card.card.exp_year }}</td>
+                            <td>
+                                {{ card.card.country_emoji }}
+                                {{ card.card.country }}
+                            </td>
+                            <td>
+                                {% if selected_payment_method_type == "stripe_pm" and selected_payment_method_id == card.id %}
+                                    <span class="badge badge-pill badge-success">Selected</span>
+                                {% else %}
+                                    <form action="" method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="set_payment_method">
+                                        <input type="hidden" name="type" value="stripe_pm">
+                                        <button type="submit" class="btn btn-primary btn-sm" name="id"
+                                                value="{{ card.id }}">
+                                            Select
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6">No available cards</td>
+                    </tr>
+                {% endif %}
+                <tr>
+                    <td colspan="6" class="text-center">
+                        <a href="{% url 'add_card' %}?return_uri={{ request.path }}"
+                           class="btn btn-success btn-sm">
+                            &#x1f195; Add new card &#x1f195;
+                        </a>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <hr>
+        {% if ach_mandates %}
+            <h3>ACH Direct Debit Mandates &#x1f4b5;</h3>
+            <h4>&#x1f1fa;&#x1f1f8; United States</h4>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-dark">
+                    <tr>
+                        <th>Account number</th>
+                        <th>Account type</th>
+                        <th>Bank</th>
+                        <th>Reference</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for mandate in ach_mandates %}
+                        <tr>
+                            <td>****{{ mandate.last4 }}</td>
+                            <td>{% if mandate.account_type == "checking" %}
+                                Checking{% elif mandate.account_type == "savings" %}Savings{% endif %}</td>
+                            <td>{{ mandate.bank }}</td>
+                            <td>{{ mandate.ref }}</td>
+                            <td>
+                                {% if mandate.selected %}
+                                    <span class="badge badge-pill badge-success">Selected</span>
+                                {% else %}
+                                    <form action="" method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="set_payment_method">
+                                        <input type="hidden" name="type" value="ach_mandate_{{ mandate.type }}">
+                                        <button type="submit" class="btn btn-primary btn-sm" name="id"
+                                                value="{{ mandate.id }}">
+                                            Select
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <hr>
+        {% endif %}
+        {% if autogiro_mandates %}
+            <h2>Autogiro Mandates &#x1f3e6;</h2>
+            <h3>&#x1f1f8;&#x1f1ea; Sweden</h3>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-dark">
+                    <tr>
+                        <th>Account number</th>
+                        <th>Bank</th>
+                        <th>Reference</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for mandate in autogiro_mandates %}
+                        <tr>
+                            <td>****{{ mandate.last4 }}</td>
+                            <td>{{ mandate.bank }}</td>
+                            <td>{{ mandate.ref }}</td>
+                            <td>
+                                {% if mandate.selected %}
+                                    <span class="badge badge-pill badge-success">Selected</span>
+                                {% else %}
+                                    <form action="" method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="set_payment_method">
+                                        <input type="hidden" name="type"
+                                               value="autogiro_mandate_{{ mandate.type }}">
+                                        <button type="submit" class="btn btn-primary btn-sm" name="id"
+                                                value="{{ mandate.id }}">
+                                            Select
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <hr>
+        {% endif %}
+        {% if bacs_mandates %}
+            <h2>BACS Direct Debit Mandates &#x1f3e6;</h2>
+            <h3>&#x1f1ec;&#x1f1e7; United Kingdom</h3>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-dark">
+                    <tr>
+                        <th>Account number</th>
+                        <th>Bank</th>
+                        <th>Reference</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for mandate in bacs_mandates %}
+                        <tr>
+                            <td>****{{ mandate.last4 }}</td>
+                            <td>{{ mandate.bank }}</td>
+                            <td>{{ mandate.ref }}</td>
+                            <td>
+                                {% if mandate.selected %}
+                                    <span class="badge badge-pill badge-success">Selected</span>
+                                {% else %}
+                                    <form action="" method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="set_payment_method">
+                                        <input type="hidden" name="type"
+                                               value="bacs_mandate_{{ mandate.type }}">
+                                        <button type="submit" class="btn btn-primary btn-sm" name="id"
+                                                value="{{ mandate.id }}">
+                                            Select
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <hr>
+        {% endif %}
+        {% if becs_mandates %}
+            <h2>BECS Direct Debit Mandates &#x1f3e6;</h2>
+            <h3>&#x1f1e6;&#x1f1fa; Australia</h3>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-dark">
+                    <tr>
+                        <th>Account number</th>
+                        <th>Bank</th>
+                        <th>Reference</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for mandate in becs_mandates %}
+                        <tr>
+                            <td>****{{ mandate.last4 }}</td>
+                            <td>{{ mandate.bank }}</td>
+                            <td>{{ mandate.ref }}</td>
+                            <td>
+                                {% if mandate.selected %}
+                                    <span class="badge badge-pill badge-success">Selected</span>
+                                {% else %}
+                                    <form action="" method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="set_payment_method">
+                                        <input type="hidden" name="type"
+                                               value="becs_mandate_{{ mandate.type }}">
+                                        <button type="submit" class="btn btn-primary btn-sm" name="id"
+                                                value="{{ mandate.id }}">
+                                            Select
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <hr>
+        {% endif %}
+        {% if becs_nz_mandates %}
+            <h2>BECS NZ Direct Debit Mandates &#x1f3e6;</h2>
+            <h3>&#x1f1f3;&#x1f1ff; New Zealand</h3>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-dark">
+                    <tr>
+                        <th>Account number</th>
+                        <th>Bank</th>
+                        <th>Reference</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for mandate in becs_nz_mandates %}
+                        <tr>
+                            <td>****{{ mandate.last4 }}</td>
+                            <td>{{ mandate.bank }}</td>
+                            <td>{{ mandate.ref }}</td>
+                            <td>
+                                {% if mandate.selected %}
+                                    <span class="badge badge-pill badge-success">Selected</span>
+                                {% else %}
+                                    <form action="" method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="set_payment_method">
+                                        <input type="hidden" name="type"
+                                               value="becs_nz_mandate_{{ mandate.type }}">
+                                        <button type="submit" class="btn btn-primary btn-sm" name="id"
+                                                value="{{ mandate.id }}">
+                                            Select
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <hr>
+        {% endif %}
+        {% if betalingsservice_mandates %}
+            <h2>Betalingsservice Mandates &#x1f3e6;</h2>
+            <h3>&#x1f1e9;&#x1f1f0; Denmark</h3>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-dark">
+                    <tr>
+                        <th>Account number</th>
+                        <th>Bank</th>
+                        <th>Reference</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for mandate in betalingsservice_mandates %}
+                        <tr>
+                            <td>****{{ mandate.last4 }}</td>
+                            <td>{{ mandate.bank }}</td>
+                            <td>{{ mandate.ref }}</td>
+                            <td>
+                                {% if mandate.selected %}
+                                    <span class="badge badge-pill badge-success">Selected</span>
+                                {% else %}
+                                    <form action="" method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="set_payment_method">
+                                        <input type="hidden" name="type"
+                                               value="betalingsservice_mandate_{{ mandate.type }}">
+                                        <button type="submit" class="btn btn-primary btn-sm" name="id"
+                                                value="{{ mandate.id }}">
+                                            Select
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <hr>
+        {% endif %}
+        {% if pad_mandates %}
+            <h2>PAD Direct Debit Mandates &#x1f3e6;</h2>
+            <h3>&#x1f1e8;&#x1f1e6; Canada</h3>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-dark">
+                    <tr>
+                        <th>Account number</th>
+                        <th>Bank</th>
+                        <th>Reference</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for mandate in pad_mandates %}
+                        <tr>
+                            <td>****{{ mandate.last4 }}</td>
+                            <td>{{ mandate.bank }}</td>
+                            <td>{{ mandate.ref }}</td>
+                            <td>
+                                {% if mandate.selected %}
+                                    <span class="badge badge-pill badge-success">Selected</span>
+                                {% else %}
+                                    <form action="" method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="set_payment_method">
+                                        <input type="hidden" name="type" value="pad_mandate_{{ mandate.type }}">
+                                        <button type="submit" class="btn btn-primary btn-sm" name="id"
+                                                value="{{ mandate.id }}">
+                                            Select
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <hr>
+        {% endif %}
+        {% if sepa_mandates %}
+            <h2>SEPA Direct Debit Mandates &#x1f3e6;</h2>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-dark">
+                    <tr>
+                        <th>Account country</th>
+                        <th>Account number</th>
+                        <th>Bank</th>
+                        <th>Reference</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for mandate in sepa_mandates %}
+                        <tr>
+                            <td>{{ mandate.cc_emoji }} {{ mandate.cc }}</td>
+                            <td>****{{ mandate.last4 }}</td>
+                            <td>{{ mandate.bank }}</td>
+                            <td>{{ mandate.ref }}</td>
+                            <td>
+                                {% if mandate.selected %}
+                                    <span class="badge badge-pill badge-success">Selected</span>
+                                {% else %}
+                                    <form action="" method="post">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="set_payment_method">
+                                        <input type="hidden" name="type"
+                                               value="sepa_mandate_{{ mandate.type }}">
+                                        <button type="submit" class="btn btn-primary btn-sm" name="id"
+                                                value="{{ mandate.id }}">
+                                            Select
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <hr>
+        {% endif %}
+        <h2>Pay with a new method</h2>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
+            <div class="col mb-4 d-flex">
+                <div class="card flex-grow-1{% if selected_payment_method_type == "bank_transfer" %} border-success{% endif %}">
+                    <div class="card-header text-center">
+                        &#x1f5fa;&#xfe0f; Global
+                    </div>
+                    <div class="card-body d-flex flex-column align-items-center text-center">
+                        <h3 class="display-4">&#x1f3e6;</h3>
+                        <h5 class="card-title">Bank transfer / Direct Debit</h5>
+                        {% if selected_payment_method_type == "bank_transfer" %}
+                            <h4 class="mt-0">
+                                <span class="badge badge-pill badge-success">Selected</span>
+                            </h4>
+                            <a href="{% url 'top_up_bank_transfer' %}"
+                               class="btn btn-info align-self-stretch">Change</a>
+                        {% else %}
+                            <a href="{% url 'top_up_bank_transfer' %}"
+                               class="btn btn-primary align-self-stretch">Select</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% if country == "at" or country == "be" or country == "de" or country == "it" or country == "nl" or country == "es" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card flex-grow-1{% if selected_payment_method_type == "sofort" %} border-success{% endif %}">
+                        <div class="card-header text-center">
+                            &#x1f1ea;&#x1f1fa; EU
+                        </div>
+                        <div class="card-body d-flex flex-column align-items-center">
+                            <img src="{% static 'billing/imgs/sofort.svg' %}" alt="SOFORT" class="mb-3 mw-100"
+                                 style="flex-grow: 1">
+                            {% if selected_payment_method_type == "sofort" %}
+                                <h4 class="my-0">
+                                    <span class="badge badge-pill badge-success">Selected</span>
+                                </h4>
+                            {% else %}
+                                <form action="" method="post" class="align-self-stretch">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="set_payment_method">
+                                    <button type="submit" class="btn btn-primary btn-block" name="type"
+                                            value="sofort">
+                                        Select
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            {% if country == "de" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card flex-grow-1{% if selected_payment_method_type == "giropay" %} border-success{% endif %}">
+                        <div class="card-header text-center">
+                            &#x1f1e9;&#x1f1ea; Germany
+                        </div>
+                        <div class="card-body d-flex flex-column align-items-center">
+                            <img src="{% static 'billing/imgs/giropay.svg' %}" alt="giropay" class="mb-3 mw-100"
+                                 style="flex-grow: 1">
+                            {% if selected_payment_method_type == "giropay" %}
+                                <h4 class="my-0"><span class="badge badge-pill badge-success">Selected</span>
+                                </h4>
+                            {% else %}
+                                <form action="" method="post" class="align-self-stretch">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="set_payment_method">
+                                    <button type="submit" class="btn btn-primary btn-block" name="type"
+                                            value="giropay">
+                                        Select
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            {% if country == "be" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card flex-grow-1{% if selected_payment_method_type == "bancontact" %} border-success{% endif %}">
+                        <div class="card-header text-center">
+                            &#x1f1e7;&#x1f1ea; Belgium
+                        </div>
+                        <div class="card-body d-flex flex-column align-items-center">
+                            <img src="{% static 'billing/imgs/bancontact.svg' %}" alt="Bancontact"
+                                 class="mb-3 mw-100"
+                                 style="flex-grow: 1">
+                            {% if selected_payment_method_type == "bancontact" %}
+                                <h4 class="my-0"><span class="badge badge-pill badge-success">Selected</span>
+                                </h4>
+                            {% else %}
+                                <form action="" method="post" class="align-self-stretch">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="set_payment_method">
+                                    <button type="submit" class="btn btn-primary btn-block" name="type"
+                                            value="bancontact">
+                                        Select
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            {% if country == "at" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card flex-grow-1{% if selected_payment_method_type == "eps" %} border-success{% endif %}">
+                        <div class="card-header text-center">
+                            &#x1f1e6;&#x1f1f9; Austria
+                        </div>
+                        <div class="card-body d-flex flex-column align-items-center">
+                            <img src="{% static 'billing/imgs/giropay-eps.svg' %}" alt="EPS" class="mb-3 mw-100"
+                                 style="flex-grow: 1">
+                            {% if selected_payment_method_type == "eps" %}
+                                <h4 class="my-0"><span class="badge badge-pill badge-success">Selected</span>
+                                </h4>
+                            {% else %}
+                                <form action="" method="post" class="align-self-stretch">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="set_payment_method">
+                                    <button type="submit" class="btn btn-primary btn-block" name="type"
+                                            value="eps">
+                                        Select
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            {% if country == "nl" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card flex-grow-1{% if selected_payment_method_type == "ideal" %} border-success{% endif %}">
+                        <div class="card-header text-center">
+                            &#x1f1f3;&#x1f1f1; Netherlands
+                        </div>
+                        <div class="card-body d-flex flex-column align-items-center">
+                            <img src="{% static 'billing/imgs/ideal.svg' %}" alt="iDEAL" class="mb-3 mw-100"
+                                 style="flex-grow: 1">
+                            {% if selected_payment_method_type == "ideal" %}
+                                <h4 class="my-0"><span class="badge badge-pill badge-success">Selected</span>
+                                </h4>
+                            {% else %}
+                                <form action="" method="post" class="align-self-stretch">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="set_payment_method">
+                                    <button type="submit" class="btn btn-primary btn-block" name="type"
+                                            value="ideal">
+                                        Select
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            {% if country == "pl" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card flex-grow-1{% if selected_payment_method_type == "p24" %} border-success{% endif %}">
+                        <div class="card-header text-center">
+                            &#x1f1f5;&#x1f1f1; Poland
+                        </div>
+                        <div class="card-body d-flex flex-column align-items-center">
+                            <img src="{% static 'billing/imgs/przelewy-24.svg' %}" alt="Multibanco" class="mb-3"
+                                 style="flex-grow: 1; max-width: 100px;">
+                            {% if selected_payment_method_type == "p24" %}
+                                <h4 class="my-0"><span class="badge badge-pill badge-success">Selected</span>
+                                </h4>
+                            {% else %}
+                                <form action="" method="post" class="align-self-stretch">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="set_payment_method">
+                                    <button type="submit" class="btn btn-primary btn-block" name="type"
+                                            value="p24">
+                                        Select
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            {% if country == "pt" or not taxable %}
+                <div class="col mb-4 d-flex">
+                    <div class="card flex-grow-1{% if selected_payment_method_type == "multibanco" %} border-success{% endif %}">
+                        <div class="card-header text-center">
+                            &#x1f1f5;&#x1f1f9; Portugal
+                        </div>
+                        <div class="card-body d-flex flex-column align-items-center">
+                            <img src="{% static 'billing/imgs/multibanco.svg' %}" alt="Multibanco" class="mb-3"
+                                 style="flex-grow: 1; max-width: 100px">
+                            {% if selected_payment_method_type == "multibanco" %}
+                                <h4 class="my-0"><span class="badge badge-pill badge-success">Selected</span>
+                                </h4>
+                            {% else %}
+                                <form action="" method="post" class="align-self-stretch">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="set_payment_method">
+                                    <button type="submit" class="btn btn-primary btn-block" name="type"
+                                            value="multibanco">
+                                        Select
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-md-4">
+    {% else %}
+    <div class="col-md-6">
+    {% endif %}
+        <h2>Order details</h2>
+        {% if top_up %}
+            <form action="" method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="amount">Amount (GBP)</label>
+                    <div class="input-group mb-3">
+                        <input type="number" name="amount" min="2" step="0.01" class="form-control" required=""
+                               id="amount" value="{{ charge_amount|floatformat:2 }}">
+                        <div class="input-group-append">
+                            <button type="submit" name="action" value="set_amount"
+                                    class="btn btn-secondary btn-sm">
+                                Update
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        {% endif %}
+        <table class="table table-borderless">
+            <tbody>
+            <tr>
+                <th scope="row" class="font-weight-normal">{{ charge_descriptor }}</th>
+                <td>&pound;{{ charge_amount|floatformat:2 }}</td>
+            </tr>
+            {% if from_account_balance %}
+                <tr>
+                    <th scope="row" class="font-weight-normal">From account balance</th>
+                    <td>&pound;{{ from_account_balance|floatformat:2 }}</td>
+                </tr>
+            {% endif %}
+            {% if left_to_be_paid %}
+                    <tr class="border-top">
+                        <th scope="row">Left to be paid</th>
+                        <td>&pound;{{ left_to_be_paid|floatformat:2 }}</td>
+                    </tr>
+            {% endif %}
+            {% if has_vat %}
+                <tr>
+                    <th scope="row" class="font-weight-normal">VAT @ {{ vat_rate|mul:100|floatformat:2 }}%</th>
+                    <td>&pound;{{ vat_charged|floatformat:2 }}</td>
+                </tr>
+            {% endif %}
+            <tr class="border-top">
+                <th scope="row">To be paid</th>
+                <td>&pound;{{ charged_amount|floatformat:2 }}</td>
+            </tr>
+            </tbody>
+        </table>
+        {% if needs_payment %}
+            {% if billing_country_name %}
+                {% if has_vat %}
+                    <p>We're charging you taxes applicable in {{ billing_country_name }}.</p>
+                {% else %}
+                    {% if taxable %}
+                        <p>
+                            We're not charging you taxes as this is not applicable to our customers
+                            in {{ billing_country_name }}.
+                        </p>
+                    {% else %}
+                        <p>
+                            We're not charging you tax as you've provided information to prove you're not taxable.
+                        </p>
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+
+            {% if available_currencies|length > 1 %}
+                <form action="" method="post">
+                    {% csrf_token %}
+                    <label for="select-currency">Charge me in:</label> <br/>
+                    <div class="input-group mb-3">
+                        <select name="currency" class="custom-select" id="select-currency">
+                            {% for currency in available_currencies %}
+                                <option value="{{ currency.0 }}"
+                                        {% if currency.0 == selected_currency %}selected{% endif %}>{{ currency.1 }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="input-group-append">
+                            <button type="submit" name="action" value="set_currency"
+                                    class="btn btn-secondary btn-sm">
+                                Update
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            {% endif %}
+
+            {% if to_be_charged %}
+                <p>You will be charged: {{ to_be_charged|floatformat:2 }} {{ selected_currency|upper }}</p>
+            {% endif %}
+
+            {% if not selected_payment_method_type %}
+                <div class="alert alert-warning">
+                    Please select a payment method.
+                </div>
+            {% endif %}
+        {% endif %}
+
+        {% if can_charge %}
+            <form action="" method="post">
+                {% csrf_token %}
+                <button class="btn btn-success btn-lg btn-block" name="action" value="pay">
+                    Order with obligation to pay
+                </button>
+            </form>
+        {% else %}
+            <button class="btn btn-success btn-lg btn-block" disabled>
+                Order with obligation to pay
+            </button>
+        {% endif %}
+
+        <form action="" method="post" class="mt-3">
+            {% csrf_token %}
+            <button class="btn btn-danger btn-block" name="action" value="cancel">
+                Cancel
+            </button>
+        </form>
+
+        {% if mandate_acceptance %}
+            <p class="small mt-3 text-muted">
+                By providing your payment information and confirming this payment, you authorise AS207960
+                Cyfyngedig and Stripe, our payment service provider, to send instructions to your bank to debit
+                your account and your bank to debit your account in accordance with those instructions. As part
+                of your rights, you are entitled to a refund from your bank under the terms and conditions of
+                your agreement with your bank. A refund must be claimed within 8 weeks starting from the date on
+                which your account was debited. Your rights are explained in a statement that you can obtain
+                from your bank. You agree to receive notifications for future debits up to 2 days before they
+                occur.
+            </p>
+        {% endif %}
+    </div>
+</div>
