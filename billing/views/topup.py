@@ -901,6 +901,7 @@ def handle_payment(
                 "last4": payment_method["bacs_debit"]["last4"],
                 "bank": payment_method["bacs_debit"]["sort_code"],
                 "ref": mandate["payment_method_details"]["bacs_debit"]["reference"],
+                "selected": selected_payment_method_type == "bacs_mandate_stripe" and selected_payment_method_id == m.id
             }
 
         def map_ach_mandate(m):
