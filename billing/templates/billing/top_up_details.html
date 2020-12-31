@@ -23,6 +23,7 @@
                 {% if ledger_item.evidence_billing_address %}
                     Billed to:<br/>
                     <b>
+                        {{ user.first_name }} {{ user.last_name }}<br/>
                         {{ ledger_item.evidence_billing_address.formatted|linebreaksbr }}
                     </b>
                 {% endif %}
