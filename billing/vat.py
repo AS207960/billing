@@ -66,11 +66,10 @@ VAT_RATES_FROM_2021 = {
 
 
 def get_vat_rate(country):
-    # if timezone.now() < VAT_RATES_PRE_2021_DATE:
-    #     vat_rates = VAT_RATES_PRE_2021
-    # else:
-    #     vat_rates = VAT_RATES_FROM_2021
-    vat_rates = VAT_RATES_FROM_2021
+    if timezone.now() < VAT_RATES_PRE_2021_DATE:
+        vat_rates = VAT_RATES_PRE_2021
+    else:
+        vat_rates = VAT_RATES_FROM_2021
 
     return vat_rates.get(country.lower())
 
