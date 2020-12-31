@@ -156,13 +156,13 @@ def attempt_complete_bank_transfer(ref: str, amount: decimal.Decimal, trans_acco
                 ledger_item = poss_ledger_item
                 break
 
-        if trans_account_data:
+        if trans_account_data and ledger_item:
             known_account, _ = models.KnownBankAccount.objects.update_or_create(
                 account=ledger_item.account,
                 **trans_account_data
             )
 
-            if ledger_item and (
+            if (
                     ledger_item.evidence_billing_address.country_code.lower() == known_account.country_code.lower()
                     or not ledger_item.account.taxable
             ):
