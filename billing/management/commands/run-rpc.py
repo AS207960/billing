@@ -3,9 +3,11 @@ from django.conf import settings
 from django.db import transaction
 from django.contrib.auth import get_user_model
 import pika
+import ipaddress
 import decimal
-from billing import models, views, tasks
+from billing import models, views, tasks, vat, apps
 import billing.proto.billing_pb2
+import billing.proto.geoip_pb2
 
 
 class Command(BaseCommand):
@@ -54,9 +56,47 @@ class Command(BaseCommand):
             -> billing.proto.billing_pb2.ConvertCurrencyResponse:
         amount = decimal.Decimal(msg.amount) / decimal.Decimal(100)
         amount = models.ExchangeRate.get_rate(msg.from_currency, msg.to_currency) * amount
+        amount_vat = amount
+
+        billing_address_country = None
+        if msg.HasField("country_selection"):
+            billing_address_country = msg.country_selection.value.lower()
+
+        if msg.HasField("username"):
+            account = models.Account.objects.filter(user__username=msg.username.value).first()
+            if not billing_address_country and account.billing_address:
+                billing_address_country = account.billing_address.country_code.code.lower()
+        else:
+            account = None
+
+        if not billing_address_country and msg.HasField("remote_ip"):
+            try:
+                ip_address = ipaddress.ip_address(msg.remote_ip.value)
+            except ValueError:
+                pass
+            else:
+                ip_req = billing.proto.geoip_pb2.GeoIPRequest()
+                ip_res = billing.proto.geoip_pb2.IPLookupResponse()
+                if isinstance(ip_address, ipaddress.IPv4Address):
+                    ip_req.ip_lookup.ipv4_addr = int(ip_address)
+                else:
+                    ip_req.ip_lookup.ipv6_addr = int(ip_address).to_bytes(16, "big")
+                ip_res.ParseFromString(apps.rpc_client.call("geoip_rpc", ip_req.SerializeToString()))
+                if ip_res.HasField("country"):
+                    billing_address_country = ip_res.country.value.lower()
+
+        if not billing_address_country:
+            billing_address_country = "gb"
+
+        country_vat_rate = vat.get_vat_rate(billing_address_country)
+        if country_vat_rate is not None:
+            amount_vat += (amount * country_vat_rate)
 
         return billing.proto.billing_pb2.ConvertCurrencyResponse(
-            amount=int(amount * decimal.Decimal(100))
+            amount=int(amount * decimal.Decimal(100)),
+            amount_inc_vat=int(amount_vat * decimal.Decimal(100)),
+            taxable=account.taxable if account else True,
+            used_country=billing_address_country
         )
 
     def charge_user(self, msg: billing.proto.billing_pb2.ChargeUserRequest) \

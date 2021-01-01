@@ -13,10 +13,16 @@ message ConvertCurrencyRequest {
   string from_currency = 1;
   string to_currency = 2;
   int64 amount = 3;
+  google.protobuf.StringValue username = 4;
+  google.protobuf.StringValue remote_ip = 5;
+  google.protobuf.StringValue country_selection = 6;
 }
 
 message ConvertCurrencyResponse {
   int64 amount = 3;
+  int64 amount_inc_vat = 1;
+  bool taxable = 2;
+  string used_country = 4;
 }
 
 message ChargeUserRequest {
