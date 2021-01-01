@@ -48,15 +48,19 @@ def mail_notif(ledger_item: models.LedgerItem, state_name: str, emoji: str):
             charge_state = None
             is_payment_item = False
 
+    charge_state_url = None
+    charge_error = None
     if charge_state and (charge_state.ledger_item.state != charge_state.ledger_item.STATE_FAILED or is_payment_item):
         charge_state_url = settings.EXTERNAL_URL_BASE + reverse('complete_order', args=(charge_state.id,))
-    else:
-        charge_state_url = None
+
+    if charge_state and charge_state.last_error and not is_payment_item:
+        charge_error = charge_state.last_error
 
     context = {
         "name": ledger_item.account.user.first_name,
         "item": ledger_item,
-        "charge_state_url": charge_state_url
+        "charge_state_url": charge_state_url,
+        "charge_error": charge_error,
     }
     html_content = render_to_string("billing_email/billing_notif.html", context)
     txt_content = render_to_string("billing_email/billing_notif.txt", context)

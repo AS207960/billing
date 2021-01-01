@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\rbilling.proto\x12\x07\x62illing\x1a\x1egoogle/protobuf/wrappers.proto\"\x8b\x01\n\x0e\x42illingRequest\x12;\n\x10\x63onvert_currency\x18\x01 \x01(\x0b\x32\x1f.billing.ConvertCurrencyRequestH\x00\x12\x31\n\x0b\x63harge_user\x18\x02 \x01(\x0b\x32\x1a.billing.ChargeUserRequestH\x00\x42\t\n\x07message\"\xee\x01\n\x16\x43onvertCurrencyRequest\x12\x15\n\rfrom_currency\x18\x01 \x01(\t\x12\x13\n\x0bto_currency\x18\x02 \x01(\t\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x03\x12.\n\x08username\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12/\n\tremote_ip\x18\x05 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12\x37\n\x11\x63ountry_selection\x18\x06 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"R\n\x17\x43onvertCurrencyResponse\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x03\x12\x16\n\x0e\x61mount_inc_vat\x18\x01 \x01(\x03\x12\x0f\n\x07taxable\x18\x02 \x01(\x08\"\xe2\x01\n\x11\x43hargeUserRequest\x12\x0e\n\x06\x61mount\x18\x01 \x01(\x03\x12\n\n\x02id\x18\x02 \x01(\t\x12\x12\n\ndescriptor\x18\x03 \x01(\t\x12\x12\n\ncan_reject\x18\x04 \x01(\x08\x12\x13\n\x0boff_session\x18\x05 \x01(\x08\x12\x0f\n\x07user_id\x18\x06 \x01(\t\x12\x30\n\nreturn_uri\x18\x07 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12\x31\n\x0bnotif_queue\x18\x08 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"\xcf\x01\n\x12\x43hargeUserResponse\x12\x17\n\x0f\x63harge_state_id\x18\x01 \x01(\t\x12\x38\n\x06result\x18\x02 \x01(\x0e\x32(.billing.ChargeUserResponse.ChargeResult\x12\x11\n\x07message\x18\x03 \x01(\tH\x00\x12\x16\n\x0credirect_uri\x18\x04 \x01(\tH\x00\"3\n\x0c\x43hargeResult\x12\x0b\n\x07SUCCESS\x10\x00\x12\x08\n\x04\x46\x41IL\x10\x01\x12\x0c\n\x08REDIRECT\x10\x02\x42\x06\n\x04\x64\x61ta\"\x80\x02\n\x17\x43hargeStateNotification\x12\x11\n\tcharge_id\x18\x01 \x01(\t\x12\x0f\n\x07\x61\x63\x63ount\x18\x02 \x01(\t\x12;\n\x05state\x18\x03 \x01(\x0e\x32,.billing.ChargeStateNotification.ChargeState\x12\x30\n\nlast_error\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"R\n\x0b\x43hargeState\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x0b\n\x07PENDING\x10\x01\x12\x0e\n\nPROCESSING\x10\x02\x12\n\n\x06\x46\x41ILED\x10\x03\x12\r\n\tCOMPLETED\x10\x04\"\xcf\x01\n\x18SubscriptionNotification\x12\x17\n\x0fsubscription_id\x18\x01 \x01(\t\x12\x42\n\x05state\x18\x02 \x01(\x0e\x32\x33.billing.SubscriptionNotification.SubscriptionState\"V\n\x11SubscriptionState\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x0b\n\x07PENDING\x10\x01\x12\x0c\n\x08PAST_DUE\x10\x02\x12\n\n\x06\x41\x43TIVE\x10\x03\x12\r\n\tCANCELLED\x10\x04\x62\x06proto3'
+  serialized_pb=b'\n\rbilling.proto\x12\x07\x62illing\x1a\x1egoogle/protobuf/wrappers.proto\"\x8b\x01\n\x0e\x42illingRequest\x12;\n\x10\x63onvert_currency\x18\x01 \x01(\x0b\x32\x1f.billing.ConvertCurrencyRequestH\x00\x12\x31\n\x0b\x63harge_user\x18\x02 \x01(\x0b\x32\x1a.billing.ChargeUserRequestH\x00\x42\t\n\x07message\"\xee\x01\n\x16\x43onvertCurrencyRequest\x12\x15\n\rfrom_currency\x18\x01 \x01(\t\x12\x13\n\x0bto_currency\x18\x02 \x01(\t\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x03\x12.\n\x08username\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12/\n\tremote_ip\x18\x05 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12\x37\n\x11\x63ountry_selection\x18\x06 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"h\n\x17\x43onvertCurrencyResponse\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x03\x12\x16\n\x0e\x61mount_inc_vat\x18\x01 \x01(\x03\x12\x0f\n\x07taxable\x18\x02 \x01(\x08\x12\x14\n\x0cused_country\x18\x04 \x01(\t\"\xe2\x01\n\x11\x43hargeUserRequest\x12\x0e\n\x06\x61mount\x18\x01 \x01(\x03\x12\n\n\x02id\x18\x02 \x01(\t\x12\x12\n\ndescriptor\x18\x03 \x01(\t\x12\x12\n\ncan_reject\x18\x04 \x01(\x08\x12\x13\n\x0boff_session\x18\x05 \x01(\x08\x12\x0f\n\x07user_id\x18\x06 \x01(\t\x12\x30\n\nreturn_uri\x18\x07 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12\x31\n\x0bnotif_queue\x18\x08 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"\xcf\x01\n\x12\x43hargeUserResponse\x12\x17\n\x0f\x63harge_state_id\x18\x01 \x01(\t\x12\x38\n\x06result\x18\x02 \x01(\x0e\x32(.billing.ChargeUserResponse.ChargeResult\x12\x11\n\x07message\x18\x03 \x01(\tH\x00\x12\x16\n\x0credirect_uri\x18\x04 \x01(\tH\x00\"3\n\x0c\x43hargeResult\x12\x0b\n\x07SUCCESS\x10\x00\x12\x08\n\x04\x46\x41IL\x10\x01\x12\x0c\n\x08REDIRECT\x10\x02\x42\x06\n\x04\x64\x61ta\"\x80\x02\n\x17\x43hargeStateNotification\x12\x11\n\tcharge_id\x18\x01 \x01(\t\x12\x0f\n\x07\x61\x63\x63ount\x18\x02 \x01(\t\x12;\n\x05state\x18\x03 \x01(\x0e\x32,.billing.ChargeStateNotification.ChargeState\x12\x30\n\nlast_error\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"R\n\x0b\x43hargeState\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x0b\n\x07PENDING\x10\x01\x12\x0e\n\nPROCESSING\x10\x02\x12\n\n\x06\x46\x41ILED\x10\x03\x12\r\n\tCOMPLETED\x10\x04\"\xcf\x01\n\x18SubscriptionNotification\x12\x17\n\x0fsubscription_id\x18\x01 \x01(\t\x12\x42\n\x05state\x18\x02 \x01(\x0e\x32\x33.billing.SubscriptionNotification.SubscriptionState\"V\n\x11SubscriptionState\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x0b\n\x07PENDING\x10\x01\x12\x0c\n\x08PAST_DUE\x10\x02\x12\n\n\x06\x41\x43TIVE\x10\x03\x12\r\n\tCANCELLED\x10\x04\x62\x06proto3'
   ,
   dependencies=[google_dot_protobuf_dot_wrappers__pb2.DESCRIPTOR,])
 
@@ -51,8 +51,8 @@ _CHARGEUSERRESPONSE_CHARGERESULT = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=903,
-  serialized_end=954,
+  serialized_start=925,
+  serialized_end=976,
 )
 _sym_db.RegisterEnumDescriptor(_CHARGEUSERRESPONSE_CHARGERESULT)
 
@@ -91,8 +91,8 @@ _CHARGESTATENOTIFICATION_CHARGESTATE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1139,
-  serialized_end=1221,
+  serialized_start=1161,
+  serialized_end=1243,
 )
 _sym_db.RegisterEnumDescriptor(_CHARGESTATENOTIFICATION_CHARGESTATE)
 
@@ -131,8 +131,8 @@ _SUBSCRIPTIONNOTIFICATION_SUBSCRIPTIONSTATE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1345,
-  serialized_end=1431,
+  serialized_start=1367,
+  serialized_end=1453,
 )
 _sym_db.RegisterEnumDescriptor(_SUBSCRIPTIONNOTIFICATION_SUBSCRIPTIONSTATE)
 
@@ -277,6 +277,13 @@ _CONVERTCURRENCYRESPONSE = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='used_country', full_name='billing.ConvertCurrencyResponse.used_country', index=3,
+      number=4, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -290,7 +297,7 @@ _CONVERTCURRENCYRESPONSE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=441,
-  serialized_end=523,
+  serialized_end=545,
 )
 
 
@@ -370,8 +377,8 @@ _CHARGEUSERREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=526,
-  serialized_end=752,
+  serialized_start=548,
+  serialized_end=774,
 )
 
 
@@ -429,8 +436,8 @@ _CHARGEUSERRESPONSE = _descriptor.Descriptor(
       create_key=_descriptor._internal_create_key,
     fields=[]),
   ],
-  serialized_start=755,
-  serialized_end=962,
+  serialized_start=777,
+  serialized_end=984,
 )
 
 
@@ -483,8 +490,8 @@ _CHARGESTATENOTIFICATION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=965,
-  serialized_end=1221,
+  serialized_start=987,
+  serialized_end=1243,
 )
 
 
@@ -523,8 +530,8 @@ _SUBSCRIPTIONNOTIFICATION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1224,
-  serialized_end=1431,
+  serialized_start=1246,
+  serialized_end=1453,
 )
 
 _BILLINGREQUEST.fields_by_name['convert_currency'].message_type = _CONVERTCURRENCYREQUEST

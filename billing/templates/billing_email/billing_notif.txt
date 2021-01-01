@@ -6,7 +6,8 @@ Description: {{ item.descriptor }}
 Amount: {{ item.amount|floatformat:2 }} GBP
 State: {% if item.state == "P" %}Pending{% elif item.state == "S" or item.state == "A" %}Processing{% elif item.state == "F" %}Failed{% elif item.state == "C" %}Completed{% endif %}
 
-{% if charge_state_url %}Continue with your order at: {{ charge_state_url }}
+{% if charge_state_error %}Last error: {{ charge_state_error }}
+{% endif %}{% if charge_state_url %}Continue with your order at: {{ charge_state_url }}
 
 {% endif%}You can always keep an eye on your account at https://billing.as207960.net
 
