@@ -72,7 +72,7 @@ def mail_notif(ledger_item: models.LedgerItem, state_name: str, emoji: str):
         subject=subject,
         body=txt_content,
         to=[ledger_item.account.user.email],
-        bcc=['q@as207960.net'],
+        bcc=['email-log@as207960.net'],
         reply_to=['hello@glauca.digital']
     )
     email_msg.attach_alternative(html_content, "text/html")
@@ -93,7 +93,7 @@ def mail_subscription_success(subscription: models.Subscription, value: decimal.
         subject='Subscription payment successful',
         body=txt_content,
         to=[subscription.account.user.email],
-        bcc=['q@as207960.net'],
+        bcc=['email-log@as207960.net'],
         reply_to=['hello@glauca.digital']
     )
     email_msg.attach_alternative(html_content, "text/html")
@@ -115,7 +115,7 @@ def mail_subscription_past_due(subscription: models.Subscription, value: decimal
         subject='Subscription payment failed',
         body=txt_content,
         to=[subscription.account.user.email],
-        bcc=['q@as207960.net'],
+        bcc=['email-log@as207960.net'],
         reply_to=['hello@glauca.digital']
     )
     email_msg.attach_alternative(html_content, "text/html")
@@ -137,7 +137,7 @@ def mail_subscription_cancelled(subscription: models.Subscription, value: decima
         subject='Subscription cancelled',
         body=txt_content,
         to=[subscription.account.user.email],
-        bcc=['q@as207960.net'],
+        bcc=['email-log@as207960.net'],
         reply_to=['hello@glauca.digital']
     )
     email_msg.attach_alternative(html_content, "text/html")
