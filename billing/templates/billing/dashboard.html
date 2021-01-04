@@ -40,11 +40,21 @@
                             <br>
                             <small>Your pending balance is the sum of the amounts not available to spend.</small>
                         </p>
-                        <a href="{% url 'top_up' %}" class="btn btn-primary btn-block">&#x1f4b7; Top-up &#x1f4b7;</a>
+                        <p class="card-text">
+                            &#x21a9;&#xfe0f; Available for refund:<br/>
+                            {% if account.reversal_balance >= 0 %}
+                                &pound;{{ account.reversal_balance|floatformat:2 }}
+                            {% else %}
+                                -&pound;{{ account.reversal_balance|abs|floatformat:2 }}
+                            {% endif %}
+                            <br>
+                            <small>Your balance available for refund is the sum of charge reversals minus already processed refunds..</small>
+                        </p>
                     </div>
                 </div>
                 <div class="card mt-3">
                     <div class="card-body">
+                        <a href="{% url 'top_up' %}" class="btn btn-primary btn-block">&#x1f4b7; Top-up &#x1f4b7;</a>
                         <a href="{% url 'statement_export' %}" class="btn btn-primary btn-block">&#x1f9fe; Statement
                             export &#x1f9fe;</a>
                     </div>

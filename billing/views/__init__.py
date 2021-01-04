@@ -6,6 +6,7 @@ import stripe
 import stripe.error
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.conf import settings
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
@@ -51,6 +52,7 @@ def order_details(request, charge_id):
     if charge_state.account != request.user.account:
         return HttpResponseForbidden()
 
+    vat_number = None
     if charge_state.payment_ledger_item:
         billing_country_name = dict(django_countries.countries)[charge_state.payment_ledger_item.country_code.upper()] \
             if charge_state.payment_ledger_item.country_code else None
@@ -58,14 +60,15 @@ def order_details(request, charge_id):
         vat_charged = charge_state.payment_ledger_item.amount * charge_state.payment_ledger_item.vat_rate
         from_account_balance = -(charge_state.ledger_item.amount + charge_state.payment_ledger_item.amount)
         left_to_be_paid = charge_state.payment_ledger_item.amount
-        charged_amount = charge_state.payment_ledger_item.amount + vat_charged
+        if charge_state.payment_ledger_item.country_code and \
+                vat.get_vies_country_code(charge_state.payment_ledger_item.country_code.upper()) is not None:
+            vat_number = f"{settings.OWN_EU_VAT_COUNTRY} {settings.OWN_EU_VAT_ID}"
     else:
         has_vat = False
         vat_charged = 0
         billing_country_name = None
         from_account_balance = -charge_state.ledger_item.amount
         left_to_be_paid = 0
-        charged_amount = 0
 
     return render(request, "billing/order_details.html", {
         "charge": charge_state,
@@ -74,8 +77,8 @@ def order_details(request, charge_id):
         "vat_charged": vat_charged,
         "from_account_balance": from_account_balance,
         "left_to_be_paid": left_to_be_paid,
-        "charged_amount": charged_amount,
         "reversal": charge_state.ledger_item.reversal,
+        "vat_number": vat_number,
     })
 
 
@@ -90,14 +93,17 @@ def top_up_details(request, item_id):
         if ledger_item.country_code else None
     has_vat = ledger_item.vat_rate != 0
     vat_charged = ledger_item.amount * ledger_item.vat_rate
-    charged_amount = ledger_item.amount + vat_charged
+    if ledger_item.country_code and vat.get_vies_country_code(ledger_item.country_code.upper()) is not None:
+        vat_number = f"{settings.OWN_EU_VAT_COUNTRY} {settings.OWN_EU_VAT_ID}"
+    else:
+        vat_number = None
 
     return render(request, "billing/top_up_details.html", {
         "ledger_item": ledger_item,
         "billing_country_name": billing_country_name,
         "has_vat": has_vat,
         "vat_charged": vat_charged,
-        "charged_amount": charged_amount,
+        "vat_number": vat_number,
     })
 
 

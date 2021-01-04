@@ -1,7 +1,29 @@
-import decimal
-from django.utils import timezone
 import datetime
+import decimal
+import uuid
+
+import oauthlib.oauth2
+import oauthlib.oauth2
 import pytz
+import typing
+import requests_oauthlib
+from django.conf import settings
+from django.utils import timezone
+import dataclasses
+import enum
+
+if settings.HMRC_CLIENT_ID:
+    hmrc_oauth_client = oauthlib.oauth2.BackendApplicationClient(client_id=settings.HMRC_CLIENT_ID)
+    hmrc_oauth_session = requests_oauthlib.OAuth2Session(client=hmrc_oauth_client)
+    hmrc_oauth_session.fetch_token(
+        token_url='https://test-api.service.hmrc.gov.uk/oauth/token' if settings.IS_TEST
+        else 'https://api.service.hmrc.gov.uk/oauth/token',
+        client_id=settings.HMRC_CLIENT_ID,
+        client_secret=settings.HMRC_CLIENT_SECRET,
+        include_client_id=True
+    )
+else:
+    hmrc_oauth_session = None
 
 DO_NOT_SELL = [
     "al",  # Albania
@@ -88,3 +110,77 @@ def get_vies_country_code(iso_code: str):
         return "EL"
     else:
         return iso_code
+
+
+class VerifyVATStatus(enum.Enum):
+    OK = enum.auto()
+    INVALID = enum.auto()
+    ERROR = enum.auto()
+
+
+@dataclasses.dataclass
+class HMRCVATInfo:
+    name: str
+    address_line1: str
+    address_line2: typing.Optional[str]
+    address_line3: typing.Optional[str]
+    address_line4: typing.Optional[str]
+    address_line5: typing.Optional[str]
+    post_code: typing.Optional[str]
+    country_code: str
+    consultation_number: typing.Optional[str]
+
+    @classmethod
+    def from_api_resp(cls, data: dict):
+        return cls(
+            name=data["target"]["name"],
+            address_line1=data["target"]["address"]["line1"],
+            address_line2=data["target"]["address"].get("line2"),
+            address_line3=data["target"]["address"].get("line3"),
+            address_line4=data["target"]["address"].get("line4"),
+            address_line5=data["target"]["address"].get("line5"),
+            post_code=data["target"]["address"].get("postcode"),
+            country_code=data["target"]["address"].get("countryCode"),
+            consultation_number=data.get("consultationNumber")
+        )
+
+
+def verify_vat_hmrc(number: str):
+    if hmrc_oauth_session:
+        hmrc_base_url = "https://test-api.service.hmrc.gov.uk" if settings.IS_TEST \
+            else "https://api.service.hmrc.gov.uk"
+        hmrc_url = f"{hmrc_base_url}/organisations/vat/check-vat-number/lookup/{number}"
+        if settings.OWN_UK_VAT_ID:
+            hmrc_url += f"/{settings.OWN_UK_VAT_ID}"
+            
+        headers = {
+            "Accept": "application/vnd.hmrc.1.0+json",
+            "Gov-Client-Connection-Method": "BATCH_PROCESS_DIRECT",
+            "Gov-Client-User-IDs": "",
+            "Gov-Client-Timezone": "UTC+00:00",
+            "Gov-Client-User-Agent": "AS207960 Billing System",
+            "Gov-Client-Local-IPs": "",
+            "Gov-Client-MAC-Addresses": uuid.getnode().to_bytes(6, "big").hex(),
+            "Gov-Vendor-Version": "",
+            "Gov-Vendor-License-IDs": "",
+        }
+
+        try:
+            resp = hmrc_oauth_session.get(hmrc_url, headers=headers)
+        except (oauthlib.oauth2.rfc6749.errors.InvalidGrantError, oauthlib.oauth2.rfc6749.errors.TokenExpiredError):
+            hmrc_oauth_session.fetch_token(
+                token_url='https://test-api.service.hmrc.gov.uk/oauth/token' if settings.IS_TEST
+                else 'https://api.service.hmrc.gov.uk/oauth/token',
+                client_id=settings.HMRC_CLIENT_ID,
+                client_secret=settings.HMRC_CLIENT_SECRET
+            )
+            resp = hmrc_oauth_session.get(hmrc_url, headers=headers)
+        if resp.status_code == 404:
+            return VerifyVATStatus.INVALID, None
+        elif resp.status_code != 200:
+            return VerifyVATStatus.ERROR, None
+
+        resp_data = resp.json()
+        return VerifyVATStatus.OK, HMRCVATInfo.from_api_resp(resp_data)
+    else:
+        return VerifyVATStatus.OK, None

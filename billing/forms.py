@@ -118,40 +118,67 @@ class BillingAddressForm(forms.ModelForm):
                     'postal_code': ["Invalid postal code format for the UK"]
                 })
         if self.cleaned_data['vat_id']:
-            vies_country = vat.get_vies_country_code(country_code)
-            if vies_country:
-                try:
-                    vat_resp = apps.vies_client.service.checkVatApprox(
-                        countryCode=vies_country,
-                        vatNumber=self.cleaned_data['vat_id'],
-                        traderName=self.cleaned_data['organisation'],
-                        requesterCountryCode=settings.OWN_EU_VAT_COUNTRY,
-                        requesterVatNumber=settings.OWN_EU_VAT_ID,
-                    )
-                except zeep.exceptions.Fault as e:
-                    if e.message in ("SERVICE_UNAVAILABLE", "MS_UNAVAILABLE"):
-                        raise django.core.exceptions.ValidationError({
-                            django.core.exceptions.NON_FIELD_ERRORS: [
-                                "VAT check service currently unavailable, please try again later"
-                            ]
-                        })
-                    else:
-                        raise django.core.exceptions.ValidationError({
-                            django.core.exceptions.NON_FIELD_ERRORS: [
-                                "An unexpected error occurred"
-                            ]
-                        })
-                if not vat_resp["valid"]:
+            if country_code == "GB":
+                vat_lookup_state, vat_lookup_data = vat.verify_vat_hmrc(self.cleaned_data['vat_id'])
+                if vat_lookup_state == vat.VerifyVATStatus.ERROR:
+                    raise django.core.exceptions.ValidationError({
+                        django.core.exceptions.NON_FIELD_ERRORS: [
+                            "VAT check service currently unavailable, please try again later"
+                        ]
+                    })
+                elif vat_lookup_state == vat.VerifyVATStatus.INVALID:
                     raise django.core.exceptions.ValidationError({
                         'vat_id': ["Invalid VAT ID"]
                     })
-                if vat_resp["traderName"] is not None:
-                    self.cleaned_data['organisation'] = vat_resp["traderName"]
-                if vat_resp["traderPostcode"] is not None:
-                    self.cleaned_data['postal_code'] = vat_resp["traderPostcode"]
-                if vat_resp["traderCity"] is not None:
-                    self.cleaned_data['city'] = vat_resp["traderCity"]
-                self.instance.vat_id_verification_request = vat_resp["requestIdentifier"]
+                elif vat_lookup_data:
+                    self.cleaned_data['organisation'] = vat_lookup_data.name
+                    self.cleaned_data['street_1'] = vat_lookup_data.address_line1
+                    if vat_lookup_data.address_line2:
+                        self.cleaned_data['street_2'] = vat_lookup_data.address_line2
+                    if vat_lookup_data.address_line3:
+                        self.cleaned_data['street_3'] = vat_lookup_data.address_line3
+                    if vat_lookup_data.address_line4:
+                        self.cleaned_data['city'] = vat_lookup_data.address_line4
+                    if vat_lookup_data.address_line5:
+                        self.cleaned_data['province'] = vat_lookup_data.address_line5
+                    if vat_lookup_data.post_code:
+                        self.cleaned_data['postal_code'] = vat_lookup_data.post_code
+                    self.instance.vat_id_verification_request = vat_lookup_data.consultation_number
+            else:
+                vies_country = vat.get_vies_country_code(country_code)
+                if vies_country:
+                    try:
+                        vat_resp = apps.vies_client.service.checkVatApprox(
+                            countryCode=vies_country,
+                            vatNumber=self.cleaned_data['vat_id'],
+                            traderName=self.cleaned_data['organisation'],
+                            requesterCountryCode=settings.OWN_EU_VAT_COUNTRY,
+                            requesterVatNumber=settings.OWN_EU_VAT_ID,
+                        )
+                    except zeep.exceptions.Fault as e:
+                        if e.message in ("SERVICE_UNAVAILABLE", "MS_UNAVAILABLE"):
+                            raise django.core.exceptions.ValidationError({
+                                django.core.exceptions.NON_FIELD_ERRORS: [
+                                    "VAT check service currently unavailable, please try again later"
+                                ]
+                            })
+                        else:
+                            raise django.core.exceptions.ValidationError({
+                                django.core.exceptions.NON_FIELD_ERRORS: [
+                                    "An unexpected error occurred"
+                                ]
+                            })
+                    if not vat_resp["valid"]:
+                        raise django.core.exceptions.ValidationError({
+                            'vat_id': ["Invalid VAT ID"]
+                        })
+                    if vat_resp["traderName"] is not None:
+                        self.cleaned_data['organisation'] = vat_resp["traderName"]
+                    if vat_resp["traderPostcode"] is not None:
+                        self.cleaned_data['postal_code'] = vat_resp["traderPostcode"]
+                    if vat_resp["traderCity"] is not None:
+                        self.cleaned_data['city'] = vat_resp["traderCity"]
+                    self.instance.vat_id_verification_request = vat_resp["requestIdentifier"]
 
 
 class SOFORTForm(forms.Form):

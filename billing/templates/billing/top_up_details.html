@@ -15,13 +15,16 @@
                         <br/>Paid on: <b>{{ ledger_item.completed_timestamp }}</b>
                     {% endif %}
                     {% if ledger_item.evidence_billing_address and ledger_item.evidence_billing_address.formatted_vat_id %}
-                        <br/><b>Your VAT ID:</b> {{ ledger_item.evidence_billing_address.formatted_vat_id }}
+                        <br/>Your VAT ID: <b>{{ ledger_item.evidence_billing_address.formatted_vat_id }}</b>
+                    {% endif %}
+                    {% if vat_number %}
+                        <br/>Our VAT ID: <b>{{ vat_number }}</b>
                     {% endif %}
                 </p>
             </div>
             <div class="col-12 col-lg-6">
                 {% if ledger_item.evidence_billing_address %}
-                    Billed to:<br/>
+                    Billed to:
                     <b>
                         {{ user.first_name }} {{ user.last_name }}<br/>
                         {{ ledger_item.evidence_billing_address.formatted|linebreaksbr }}
@@ -39,7 +42,9 @@
                     </tr>
                     {% if has_vat %}
                         <tr>
-                            <th scope="row" class="font-weight-normal">VAT @ {{ ledger_item.vat_rate|mul:100|floatformat:2 }}%</th>
+                            <th scope="row" class="font-weight-normal">VAT
+                                @ {{ ledger_item.vat_rate|mul:100|floatformat:2 }}%
+                            </th>
                             <td>&pound;{{ vat_charged|floatformat:2 }}</td>
                         </tr>
                     {% endif %}
@@ -47,17 +52,21 @@
                         <th scope="row">
                             Charged to your payment method
                         </th>
-                        <td>&pound;{{ charged_amount|floatformat:2 }}</td>
+                        <td>&pound;{{ ledger_item.charged_amount|floatformat:2 }}</td>
                     </tr>
                     </tbody>
                 </table>
-            </div>
 
-            {% if billing_country_name %}
-                {% if has_vat %}
-                    <p>We charged you the sales taxes applicable in {{ billing_country_name }}.</p>
+                {% if billing_country_name %}
+                    {% if has_vat %}
+                        <p>We charged you the sales taxes applicable in {{ billing_country_name }}.</p>
+                    {% endif %}
                 {% endif %}
-            {% endif %}
+
+                {% if ledger_item.amount_refundable > 0 %}
+                    <a href="#" class="btn btn-block btn-secondary">Request refund</a>
+                {% endif %}
+            </div>
         </div>
     </div>
 {% endblock %}

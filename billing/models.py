@@ -85,6 +85,16 @@ class Account(models.Model):
         ).quantize(decimal.Decimal('1.00'))
         return balance if balance != 0 else decimal.Decimal(0)
 
+    @property
+    def reversal_balance(self):
+        balance = (
+            self.ledgeritem_set
+            .filter(is_reversal=True)
+            .aggregate(balance=models.Sum('amount'))
+            .get('balance') or decimal.Decimal(0)
+        ).quantize(decimal.Decimal('1.00'))
+        return balance if balance != 0 else decimal.Decimal(0)
+
     def get_stripe_id(self):
         if self.stripe_customer_id:
             return self.stripe_customer_id
@@ -183,7 +193,7 @@ class AccountBillingAddress(models.Model):
         if self.vat_id:
             vat_country_code = vat.get_vies_country_code(self.country_code.code)
             if vat_country_code:
-                return f"{vat_country_code}{self.vat_id}"
+                return f"{vat_country_code} {self.vat_id}"
             else:
                 return self.vat_id
 
@@ -447,6 +457,36 @@ class LedgerItem(models.Model):
             return None
 
     @property
+    def amount_refundable(self):
+        if self.state != self.STATE_COMPLETED or self.is_reversal:
+            return decimal.Decimal(0)
+
+        account_refundable = self.account.reversal_balance
+        if account_refundable <= 0:
+            return decimal.Decimal(0)
+
+        if self.type == self.TYPE_GIROPAY:
+            payment_intent = stripe.PaymentIntent.retrieve(self.type_id)
+            created_date = datetime.datetime.utcfromtimestamp(payment_intent["created"])
+            if created_date + datetime.timedelta(days=180) < datetime.datetime.utcnow():
+                return decimal.Decimal(0)
+
+            refunds = stripe.Refund.list(payment_intent=payment_intent["id"])
+            total_refunded_local = sum(
+                map(
+                    lambda r: decimal.Decimal(r["amount"]) / decimal.Decimal(100),
+                    filter(lambda r: r["status"] not in ("failed", "canceled"), refunds.auto_paging_iter())
+                )
+            )
+
+            payment_amount = decimal.Decimal(payment_intent["amount"]) / decimal.Decimal(100)
+            exchange_rate = payment_amount / self.charged_amount
+            total_refunded = (total_refunded_local / exchange_rate).quantize(decimal.Decimal("1.00"))
+            return min(self.charged_amount - total_refunded, account_refundable)
+        else:
+            return decimal.Decimal(0)
+
+    @property
     def balance_at(self):
         queryset = self.account.ledgeritem_set \
             .filter(timestamp__lte=self.timestamp)
@@ -459,6 +499,9 @@ class LedgerItem(models.Model):
            .get('balance') or decimal.Decimal(0)
         ).quantize(decimal.Decimal('1.00'))
         return balance if balance != 0 else decimal.Decimal(0)
+
+    def __str__(self):
+        return f"{self.descriptor} ({self.id})"
 
 
 class ChargeState(models.Model):

@@ -148,6 +148,8 @@ with open(os.path.join(BASE_DIR, "secrets/plaid.json")) as f:
     plaid_conf = json.load(f)
 with open(os.path.join(BASE_DIR, "secrets/flux.json")) as f:
     flux_conf = json.load(f)
+with open(os.path.join(BASE_DIR, "secrets/hmrc.json")) as f:
+    hmrc_conf = json.load(f)
 with open(os.path.join(BASE_DIR, "secrets/gocardless.json")) as f:
     gocardless_conf = json.load(f)
 with open(os.path.join(BASE_DIR, "secrets/transferwise.json")) as f:
@@ -175,6 +177,9 @@ PLAID_ENV = plaid_conf["env"]
 FLUX_CLIENT_ID = flux_conf["client_id"]
 FLUX_CLIENT_SECRET = flux_conf["client_secret"]
 
+HMRC_CLIENT_ID = hmrc_conf["client_id"]
+HMRC_CLIENT_SECRET = hmrc_conf["client_secret"]
+
 GOCARDLESS_TOKEN = gocardless_conf["token"]
 GOCARDLESS_ENV = gocardless_conf["env"]
 GOCARDLESS_WEBHOOK_SECRET = gocardless_conf["webhook_secret"]
@@ -195,8 +200,9 @@ with open(os.path.join(BASE_DIR, "secrets/vapid_private.der")) as f:
 
 IS_TEST = True
 
-OWN_EU_VAT_COUNTRY = None
-OWN_EU_VAT_ID = None
+OWN_EU_VAT_COUNTRY = "EU"
+OWN_EU_VAT_ID = "372013983"
+OWN_UK_VAT_ID = None
 
 RABBITMQ_RPC_URL = "amqp://guest:guest@localhost:5672/rpc"
 

@@ -18,8 +18,11 @@
                         <br/>Paid on: <b>{{ charge.ledger_item.completed_timestamp }}</b>
                     {% endif %}
                     {% if charge.payment_ledger_item and charge.payment_ledger_item.evidence_billing_address and charge.payment_ledger_item.evidence_billing_address.formatted_vat_id %}
-                        <br/><b>Your VAT ID:</b>
-                        {{ charge.payment_ledger_item.evidence_billing_address.formatted_vat_id }}
+                        <br/>Your VAT ID:
+                        <b>{{ charge.payment_ledger_item.evidence_billing_address.formatted_vat_id }}</b>
+                    {% endif %}
+                    {% if vat_number %}
+                        <br/>Our VAT ID: <b>{{ vat_number }}</b>
                     {% endif %}
                     {% if reversal %}
                         <br/>Refunded on: <b>{{ reversal.timestamp }}</b>
@@ -28,7 +31,7 @@
             </div>
             <div class="col-12 col-lg-6">
                 {% if charge.payment_ledger_item and charge.payment_ledger_item.evidence_billing_address %}
-                    Billed to:<br/>
+                    Billed to:
                     <b>
                         {{ user.first_name }} {{ user.last_name }}<br/>
                         {{ charge.payment_ledger_item.evidence_billing_address.formatted|linebreaksbr }}
@@ -68,7 +71,7 @@
                                 {{ charge.payment_ledger_item.descriptor }}
                                 <a class="btn btn-sm btn-info" href="{% url 'toup_up_details' charge.payment_ledger_item.id %}">&#x1f440; View details</a>
                             </th>
-                            <td>&pound;{{ charged_amount|floatformat:2 }}</td>
+                            <td>&pound;{{ charge.payment_ledger_item.charged_amount|floatformat:2 }}</td>
                         </tr>
                     {% endif %}
                     </tbody>
