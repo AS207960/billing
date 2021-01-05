@@ -211,6 +211,12 @@ def handle_payment(
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
+            elif selected_payment_method_type == "bank_transfer_stripe":
+                if selected_payment_method_id == "gbp" and (billing_address_country == "gb" or not account.taxable):
+                    available_currencies = ['gbp']
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
             elif selected_payment_method_type == "sepa_mandate_stripe":
                 m = get_object_or_404(models.SEPAMandate, id=selected_payment_method_id)
                 payment_method = stripe.PaymentMethod.retrieve(m.payment_method)
@@ -648,6 +654,39 @@ def handle_payment(
                 tasks.update_from_source(source, ledger_item)
                 return HandlePaymentOutcome.REDIRECT, (ledger_item, source["redirect"]["url"])
 
+            elif selected_payment_method_type == "bank_transfer_stripe":
+                if selected_payment_method_id == "gbp":
+                    payment_intent = stripe.PaymentIntent.create(
+                        amount=amount_int,
+                        currency=selected_currency,
+                        customer=account.get_stripe_id(),
+                        description='Top-up',
+                        receipt_email=request.user.email,
+                        payment_method_types=["customer_balance"],
+                        payment_method_data={
+                            "type": "customer_balance"
+                        },
+                        payment_method_options={
+                            "customer_balance": {
+                                "funding_type": "bank_transfer",
+                                "bank_transfer": {
+                                    "types": ["sort_code"]
+                                }
+                            }
+                        },
+                        confirm=True,
+                    )
+                    ledger_item.descriptor = "Top-up by bank transfer"
+                    ledger_item.type = models.LedgerItem.TYPE_STRIPE_BACS
+                    ledger_item.state = models.LedgerItem.STATE_PENDING
+                    ledger_item.type_id = payment_intent['id']
+                    ledger_item.save()
+
+                    return HandlePaymentOutcome.REDIRECT, (
+                        ledger_item,
+                        reverse('complete_top_up_bank_transfer_stripe', args=(ledger_item.id,))
+                    )
+
             elif selected_payment_method_type == "bacs_mandate_stripe":
                 m = models.BACSMandate.objects.get(id=selected_payment_method_id)
                 payment_intent = stripe.PaymentIntent.create(
@@ -1066,6 +1105,12 @@ def complete_top_up_card(request, item_id):
     if ledger_item.account != request.user.account:
         return HttpResponseForbidden
 
+    if ledger_item.type not in (
+            ledger_item.TYPE_CARD, ledger_item.TYPE_SOFORT, ledger_item.TYPE_GIROPAY, ledger_item.TYPE_BANCONTACT,
+            ledger_item.TYPE_EPS, ledger_item.TYPE_IDEAL
+    ):
+        return HttpResponseBadRequest()
+
     try:
         charge_state = ledger_item.charge_state_payment
     except django.core.exceptions.ObjectDoesNotExist:
@@ -1079,12 +1124,6 @@ def complete_top_up_card(request, item_id):
             return redirect('complete_order', charge_state.id)
 
         return redirect('dashboard')
-
-    if ledger_item.type not in (
-            ledger_item.TYPE_CARD, ledger_item.TYPE_SOFORT, ledger_item.TYPE_GIROPAY, ledger_item.TYPE_BANCONTACT,
-            ledger_item.TYPE_EPS, ledger_item.TYPE_IDEAL
-    ):
-        return HttpResponseBadRequest()
 
     if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
         return redirect(payment_intent["next_action"]["redirect_to_url"]["url"])
@@ -1339,7 +1378,10 @@ def show_bank_details(request, amount, ref, currency):
 @login_required
 def top_up_bank_details(request, currency):
     currency = currency.lower()
-    request.session["selected_payment_method"] = f"bank_transfer;{currency}"
+    if currency == "gbp_stripe":
+        request.session["selected_payment_method"] = f"bank_transfer_stripe;gbp"
+    else:
+        request.session["selected_payment_method"] = f"bank_transfer;{currency}"
     return redirect("top_up")
 
 
@@ -1373,8 +1415,59 @@ def complete_top_up_bank_details(request, item_id, currency):
         return HttpResponseBadRequest
 
     currency = currency.lower()
-    amount = ledger_item.amount + (ledger_item.amount * ledger_item.vat_rate)
-    return show_bank_details(request, amount, ledger_item.type_id, currency)
+    if currency == "gbp_stripe":
+        raise NotImplemented()
+
+    return show_bank_details(request, ledger_item.charged_amount, ledger_item.type_id, currency)
+
+
+@login_required
+def complete_top_up_bank_transfer_stripe(request, item_id):
+    ledger_item = get_object_or_404(models.LedgerItem, id=item_id)
+
+    if ledger_item.account != request.user.account:
+        return HttpResponseForbidden
+
+    if ledger_item.type != models.LedgerItem.TYPE_STRIPE_BACS:
+        return HttpResponseBadRequest()
+
+    try:
+        charge_state = ledger_item.charge_state_payment
+    except django.core.exceptions.ObjectDoesNotExist:
+        charge_state = None
+
+    payment_intent = stripe.PaymentIntent.retrieve(ledger_item.type_id)
+    tasks.update_from_payment_intent(payment_intent, ledger_item)
+
+    if ledger_item.state != ledger_item.STATE_PENDING:
+        if charge_state:
+            return redirect('complete_order', charge_state.id)
+
+        return redirect('dashboard')
+
+    if payment_intent["next_action"]["type"] != "display_bank_transfer_instructions":
+        return redirect('dashboard')
+
+    bank_instructions = payment_intent["next_action"]["display_bank_transfer_instructions"]
+    amount_remaining = decimal.Decimal(bank_instructions["amount_remaining"]) / decimal.Decimal(100)
+    account_info = None
+    if bank_instructions["type"] == "sort_code":
+        sort_code = bank_instructions["sort_code"]["sort_code"]
+        account_info = {
+            "sort_code": f"{sort_code[0:2]}-{sort_code[2:4]}-{sort_code[4:6]}",
+            "account_number": bank_instructions["sort_code"]["account_number"],
+            "type": "gb"
+        }
+
+    return render(request, "billing/top_up_bank_gbp_stripe.html", {
+        "ledger_item": ledger_item,
+        "bank_instructions": {
+            "amount": amount_remaining,
+            "currency": bank_instructions["currency"].upper(),
+            "reference": bank_instructions["reference"],
+            "account_info": account_info
+        }
+    })
 
 
 @login_required

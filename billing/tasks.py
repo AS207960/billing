@@ -806,12 +806,37 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
         )
 
 
+def process_ledger_item_refund(ledger_item: models.LedgerItem, amount: decimal.Decimal):
+    if ledger_item.type == ledger_item.TYPE_GIROPAY:
+        payment_intent = stripe.PaymentIntent.retrieve(ledger_item.type_id)
+        payment_amount = decimal.Decimal(payment_intent["amount"]) / decimal.Decimal(100)
+        exchange_rate = payment_amount / ledger_item.charged_amount
+        int_refund = int(round(amount * exchange_rate * decimal.Decimal(100)))
+        refund = stripe.Refund.create(
+            payment_intent=payment_intent["id"],
+            amount=int_refund,
+            reason="requested_by_customer",
+        )
+        ledger_item = models.LedgerItem(
+            account=ledger_item.account,
+            type=ledger_item.TYPE_STRIPE_REFUND,
+            type_id=refund['id'],
+            amount=-amount,
+            descriptor=f"Refund: {ledger_item.descriptor}",
+            is_reversal=True,
+            reversal_for=ledger_item,
+            timestamp=timezone.now()
+        )
+        update_from_stripe_refund(refund, ledger_item)
+
+
 def update_from_payment_intent(payment_intent, ledger_item: models.LedgerItem = None):
     ledger_item = models.LedgerItem.objects.filter(
         Q(type=models.LedgerItem.TYPE_CARD) | Q(type=models.LedgerItem.TYPE_SEPA) |
         Q(type=models.LedgerItem.TYPE_SOFORT) | Q(type=models.LedgerItem.TYPE_GIROPAY) |
         Q(type=models.LedgerItem.TYPE_BANCONTACT) | Q(type=models.LedgerItem.TYPE_EPS) |
-        Q(type=models.LedgerItem.TYPE_IDEAL) | Q(type=models.LedgerItem.TYPE_P24)
+        Q(type=models.LedgerItem.TYPE_IDEAL) | Q(type=models.LedgerItem.TYPE_P24) |
+        Q(type=models.LedgerItem.TYPE_STRIPE_BACS)
     ).filter(type_id=payment_intent['id']).first() if not ledger_item else ledger_item
 
     if not ledger_item:
@@ -866,6 +891,17 @@ def update_from_payment_intent(payment_intent, ledger_item: models.LedgerItem = 
     elif payment_intent["status"] == "requires_action":
         ledger_item.state = models.LedgerItem.STATE_PENDING
         ledger_item.save()
+
+        if payment_intent["next_action"]["type"] == "display_bank_transfer_instructions":
+            bank_instructions = payment_intent["next_action"]["display_bank_transfer_instructions"]
+            if bank_instructions["type"] == "sort_code":
+                models.AccountStripeVirtualUKBank.objects.update_or_create(
+                    sort_code=bank_instructions["sort_code"]["sort_code"],
+                    account_number=bank_instructions["sort_code"]["account_number"],
+                    defaults={
+                        "account": ledger_item.account
+                    }
+                )
     elif (payment_intent["status"] == "requires_payment_method" and payment_intent["last_payment_error"]) \
             or payment_intent["status"] == "canceled":
         try:
@@ -939,35 +975,8 @@ def update_from_charge(charge, ledger_item=None):
         type_id=charge['id']
     ).first() if not ledger_item else ledger_item
 
-    if charge["refunded"]:
-        if not ledger_item and charge['payment_intent']:
-            ledger_item = models.LedgerItem.objects.filter(
-                Q(type=models.LedgerItem.TYPE_CARD) | Q(type=models.LedgerItem.TYPE_SEPA) |
-                Q(type=models.LedgerItem.TYPE_SOFORT) | Q(type=models.LedgerItem.TYPE_GIROPAY) |
-                Q(type=models.LedgerItem.TYPE_BANCONTACT) | Q(type=models.LedgerItem.TYPE_EPS) |
-                Q(type=models.LedgerItem.TYPE_IDEAL) | Q(type=models.LedgerItem.TYPE_P24)
-            ).filter(
-                type_id=charge['payment_intent']
-            ).first() if not ledger_item else ledger_item
-
-        if ledger_item:
-            reversal_ledger_item = models.LedgerItem.objects.filter(
-                type=models.LedgerItem.TYPE_CHARGE,
-                type_id=ledger_item.id,
-                is_reversal=True
-            ).first()  # type: models.LedgerItem
-            if not reversal_ledger_item:
-                new_ledger_item = models.LedgerItem(
-                    account=ledger_item.account,
-                    descriptor=ledger_item.descriptor,
-                    amount=-(decimal.Decimal(charge["amount_refunded"]) / decimal.Decimal(100)),
-                    type=models.LedgerItem.TYPE_CHARGE,
-                    type_id=ledger_item.id,
-                    timestamp=timezone.now(),
-                    state=ledger_item.STATE_COMPLETED,
-                    is_reversal=True
-                )
-                new_ledger_item.save()
+    for refund in charge["refunds"]["data"]:
+        update_from_stripe_refund(refund)
 
     if not ledger_item:
         return
@@ -981,6 +990,53 @@ def update_from_charge(charge, ledger_item=None):
     elif charge["status"] == "failed":
         ledger_item.state = models.LedgerItem.STATE_FAILED
         ledger_item.save()
+
+
+def update_from_stripe_refund(refund, ledger_item=None):
+    ledger_item = models.LedgerItem.objects.filter(
+        type=models.LedgerItem.TYPE_STRIPE_REFUND,
+        type_id=refund['id']
+    ).first() if not ledger_item else ledger_item
+
+    if not ledger_item and refund["pamyent_intent"]:
+        payment_ledger_item = models.LedgerItem.objects.filter(
+            Q(type=models.LedgerItem.TYPE_CARD) | Q(type=models.LedgerItem.TYPE_SEPA) |
+            Q(type=models.LedgerItem.TYPE_SOFORT) | Q(type=models.LedgerItem.TYPE_GIROPAY) |
+            Q(type=models.LedgerItem.TYPE_BANCONTACT) | Q(type=models.LedgerItem.TYPE_EPS) |
+            Q(type=models.LedgerItem.TYPE_IDEAL) | Q(type=models.LedgerItem.TYPE_P24) |
+            Q(type=models.LedgerItem.TYPE_STRIPE_BACS)
+        ).filter(
+            type_id=refund['payment_intent']
+        ).first()
+        if payment_ledger_item:
+            amount_refunded_local = decimal.Decimal(refund["amount"]) / decimal.Decimal(100)
+            payment_intent = stripe.PaymentIntent.retrieve(payment_ledger_item.type_id)
+            payment_amount = decimal.Decimal(payment_intent["amount"]) / decimal.Decimal(100)
+            exchange_rate = payment_amount / payment_ledger_item.charged_amount
+            amount_refunded = (amount_refunded_local / exchange_rate).quantize(decimal.Decimal("1.00"))
+
+            ledger_item = models.LedgerItem(
+                account=payment_ledger_item.account,
+                type=models.LedgerItem.TYPE_STRIPE_REFUND,
+                type_id=refund['id'],
+                amount=-amount_refunded,
+                descriptor=f"Refund: {payment_ledger_item.descriptor}",
+                is_reversal=True,
+                reversal_for=payment_ledger_item,
+                timestamp=datetime.datetime.utcfromtimestamp(refund['created'])
+            )
+
+    if not ledger_item:
+        return
+
+    if refund["status"] == "pending":
+        ledger_item.state = models.LedgerItem.STATE_PROCESSING
+    elif refund["status"] == "succeeded":
+        ledger_item.state = models.LedgerItem.STATE_COMPLETED
+    elif refund["status"] in ("failed", "canceled"):
+        ledger_item.state = models.LedgerItem.STATE_FAILED
+
+    ledger_item.save()
 
 
 def update_from_checkout_session(session, ledger_item=None):
@@ -1053,6 +1109,69 @@ def setup_intent_succeeded(setup_intent):
         )
 
 
+def balance_funded(balance_transaction):
+    account = models.Account.objects.filter(
+        stripe_customer_id=balance_transaction["customer"]
+    ).first()
+
+    if not account:
+        return
+
+    can_sell, can_sell_reason = account.can_sell
+    if not can_sell:
+        return
+
+    balance_transaction = stripe.Customer.retrieve_balance_transaction(
+        balance_transaction["customer"],
+        balance_transaction["id"]
+    )
+    if balance_transaction["balance_type"] != "cash" or balance_transaction["type"] != "adjustment" \
+            or balance_transaction["transaction_type"] != "deposit" \
+            or balance_transaction["deposit"]["type"] != "funding":
+        return
+
+    deposited_amount = -max(balance_transaction["amount"], balance_transaction["ending_balance"])
+    deposited_amount_decimal = decimal.Decimal(deposited_amount) / decimal.Decimal(100)
+    deposited_amount_gbp = deposited_amount_decimal * models.ExchangeRate.get_rate(
+        balance_transaction["currency"], "GBP")
+
+    if balance_transaction["deposit"]["funding"]["type"] == "bank_transfer":
+        ref = balance_transaction["deposit"]["funding"]["bank_transfer"]["reference"]
+        transfer_type = balance_transaction["deposit"]["funding"]["bank_transfer"]["type"]
+        if (account.billing_address.country_code.code.lower() == "gb" and transfer_type == "sort_code") \
+                or not account.taxable:
+            vat_rate = decimal.Decimal(0)
+            if account.taxable:
+                country_vat_rate = vat.get_vat_rate(account.billing_address.country_code.code.upper())
+                if country_vat_rate is not None:
+                    vat_rate = country_vat_rate
+
+            payment_intent = stripe.PaymentIntent.create(
+                amount=deposited_amount,
+                currency=balance_transaction["currency"],
+                customer=account.get_stripe_id(),
+                description='Top-up',
+                receipt_email=account.user.email,
+                payment_method_types=["customer_balance"],
+                payment_method_data={
+                    "type": "customer_balance"
+                },
+                confirm=True,
+            )
+
+            new_ledger_item = models.LedgerItem(
+                account=account,
+                descriptor=f"Top-up by bank transfer: {ref}",
+                amount=deposited_amount_gbp / (1 + vat_rate),
+                vat_rate=vat_rate,
+                type=models.LedgerItem.TYPE_STRIPE_BACS,
+                type_id=payment_intent["id"],
+                timestamp=datetime.datetime.utcfromtimestamp(balance_transaction["created"]),
+                evidence_billing_address=account.billing_address
+            )
+            update_from_payment_intent(payment_intent, ledger_item=new_ledger_item)
+
+
 def mandate_update(mandate):
     payment_method = stripe.PaymentMethod.retrieve(mandate["payment_method"])
     account = models.Account.objects.filter(stripe_customer_id=payment_method["customer"]).first()
@@ -1080,105 +1199,105 @@ def sync_payment_methods(account: models.Account):
         )
 
 
-def find_account_evidence(account: models.Account, country_code):
-    evidence = {}
-    possible_bank_accounts = models.KnownBankAccount.objects.filter(
-        country_code=country_code,
-        account=account
-    )
-    if possible_bank_accounts.count():
-        evidence["evidence_bank_account"] = possible_bank_accounts.first()
-
-    if country_code == "us":
-        possible_ach_mandate = models.ACHMandate.objects.filter(
-            account=account,
-            active=True
-        )
-        if possible_ach_mandate.count():
-            evidence["evidence_ach_mandate"] = possible_ach_mandate.first()
-    elif country_code == "se":
-        possible_autogiro_mandate = models.AutogiroMandate.objects.filter(
-            account=account,
-            active=True
-        )
-        if possible_autogiro_mandate.count():
-            evidence["evidence_autogiro_mandate"] = possible_autogiro_mandate.first()
-    elif country_code == "gb":
-        possible_bacs_mandate = models.BACSMandate.objects.filter(
-            account=account,
-            active=True
-        )
-        if possible_bacs_mandate.count():
-            evidence["evidence_bacs_mandate"] = possible_bacs_mandate.first()
-        possible_gc_bacs_mandate = models.GCBACSMandate.objects.filter(
-            account=account,
-            active=True
-        )
-        if possible_gc_bacs_mandate.count():
-            evidence["evidence_gc_bacs_mandate"] = possible_gc_bacs_mandate.first()
-    elif country_code == "au":
-        possible_becs_mandate = models.BECSMandate.objects.filter(
-            account=account,
-            active=True
-        )
-        if possible_becs_mandate.count():
-            evidence["evidence_becs_mandate"] = possible_becs_mandate.first()
-    elif country_code == "nz":
-        possible_becs_nz_mandate = models.BECSNZMandate.objects.filter(
-            account=account,
-            active=True
-        )
-        if possible_becs_nz_mandate.count():
-            evidence["evidence_becs_nz_mandate"] = possible_becs_nz_mandate.first()
-    elif country_code == "dk":
-        possible_betalingsservice_mandate = models.BetalingsserviceMandate.objects.filter(
-            account=account,
-            active=True
-        )
-        if possible_betalingsservice_mandate.count():
-            evidence["evidence_betalingsservice_mandate"] = possible_betalingsservice_mandate.first()
-    elif country_code == "ca":
-        possible_pad_mandate = models.PADMandate.objects.filter(
-            account=account,
-            active=True
-        )
-        if possible_pad_mandate.count():
-            evidence["evidence_pad_mandate"] = possible_pad_mandate.first()
-
-    possible_sepa_mandates = models.SEPAMandate.objects.filter(
-        account=account,
-        active=True
-    )
-    for possible_sepa_mandate in possible_sepa_mandates:
-        payment_method = stripe.PaymentMethod.retrieve(possible_sepa_mandate.payment_method)
-        payment_method_country = utils.country_from_stripe_payment_method(payment_method)
-        if payment_method_country == country_code:
-            evidence["evidence_sepa_mandate"] = possible_sepa_mandate
-            break
-
-    possible_gc_sepa_mandates = models.GCSEPAMandate.objects.filter(
-        account=account,
-        active=True
-    )
-    for possible_gc_sepa_mandate in possible_gc_sepa_mandates:
-        mandate = apps.gocardless_client.mandates.get(possible_gc_sepa_mandate.mandate_id)
-        customer_bank_account = apps.gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
-        payment_method_country = customer_bank_account.country_code.lower()
-        if payment_method_country == country_code:
-            evidence["evidence_gc_sepa_mandate"] = possible_gc_sepa_mandate
-            break
-
-    possible_stripe_pms = models.KnownStripePaymentMethod.objects.filter(
-        country_code=country_code,
-        account=account
-    )
-    if not possible_stripe_pms.count() and not bool(evidence):
-        sync_payment_methods(account)
-        possible_stripe_pms = models.KnownStripePaymentMethod.objects.filter(
-            country_code=country_code,
-            account=account
-        )
-    if possible_stripe_pms.count():
-        evidence["evidence_stripe_pm"] = possible_stripe_pms.first()
-
-    return evidence if bool(evidence) else None
+# def find_account_evidence(account: models.Account, country_code):
+#     evidence = {}
+#     possible_bank_accounts = models.KnownBankAccount.objects.filter(
+#         country_code=country_code,
+#         account=account
+#     )
+#     if possible_bank_accounts.count():
+#         evidence["evidence_bank_account"] = possible_bank_accounts.first()
+#
+#     if country_code == "us":
+#         possible_ach_mandate = models.ACHMandate.objects.filter(
+#             account=account,
+#             active=True
+#         )
+#         if possible_ach_mandate.count():
+#             evidence["evidence_ach_mandate"] = possible_ach_mandate.first()
+#     elif country_code == "se":
+#         possible_autogiro_mandate = models.AutogiroMandate.objects.filter(
+#             account=account,
+#             active=True
+#         )
+#         if possible_autogiro_mandate.count():
+#             evidence["evidence_autogiro_mandate"] = possible_autogiro_mandate.first()
+#     elif country_code == "gb":
+#         possible_bacs_mandate = models.BACSMandate.objects.filter(
+#             account=account,
+#             active=True
+#         )
+#         if possible_bacs_mandate.count():
+#             evidence["evidence_bacs_mandate"] = possible_bacs_mandate.first()
+#         possible_gc_bacs_mandate = models.GCBACSMandate.objects.filter(
+#             account=account,
+#             active=True
+#         )
+#         if possible_gc_bacs_mandate.count():
+#             evidence["evidence_gc_bacs_mandate"] = possible_gc_bacs_mandate.first()
+#     elif country_code == "au":
+#         possible_becs_mandate = models.BECSMandate.objects.filter(
+#             account=account,
+#             active=True
+#         )
+#         if possible_becs_mandate.count():
+#             evidence["evidence_becs_mandate"] = possible_becs_mandate.first()
+#     elif country_code == "nz":
+#         possible_becs_nz_mandate = models.BECSNZMandate.objects.filter(
+#             account=account,
+#             active=True
+#         )
+#         if possible_becs_nz_mandate.count():
+#             evidence["evidence_becs_nz_mandate"] = possible_becs_nz_mandate.first()
+#     elif country_code == "dk":
+#         possible_betalingsservice_mandate = models.BetalingsserviceMandate.objects.filter(
+#             account=account,
+#             active=True
+#         )
+#         if possible_betalingsservice_mandate.count():
+#             evidence["evidence_betalingsservice_mandate"] = possible_betalingsservice_mandate.first()
+#     elif country_code == "ca":
+#         possible_pad_mandate = models.PADMandate.objects.filter(
+#             account=account,
+#             active=True
+#         )
+#         if possible_pad_mandate.count():
+#             evidence["evidence_pad_mandate"] = possible_pad_mandate.first()
+#
+#     possible_sepa_mandates = models.SEPAMandate.objects.filter(
+#         account=account,
+#         active=True
+#     )
+#     for possible_sepa_mandate in possible_sepa_mandates:
+#         payment_method = stripe.PaymentMethod.retrieve(possible_sepa_mandate.payment_method)
+#         payment_method_country = utils.country_from_stripe_payment_method(payment_method)
+#         if payment_method_country == country_code:
+#             evidence["evidence_sepa_mandate"] = possible_sepa_mandate
+#             break
+#
+#     possible_gc_sepa_mandates = models.GCSEPAMandate.objects.filter(
+#         account=account,
+#         active=True
+#     )
+#     for possible_gc_sepa_mandate in possible_gc_sepa_mandates:
+#         mandate = apps.gocardless_client.mandates.get(possible_gc_sepa_mandate.mandate_id)
+#         customer_bank_account = apps.gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
+#         payment_method_country = customer_bank_account.country_code.lower()
+#         if payment_method_country == country_code:
+#             evidence["evidence_gc_sepa_mandate"] = possible_gc_sepa_mandate
+#             break
+#
+#     possible_stripe_pms = models.KnownStripePaymentMethod.objects.filter(
+#         country_code=country_code,
+#         account=account
+#     )
+#     if not possible_stripe_pms.count() and not bool(evidence):
+#         sync_payment_methods(account)
+#         possible_stripe_pms = models.KnownStripePaymentMethod.objects.filter(
+#             country_code=country_code,
+#             account=account
+#         )
+#     if possible_stripe_pms.count():
+#         evidence["evidence_stripe_pm"] = possible_stripe_pms.first()
+#
+#     return evidence if bool(evidence) else None

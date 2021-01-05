@@ -1,0 +1,16 @@
+{% extends 'billing/base.html' %}
+{% load mathfilters %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Top-up refund</h1>
+        <div class="row d-flex flex-column align-items-center">
+            <div class="col-12 col-md-6">
+                <p class="lead">
+                    Amount available for refund: <b>{{ amount_refundable }} GBP</b>
+                </p>
+                {% crispy refund_form refund_form.helper %}
+            </div>
+        </div>
+{% endblock %}

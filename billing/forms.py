@@ -2,6 +2,7 @@ import crispy_forms.helper
 import crispy_forms.layout
 import django.core.exceptions
 import zeep.exceptions
+import decimal
 from django import forms
 from django.conf import settings
 from django_countries.fields import CountryField
@@ -40,6 +41,16 @@ class TopUpForm(forms.Form):
 
         self.helper = crispy_forms.helper.FormHelper()
         self.helper.add_input(crispy_forms.layout.Submit('submit', 'Next', css_class='btn-block'))
+
+
+class TopUpRefundForm(forms.Form):
+    amount = forms.DecimalField(decimal_places=2, max_digits=9, label="Amount (GBP)", min_value=decimal.Decimal('0.01'))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
 
 
 class CompleteChargeForm(forms.Form):

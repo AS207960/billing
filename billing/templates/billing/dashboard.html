@@ -48,17 +48,41 @@
                                 -&pound;{{ account.reversal_balance|abs|floatformat:2 }}
                             {% endif %}
                             <br>
-                            <small>Your balance available for refund is the sum of charge reversals minus already processed refunds..</small>
+                            <small>
+                                Your balance available for refund is the sum of charge reversals minus already processed
+                                refunds.
+                                You can request a refund from the top-up details page.
+                            </small>
                         </p>
                     </div>
                 </div>
                 <div class="card mt-3">
                     <div class="card-body">
-                        <a href="{% url 'top_up' %}" class="btn btn-primary btn-block">&#x1f4b7; Top-up &#x1f4b7;</a>
+                        <a href="{% url 'top_up' %}" class="btn btn-primary btn-block">&#x1f4b7; Top-up
+                            &#x1f4b7;</a>
                         <a href="{% url 'statement_export' %}" class="btn btn-primary btn-block">&#x1f9fe; Statement
                             export &#x1f9fe;</a>
                     </div>
                 </div>
+                {% if account.virtual_uk_bank %}
+                    {% if account.country == "gb" or not account.taxable %}
+                        <div class="card mt-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Virtual account number</h5>
+                                <p class="card-text">
+                                    Sort Code: <br/><b>{{ account.virtual_uk_bank.formatted_sort_code }}</b><br/>
+                                    Account number: <br/><b>{{ account.virtual_uk_bank.account_number }}</b>
+                                </p>
+                                <p class="card-text">
+                                    <small>
+                                        If we receive any payment to these details, from any payer, with an reference,
+                                        we'll automatically credit it to your billing account.
+                                    </small>
+                                </p>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endif %}
             </div>
             <div class="col-md-9">
                 <h2>Transactions &#x1f4dc;</h2>
@@ -144,9 +168,17 @@
                                             </div>
                                         {% elif item.type == "F" %}
                                             <div class="btn-group">
-                                                <a href="{% url 'complete_top_up_bank_transfer' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
+                                                <a href="{% url 'complete_top_up_bank_transfer' item.id %}"
+                                                   class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
                                                 <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1;
                                                     Cancel</a>
+                                            </div>
+                                        {% elif item.type == "T" %}
+                                            <div class="btn-group">
+                                                <a href="{% url 'complete_top_up_bank_transfer_stripe' item.id %}"
+                                                   class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
+                                                <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">
+                                                    &#x1f5d1; Cancel</a>
                                             </div>
                                         {% elif item.type == "E" %}
                                             <div class="btn-group">
@@ -156,7 +188,8 @@
                                             </div>
                                         {% elif item.type == "S" %}
                                             <div class="btn-group">
-                                                <a href="{% url 'complete_top_up_sources' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
+                                                <a href="{% url 'complete_top_up_sources' item.id %}"
+                                                   class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
                                                 <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1;
                                                     Cancel</a>
                                             </div>
@@ -177,7 +210,7 @@
                                     {% elif item.state == "A" and item.type == "D" %}
                                         <div class="btn-group">
                                             <a href="{% url 'toup_up_details' item.id %}"
-                                                       class="btn btn-info btn-sm">&#x1f440; View details</a>
+                                               class="btn btn-info btn-sm">&#x1f440; View details</a>
                                             <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1;
                                                 Cancel</a>
                                         </div>

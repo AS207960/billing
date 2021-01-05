@@ -1,0 +1,33 @@
+{% extends 'billing/base.html' %}
+{% load mathfilters %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Top-up by bank transfer</h1>
+
+        <div class="row d-flex flex-column align-items-center">
+            <div class="col-12 col-md-6">
+                <p class="lead">
+                    Please send <b>{{ bank_instructions.amount|floatformat:2 }} {{ bank_instructions.currency }}</b>
+                    with a reference of <b>{{ bank_instructions.reference }}</b> to the bank account details listed
+                    below to complete your payment.
+                </p>
+
+                {% if bank_instructions.account_info.type == "gb" %}
+                    <p>
+                        Account holder: <b>AS207960 Cyfyngedig</b><br/>
+                        Sort Code: <b>{{ bank_instructions.account_info.sort_code }}</b><br/>
+                        Account Number: <b>{{ bank_instructions.account_info.account_number }}</b><br/>
+                        Payment Schemes: <b>BACS/Faster Payments</b>
+                    </p>
+
+                    <div class="alert alert-info">
+                        These account details are unique to your account. If we receive any payment to these details,
+                        from any payer, with an reference, we'll automatically credit it to your billing account.
+                    </div>
+                {% endif %}
+
+                <a href="{% url 'dashboard' %}" class="btn btn-primary">Back to dashboard</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}

@@ -421,7 +421,7 @@
                     <div class="card-body d-flex flex-column align-items-center text-center">
                         <h3 class="display-4">&#x1f3e6;</h3>
                         <h5 class="card-title">Bank transfer / Direct Debit</h5>
-                        {% if selected_payment_method_type == "bank_transfer" %}
+                        {% if selected_payment_method_type == "bank_transfer" or selected_payment_method_type == "bank_transfer_stripe" %}
                             <h4 class="mt-0">
                                 <span class="badge badge-pill badge-success">Selected</span>
                             </h4>

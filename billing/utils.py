@@ -46,3 +46,5 @@ def country_from_stripe_payment_method(payment_method):
         return payment_method["sepa_debit"]["country"].lower()
     elif payment_method["type"] == "sofort":
         return payment_method["sofort"]["country"].lower()
+    elif payment_method["type"] == "customer_balance":
+        return "gb"

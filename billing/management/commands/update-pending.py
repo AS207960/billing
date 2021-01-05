@@ -27,5 +27,8 @@ class Command(BaseCommand):
             elif ledger_item.type == models.LedgerItem.TYPE_CHECKOUT:
                 session = stripe.checkout.Session.retrieve(ledger_item.type_id)
                 tasks.update_from_checkout_session(session, ledger_item)
+            elif ledger_item.type == models.LedgerItem.TYPE_STRIPE_REFUND:
+                refund = stripe.Refund.retrieve(ledger_item.type_id)
+                tasks.update_from_stripe_refund(refund, ledger_item)
             elif ledger_item.type == models.LedgerItem.TYPE_GOCARDLESS:
                 tasks.update_from_gc_payment(ledger_item.type_id, ledger_item)

@@ -106,6 +106,9 @@ spec:
                 name: billing-flux
               prefix: "FLUX_"
             - secretRef:
+                name: billing-hmrc
+              prefix: "HMRC_"
+            - secretRef:
                 name: billing-gc
               prefix: "GOCARDLESS_"
             - secretRef:
@@ -150,6 +153,9 @@ spec:
             - secretRef:
                 name: billing-flux
               prefix: "FLUX_"
+            - secretRef:
+                name: billing-hmrc
+              prefix: "HMRC_"
             - secretRef:
                 name: billing-gc
               prefix: "GOCARDLESS_"
@@ -225,6 +231,9 @@ spec:
                 name: billing-flux
               prefix: "FLUX_"
             - secretRef:
+                name: billing-hmrc
+              prefix: "HMRC_"
+            - secretRef:
                 name: billing-gc
               prefix: "GOCARDLESS_"
             - secretRef:
@@ -288,6 +297,9 @@ spec:
                 - secretRef:
                     name: billing-flux
                   prefix: "FLUX_"
+                - secretRef:
+                    name: billing-hmrc
+                  prefix: "HMRC_"
                 - secretRef:
                     name: billing-gc
                   prefix: "GOCARDLESS_"
@@ -354,6 +366,9 @@ spec:
                     name: billing-flux
                   prefix: "FLUX_"
                 - secretRef:
+                    name: billing-hmrc
+                  prefix: "HMRC_"
+                - secretRef:
                     name: billing-gc
                   prefix: "GOCARDLESS_"
                 - secretRef:
@@ -418,6 +433,9 @@ spec:
                 - secretRef:
                     name: billing-flux
                   prefix: "FLUX_"
+                - secretRef:
+                    name: billing-hmrc
+                  prefix: "HMRC_"
                 - secretRef:
                     name: billing-gc
                   prefix: "GOCARDLESS_"
@@ -484,6 +502,9 @@ spec:
                     name: billing-flux
                   prefix: "FLUX_"
                 - secretRef:
+                    name: billing-hmrc
+                  prefix: "HMRC_"
+                - secretRef:
                     name: billing-gc
                   prefix: "GOCARDLESS_"
                 - secretRef:
@@ -548,6 +569,9 @@ spec:
                 - secretRef:
                     name: billing-flux
                   prefix: "FLUX_"
+                - secretRef:
+                    name: billing-hmrc
+                  prefix: "HMRC_"
                 - secretRef:
                     name: billing-gc
                   prefix: "GOCARDLESS_"

@@ -6,6 +6,7 @@ import inflect
 import stripe
 import threading
 import as207960_utils.models
+import django.core.exceptions
 from dateutil import relativedelta
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -102,7 +103,8 @@ class Account(models.Model):
         customer = stripe.Customer.create(
             email=self.user.email,
             description=self.user.username,
-            name=f"{self.user.first_name} {self.user.last_name}"
+            name=f"{self.user.first_name} {self.user.last_name}",
+            balance_version='v2',
         )
         customer_id = customer['id']
         self.stripe_customer_id = customer_id
@@ -113,7 +115,8 @@ class Account(models.Model):
         if self.stripe_customer_id:
             t = threading.Thread(target=stripe.Customer.modify, args=(self.stripe_customer_id,), kwargs={
                 "email": self.user.email,
-                "name": f"{self.user.first_name} {self.user.last_name}"
+                "name": f"{self.user.first_name} {self.user.last_name}",
+                "balance_version": "v2"
             })
             t.setDaemon(True)
             t.start()
@@ -126,6 +129,20 @@ class Account(models.Model):
             return True
         else:
             return not self.billing_address.vat_id
+
+    @property
+    def virtual_uk_bank(self):
+        try:
+            return self.accountstripevirtualukbank
+        except django.core.exceptions.ObjectDoesNotExist:
+            return None
+
+    @property
+    def country(self):
+        if not self.billing_address:
+            return None
+        else:
+            return self.billing_address.country_code.code.lower()
 
     @property
     def can_sell(self):
@@ -152,6 +169,16 @@ def create_user_profile(sender, instance, created, **kwargs):
     if created:
         Account.objects.create(user=instance)
     instance.account.save()
+
+
+class AccountStripeVirtualUKBank(models.Model):
+    account = models.OneToOneField(Account, on_delete=models.CASCADE)
+    sort_code = models.CharField(max_length=6)
+    account_number = models.CharField(max_length=11)
+
+    @property
+    def formatted_sort_code(self):
+        return f"{self.sort_code[0:2]}-{self.sort_code[2:4]}-{self.sort_code[4:6]}"
 
 
 class AccountBillingAddress(models.Model):
@@ -388,6 +415,8 @@ class LedgerItem(models.Model):
     TYPE_CHARGES = "A"
     TYPE_CHECKOUT = "H"
     TYPE_MANUAL = "M"
+    TYPE_STRIPE_REFUND = "R"
+    TYPE_STRIPE_BACS = "T"
     TYPES = (
         (TYPE_CHARGE, "Charge"),
         (TYPE_CARD, "Card"),
@@ -404,6 +433,8 @@ class LedgerItem(models.Model):
         (TYPE_CHARGES, "Charges"),
         (TYPE_CHECKOUT, "Checkout"),
         (TYPE_MANUAL, "Manual"),
+        (TYPE_STRIPE_REFUND, "Stripe refund"),
+        (TYPE_STRIPE_BACS, "Stripe bank transfer"),
     )
 
     id = as207960_utils.models.TypedUUIDField('billing_ledgeritem', primary_key=True)
@@ -415,6 +446,8 @@ class LedgerItem(models.Model):
     type = models.CharField(max_length=1, choices=TYPES, default=TYPE_CHARGE)
     type_id = models.CharField(max_length=255, blank=True, null=True)
     is_reversal = models.BooleanField(default=False, blank=True)
+    reversal_for = models.ForeignKey(
+        'LedgerItem', on_delete=models.PROTECT, blank=True, null=True, related_name='reversals')
     last_state_change_timestamp = models.DateTimeField(blank=True, null=True)
     charged_amount = models.DecimalField(decimal_places=2, max_digits=9, default=0)
     vat_rate = models.DecimalField(decimal_places=2, max_digits=9, default=0)
@@ -444,17 +477,20 @@ class LedgerItem(models.Model):
         super().save(*args, **kwargs)
 
     @property
-    def reversal(self):
-        reversal_ledger_item = LedgerItem.objects.filter(
-            type=self.TYPE_CHARGE,
-            type_id=self.type_id,
-            is_reversal=True,
-            state=self.STATE_COMPLETED
-        ).first()
-        if reversal_ledger_item and reversal_ledger_item.timestamp >= self.timestamp:
-            return reversal_ledger_item
+    def type_name(self):
+        if self.type == self.TYPE_STRIPE_REFUND:
+            return "refund"
+        elif self.type == self.TYPE_CHARGE:
+            if self.is_reversal:
+                return "order refund"
+            else:
+                return "order"
         else:
-            return None
+            return "payment"
+
+    @property
+    def reversal(self):
+        return self.reversals.filter(state=self.STATE_COMPLETED).first()
 
     @property
     def amount_refundable(self):
@@ -465,11 +501,22 @@ class LedgerItem(models.Model):
         if account_refundable <= 0:
             return decimal.Decimal(0)
 
-        if self.type == self.TYPE_GIROPAY:
-            payment_intent = stripe.PaymentIntent.retrieve(self.type_id)
+        if self.type in (
+                self.TYPE_GIROPAY, self.TYPE_BANCONTACT, self.TYPE_EPS, self.TYPE_IDEAL, self.TYPE_P24,
+                self.TYPE_SOFORT, self.TYPE_CARD, self.TYPE_SEPA, self.TYPE_CHECKOUT
+        ):
+            if self.type == self.TYPE_CHECKOUT:
+                session = stripe.checkout.Session.retrieve(self.type_id)
+                payment_intent = stripe.PaymentIntent.retrieve(session["payment_intent"], expand=["payment_method"])
+            else:
+                payment_intent = stripe.PaymentIntent.retrieve(self.type_id, expand=["payment_method"])
             created_date = datetime.datetime.utcfromtimestamp(payment_intent["created"])
             if created_date + datetime.timedelta(days=180) < datetime.datetime.utcnow():
                 return decimal.Decimal(0)
+
+            if payment_intent["payment_method"]["type"] in ("bacs_debit", "sepa_debit"):
+                if created_date + datetime.timedelta(days=7) > datetime.datetime.utcnow():
+                    return decimal.Decimal(0)
 
             refunds = stripe.Refund.list(payment_intent=payment_intent["id"])
             total_refunded_local = sum(

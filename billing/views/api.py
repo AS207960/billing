@@ -174,7 +174,7 @@ def reverse_charge(request):
                     descriptor=ledger_item.descriptor,
                     amount=-ledger_item.amount,
                     type=models.LedgerItem.TYPE_CHARGE,
-                    type_id=ledger_item.type_id,
+                    reversal_for=ledger_item,
                     timestamp=timezone.now(),
                     state=ledger_item.STATE_COMPLETED,
                     is_reversal=True
@@ -185,7 +185,6 @@ def reverse_charge(request):
                 type=models.LedgerItem.TYPE_CHARGE,
                 type_id=data["id"],
                 is_reversal=False,
-                state=models.LedgerItem.STATE_PENDING
             ).first()
             if ledger_item:
                 ledger_item.state = models.LedgerItem.STATE_FAILED

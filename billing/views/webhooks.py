@@ -82,6 +82,9 @@ def stripe_webhook(request):
                             'charge.refunded'):
             charge = event.data.object
             tasks.update_from_charge(charge)
+        elif event.type == "charge.refund.updated":
+            refund = event.data.object
+            tasks.update_from_stripe_refund(refund)
         elif event.type in ("checkout.session.completed", "checkout.session.async_payment_failed",
                             "checkout.session.async_payment_succeeded"):
             session = event.data.object
@@ -89,6 +92,9 @@ def stripe_webhook(request):
         elif event.type == "setup_intent.succeeded":
             session = event.data.object
             tasks.setup_intent_succeeded(session)
+        elif event.type == "customer.balance_funded":
+            balance_transaction = event.data.object
+            tasks.balance_funded(balance_transaction)
         elif event.type == "mandate.updated":
             mandate = event.data.object
             tasks.mandate_update(mandate)
@@ -178,14 +184,14 @@ def attempt_complete_bank_transfer(ref: str, amount: decimal.Decimal, trans_acco
             **trans_account_data
         ).first()
         if known_account and known_account.account.billing_address and (
-                known_account.account.billing_address.country_code.lower() == known_account.country_code.lower()
+                known_account.account.billing_address.country_code.code.lower() == known_account.country_code.lower()
                 or not known_account.account.taxable
         ):
             can_sell, can_sell_reason = known_account.account.can_sell
             if can_sell:
                 vat_rate = decimal.Decimal(0)
                 if known_account.account.taxable:
-                    country_vat_rate = vat.get_vat_rate(known_account.account.billing_address.country_code.lower())
+                    country_vat_rate = vat.get_vat_rate(known_account.account.billing_address.country_code.code.upper())
                     if country_vat_rate is not None:
                         vat_rate = country_vat_rate
 
@@ -304,7 +310,8 @@ def xfw_webhook(request):
                             "account_code": fpid_data["account_number"],
                         }
 
-            amount = decimal.Decimal(found_t["amount"]["value"])
+            amount = decimal.Decimal(found_t["amount"]["value"]) * \
+                     models.ExchangeRate.get_rate(found_t["amount"]["currency"], "GBP")
             ref = found_t["details"].get("paymentReference")
             
             attempt_complete_bank_transfer(ref, amount, trans_account_data, found_t)

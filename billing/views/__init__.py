@@ -4,6 +4,7 @@ import json
 import django_countries
 import stripe
 import stripe.error
+import django.core.validators
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.conf import settings
@@ -104,6 +105,39 @@ def top_up_details(request, item_id):
         "has_vat": has_vat,
         "vat_charged": vat_charged,
         "vat_number": vat_number,
+    })
+
+
+@login_required
+def top_up_refund(request, item_id):
+    ledger_item = get_object_or_404(models.LedgerItem, id=item_id)
+
+    if ledger_item.account != request.user.account:
+        return HttpResponseForbidden()
+
+    amount_refundable = ledger_item.amount_refundable
+    if amount_refundable <= 0:
+        return HttpResponseForbidden()
+
+    if request.method == "POST":
+        refund_form = forms.TopUpRefundForm(request.POST)
+    else:
+        refund_form = forms.TopUpRefundForm()
+
+    refund_form.fields['amount'].validators.append(
+        django.core.validators.MaxValueValidator(amount_refundable)
+    )
+    refund_form.fields['amount'].max_value = amount_refundable
+    refund_form.fields['amount'].initial = amount_refundable
+
+    if request.method == "POST" and refund_form.is_valid():
+        tasks.process_ledger_item_refund(ledger_item, refund_form.cleaned_data['amount'])
+        return redirect('dashboard')
+
+    return render(request, "billing/top_up_refund.html", {
+        "ledger_item": ledger_item,
+        "amount_refundable": amount_refundable,
+        "refund_form": refund_form
     })
 
 

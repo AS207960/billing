@@ -107,6 +107,9 @@ spec:
                 name: billing-flux-test
               prefix: "FLUX_"
             - secretRef:
+                name: billing-hmrc-test
+              prefix: "HMRC_"
+            - secretRef:
                 name: billing-gc-test
               prefix: "GOCARDLESS_"
             - secretRef:
@@ -151,6 +154,9 @@ spec:
             - secretRef:
                 name: billing-flux-test
               prefix: "FLUX_"
+            - secretRef:
+                name: billing-hmrc-test
+              prefix: "HMRC_"
             - secretRef:
                 name: billing-gc-test
               prefix: "GOCARDLESS_"
@@ -226,6 +232,9 @@ spec:
                 name: billing-flux-test
               prefix: "FLUX_"
             - secretRef:
+                name: billing-hmrc-test
+              prefix: "HMRC_"
+            - secretRef:
                 name: billing-gc-test
               prefix: "GOCARDLESS_"
             - secretRef:
@@ -292,6 +301,9 @@ spec:
                 - secretRef:
                     name: billing-flux-test
                   prefix: "FLUX_"
+                - secretRef:
+                    name: billing-hmrc-test
+                  prefix: "HMRC_"
                 - secretRef:
                     name: billing-gc-test
                   prefix: "GOCARDLESS_"
@@ -361,6 +373,9 @@ spec:
                     name: billing-flux-test
                   prefix: "FLUX_"
                 - secretRef:
+                    name: billing-hmrc-test
+                  prefix: "HMRC_"
+                - secretRef:
                     name: billing-gc-test
                   prefix: "GOCARDLESS_"
                 - secretRef:
@@ -428,6 +443,9 @@ spec:
                 - secretRef:
                     name: billing-flux-test
                   prefix: "FLUX_"
+                - secretRef:
+                    name: billing-hmrc-test
+                  prefix: "HMRC_"
                 - secretRef:
                     name: billing-gc-test
                   prefix: "GOCARDLESS_"
@@ -497,6 +515,9 @@ spec:
                     name: billing-flux-test
                   prefix: "FLUX_"
                 - secretRef:
+                    name: billing-hmrc-test
+                  prefix: "HMRC_"
+                - secretRef:
                     name: billing-gc-test
                   prefix: "GOCARDLESS_"
                 - secretRef:
@@ -564,6 +585,9 @@ spec:
                 - secretRef:
                     name: billing-flux-test
                   prefix: "FLUX_"
+                - secretRef:
+                    name: billing-hmrc-test
+                  prefix: "HMRC_"
                 - secretRef:
                     name: billing-gc-test
                   prefix: "GOCARDLESS_"

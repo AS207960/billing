@@ -165,7 +165,7 @@ OIDC_CLIENT_SECRET = keycloak_conf["client_secret"]
 OIDC_SCOPES = keycloak_conf["scopes"]
 
 stripe.api_key = stripe_conf["server_key"]
-stripe.api_version = "2020-08-27; identity_beta=v3"
+stripe.api_version = "2020-08-27; identity_beta=v3; customer_balance_payment_method_beta=v1"
 STRIPE_PUBLIC_KEY = stripe_conf["public_key"]
 STRIPE_ENDPOINT_SECRET = stripe_conf["endpoint_secret"]
 

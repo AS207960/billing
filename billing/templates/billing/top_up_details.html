@@ -64,7 +64,9 @@
                 {% endif %}
 
                 {% if ledger_item.amount_refundable > 0 %}
-                    <a href="#" class="btn btn-block btn-secondary">Request refund</a>
+                    <a href="{% url 'toup_up_refund' ledger_item.id %}" class="btn btn-block btn-secondary">Request refund</a>
+                {% else %}
+                    <p>This top-up cannot be refunded. Please contact us for details.</p>
                 {% endif %}
             </div>
         </div>

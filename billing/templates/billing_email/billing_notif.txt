@@ -1,6 +1,6 @@
 Hello {{ name }},
 
-Just to let you know your payment has progressed.
+Just to let you know your {{ item.type_name }} has been updated.
 
 Description: {{ item.descriptor }}
 Amount: {{ item.amount|floatformat:2 }} GBP
