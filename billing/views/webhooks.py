@@ -200,6 +200,8 @@ def attempt_complete_bank_transfer(ref: str, amount: decimal.Decimal, trans_acco
                     descriptor=f"Top-up by bank transfer: {ref}" if ref else "Top-up by bank transfer",
                     amount=amount / (1 + vat_rate),
                     vat_rate=vat_rate,
+                    charged_amount=amount,
+                    country_code=known_account.account.billing_address.country_code.code.lower(),
                     type=models.LedgerItem.TYPE_BACS,
                     type_id=ref,
                     timestamp=timezone.now(),
