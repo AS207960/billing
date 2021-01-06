@@ -892,7 +892,8 @@ def update_from_payment_intent(payment_intent, ledger_item: models.LedgerItem = 
         ledger_item.state = models.LedgerItem.STATE_PENDING
         ledger_item.save()
 
-        if payment_intent["next_action"]["type"] == "display_bank_transfer_instructions":
+        if payment_intent["next_action"]["type"] == "display_bank_transfer_instructions" and \
+                "display_bank_transfer_instructions" in payment_intent["next_action"]:
             bank_instructions = payment_intent["next_action"]["display_bank_transfer_instructions"]
             if bank_instructions["type"] == "sort_code":
                 models.AccountStripeVirtualUKBank.objects.update_or_create(
@@ -1130,7 +1131,13 @@ def balance_funded(balance_transaction):
             or balance_transaction["deposit"]["type"] != "funding":
         return
 
-    deposited_amount = -max(balance_transaction["amount"], balance_transaction["ending_balance"])
+    customer = stripe.Customer.retrieve(balance_transaction["customer"], expand=["balances"])
+    available_balance = next(filter(
+        lambda b: b["currency"] == balance_transaction["currency"],
+        customer["balances"]["cash"]["available"]
+    ))["amount"]
+
+    deposited_amount = min(-balance_transaction["amount"], available_balance)
     deposited_amount_decimal = decimal.Decimal(deposited_amount) / decimal.Decimal(100)
     deposited_amount_gbp = deposited_amount_decimal * models.ExchangeRate.get_rate(
         balance_transaction["currency"], "GBP")
@@ -1161,7 +1168,7 @@ def balance_funded(balance_transaction):
 
             new_ledger_item = models.LedgerItem(
                 account=account,
-                descriptor=f"Top-up by bank transfer: {ref}",
+                descriptor=f"Top-up by bank transfer: {ref}" if ref else "Top-up by bank transfer",
                 amount=deposited_amount_gbp / (1 + vat_rate),
                 vat_rate=vat_rate,
                 type=models.LedgerItem.TYPE_STRIPE_BACS,

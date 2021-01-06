@@ -75,7 +75,7 @@
                                 </p>
                                 <p class="card-text">
                                     <small>
-                                        If we receive any payment to these details, from any payer, with an reference,
+                                        If we receive any payment to these details, from any payer, with any reference,
                                         we'll automatically credit it to your billing account.
                                     </small>
                                 </p>
@@ -220,7 +220,7 @@
                                                 <a href="{% url 'order_details' item.charge_state.id %}"
                                                    class="btn btn-info btn-sm">&#x1f440; View details</a>
                                             </div>
-                                        {% elif item.type == "C" or item.type == "O" or item.type == "G" or item.type == "N" or item.type == "P" or item.type == "I" or item.type == "F" or item.type == "E" or item.type == "S" or item.type == "H" %}
+                                        {% elif item.type == "C" or item.type == "O" or item.type == "G" or item.type == "N" or item.type == "P" or item.type == "I" or item.type == "F" or item.type == "E" or item.type == "S" or item.type == "H" or item.type == "T" %}
                                             <div class="btn-group">
                                                 <a href="{% url 'toup_up_details' item.id %}"
                                                    class="btn btn-info btn-sm">&#x1f440; View details</a>
