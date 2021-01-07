@@ -23,6 +23,7 @@ def view_accounts(request):
         .annotate(balance=Sum('amount', output_field=DecimalField())) \
         .values('balance')
     total_balance = models.Account.objects \
+                        .filter(exclude_from_accounting=False) \
                         .annotate(balance=Subquery(balances, output_field=DecimalField())) \
                         .aggregate(total_balance=Sum('balance')).get('total_balance') or decimal.Decimal(0)
 
@@ -168,7 +169,10 @@ def view_account_deferrals(request):
     start_date = datetime.datetime(2020, 1, 1, tzinfo=pytz.timezone("Europe/London"))
     end_date = datetime.datetime.utcnow().astimezone(pytz.timezone("Europe/London"))
 
-    ledger_items = models.LedgerItem.objects.filter(state=models.LedgerItem.STATE_COMPLETED)
+    ledger_items = models.LedgerItem.objects.filter(
+        state=models.LedgerItem.STATE_COMPLETED,
+        account__exclude_from_accounting=False
+    )
 
     reporting_periods = []
     cur_start_date = start_date

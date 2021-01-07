@@ -26,6 +26,7 @@ p = inflect.engine()
 
 class Account(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    exclude_from_accounting = models.BooleanField(blank=True, default=False)
     stripe_customer_id = models.CharField(max_length=255, blank=True, null=True)
     default_stripe_payment_method_id = models.CharField(max_length=255, blank=True, null=True)
     default_ach_mandate = models.ForeignKey(
