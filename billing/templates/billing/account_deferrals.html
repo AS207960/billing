@@ -1,0 +1,33 @@
+{% extends 'billing/base.html' %}
+{% load mathfilters %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Account deferrals</h1>
+        <div class="table-responsive table-striped table-hover table-striped">
+            <table class="table">
+                <thead class="thead-dark">
+                <tr>
+                    <th>Month</th>
+                    <th>Total sales</th>
+                    <th>Total prepayments</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for period in reporting_periods %}
+                    <tr>
+                        <td>
+                            {{ period.start_date }} - {{ period.end_date }}
+                        </td>
+                        <td>
+                            {{ period.sales }} GBP
+                        </td>
+                        <td>
+                            {{ period.prepayments }} GBP
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

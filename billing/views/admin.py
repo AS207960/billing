@@ -1,7 +1,10 @@
 import decimal
 
 import stripe
+import datetime
 import stripe.error
+import pytz
+import dateutil.relativedelta
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import DecimalField, OuterRef, Sum, Subquery
@@ -157,3 +160,43 @@ def edit_ledger_item(request, item_id):
         })
 
     return redirect('view_account', ledger_item.account.user.username)
+
+
+@login_required
+@permission_required('billing.view_ledgeritem', raise_exception=True)
+def view_account_deferrals(request):
+    start_date = datetime.datetime(2020, 1, 1, tzinfo=pytz.timezone("Europe/London"))
+    end_date = datetime.datetime.utcnow().astimezone(pytz.timezone("Europe/London"))
+
+    ledger_items = models.LedgerItem.objects.filter(state=models.LedgerItem.STATE_COMPLETED)
+
+    reporting_periods = []
+    cur_start_date = start_date
+    delta = dateutil.relativedelta.relativedelta(months=1)
+    while True:
+        period_items = ledger_items.filter(
+            timestamp__gte=cur_start_date,
+            timestamp__lt=cur_start_date + delta
+        )
+        sales = decimal.Decimal(0)
+        prepayments = decimal.Decimal(0)
+        for item in period_items:
+            if item.amount < 0:
+                sales += item.amount
+            else:
+                prepayments += item.amount
+
+        reporting_periods.append({
+            "start_date": cur_start_date.date(),
+            "end_date": (cur_start_date + delta).date() - dateutil.relativedelta.relativedelta(days=1),
+            "sales": sales,
+            "prepayments": prepayments
+        })
+
+        cur_start_date += delta
+        if cur_start_date >= end_date:
+            break
+
+    return render(request, "billing/account_deferrals.html", {
+        "reporting_periods": reversed(reporting_periods)
+    })
