@@ -472,10 +472,20 @@ class LedgerItem(models.Model):
     class Meta:
         ordering = ['-timestamp']
 
-    def save(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.original_state = self.state if not self._state.adding else None
+
+    def save(self, mail=True, *args, **kwargs):
         if self.state == self.STATE_COMPLETED and not self.completed_timestamp:
             self.completed_timestamp = timezone.now()
+        if self.state != self.original_state:
+            self.last_state_change_timestamp = timezone.now()
+
         super().save(*args, **kwargs)
+
+        from . import tasks
+        tasks.try_update_charge_state(instance=self, mail=mail)
 
     @property
     def type_name(self):

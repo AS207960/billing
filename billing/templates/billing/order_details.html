@@ -80,7 +80,9 @@
 
             {% if billing_country_name %}
                 {% if has_vat %}
-                    <p>We charged you the sales taxes applicable in {{ billing_country_name }}.</p>
+                    <p>We charged you the  taxes applicable in {{ billing_country_name }}.</p>
+                {% else %}
+                    <p>No taxes levied. Reverse charge procedure applies in the EU.</p>
                 {% endif %}
             {% endif %}
         </div>

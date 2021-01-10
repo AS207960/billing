@@ -1,7 +1,9 @@
-Hello {{ name }},
+{% load mathfilters %}Hello {{ name }},
 
-Just to let you know the subscription payment of £{{ value|floatformat:2 }},
+Just to let you know the subscription payment of &pound;{{ item.amount|abs|floatformat:2 }}
 for {{ plan_name }} has succeeded. No further action is required on your part.
+
+{% include "billing_email/item_card.txt" with item=item %}
 
 You can always keep an eye on your account at https://billing.as207960.net
 

@@ -2,9 +2,7 @@ Hello {{ name }},
 
 Just to let you know your {{ item.type_name }} has been updated.
 
-Description: {{ item.descriptor }}
-Amount: {{ item.amount|floatformat:2 }} GBP
-State: {% if item.state == "P" %}Pending{% elif item.state == "S" or item.state == "A" %}Processing{% elif item.state == "F" %}Failed{% elif item.state == "C" %}Completed{% endif %}
+{% include "billing_email/item_card.txt" with item=item %}
 
 {% if charge_state_error %}Last error: {{ charge_state_error }}
 {% endif %}{% if charge_state_url %}Continue with your order at: {{ charge_state_url }}

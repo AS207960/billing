@@ -1,15 +1,17 @@
 {% extends "billing_email/email_base.html" %}
+{% load mathfilters %}
 {% block content %}
     <p>
         Hello {{ name }},
     </p>
     <p>
-        The subscription payment of &pound;{{ value|floatformat:2 }}, for {{ plan_name }} has failed.
+        The subscription payment of &pound;{{ item.amount|abs|floatformat:2 }} for {{ plan_name }} has failed.
     </p>
-    {% if reason %}
-    <p>
-        The reason for the failure is: {{ reason }}
-    </p>
+    {% include "billing_email/item_card.html" with item=item %}
+    {% if charge_state.last_error %}
+        <p style="width:100%;background:#fad8d8;border-radius:5px;padding:20px;">
+            Last error: {{ charge_state.last_error }}
+        </p>
     {% endif %}
     <p>
         We'll retry the payment, however if it consistently fails the subscription will be cancelled,

@@ -37,12 +37,13 @@ class Command(BaseCommand):
                 try:
                     charge_state = tasks.charge_account(
                         subscription.account, charge, plan.name, f"sb_{subscription.id}",
-                        can_reject=True, off_session=True, supports_delayed=True
+                        can_reject=True, off_session=True, supports_delayed=True, mail=False
                     )
                 except (tasks.ChargeError, tasks.ChargeStateRequiresActionError) as e:
                     subscription_charge.ledger_item = e.charge_state.ledger_item
                 else:
                     subscription_charge.ledger_item = charge_state.ledger_item
+                subscription_charge.ledger_item.save(mail=True)
                 subscription_charge.save()
 
                 subscription.last_billed = now

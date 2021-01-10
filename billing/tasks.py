@@ -36,7 +36,18 @@ def as_thread(fun):
     return new_fun
 
 
-def mail_notif(ledger_item: models.LedgerItem, state_name: str, emoji: str):
+def get_state_name_and_emoji(state, new=False) -> (str, str):
+    if state == models.LedgerItem.STATE_PENDING:
+        return "pending", "⌛"
+    elif state in (models.LedgerItem.STATE_PROCESSING, models.LedgerItem.STATE_PROCESSING_CANCELLABLE):
+        return "processing", "📇"
+    elif state == models.LedgerItem.STATE_FAILED:
+        return "failed", "🙅"
+    elif state == models.LedgerItem.STATE_COMPLETED and not new:
+        return "completed", None
+
+
+def mail_notif(ledger_item: models.LedgerItem):
     try:
         charge_state = ledger_item.charge_state
         is_payment_item = False
@@ -56,6 +67,8 @@ def mail_notif(ledger_item: models.LedgerItem, state_name: str, emoji: str):
     if charge_state and charge_state.last_error and not is_payment_item:
         charge_error = charge_state.last_error
 
+    state_name, _ = get_state_name_and_emoji(ledger_item.state)
+
     context = {
         "name": ledger_item.account.user.first_name,
         "item": ledger_item,
@@ -65,9 +78,7 @@ def mail_notif(ledger_item: models.LedgerItem, state_name: str, emoji: str):
     html_content = render_to_string("billing_email/billing_notif.html", context)
     txt_content = render_to_string("billing_email/billing_notif.txt", context)
 
-    subject = f"{ledger_item.descriptor}: {state_name}" if state_name \
-        else f"{ledger_item.descriptor}"
-
+    subject = f"{ledger_item.descriptor}: {state_name}"
     email_msg = EmailMultiAlternatives(
         subject=subject,
         body=txt_content,
@@ -80,11 +91,17 @@ def mail_notif(ledger_item: models.LedgerItem, state_name: str, emoji: str):
 
 
 @as_thread
-def mail_subscription_success(subscription: models.Subscription, value: decimal.Decimal):
+def mail_subscription_success(subscription: models.Subscription, item: models.LedgerItem):
+    try:
+        charge_state = item.charge_state
+    except django.core.exceptions.ObjectDoesNotExist:
+        charge_state = None
+
     context = {
         "name": subscription.account.user.first_name,
         "plan_name": subscription.plan.name,
-        "value": value
+        "item": item,
+        "charge_state": charge_state
     }
     html_content = render_to_string("billing_email/billing_success.html", context)
     txt_content = render_to_string("billing_email/billing_success.txt", context)
@@ -101,12 +118,17 @@ def mail_subscription_success(subscription: models.Subscription, value: decimal.
 
 
 @as_thread
-def mail_subscription_past_due(subscription: models.Subscription, value: decimal.Decimal, reason: str):
+def mail_subscription_past_due(subscription: models.Subscription, item: models.LedgerItem):
+    try:
+        charge_state = item.charge_state
+    except django.core.exceptions.ObjectDoesNotExist:
+        charge_state = None
+
     context = {
         "name": subscription.account.user.first_name,
         "plan_name": subscription.plan.name,
-        "value": value,
-        "reason": reason
+        "item": item,
+        "charge_state": charge_state
     }
     html_content = render_to_string("billing_email/billing_past_due.html", context)
     txt_content = render_to_string("billing_email/billing_past_due.txt", context)
@@ -123,12 +145,17 @@ def mail_subscription_past_due(subscription: models.Subscription, value: decimal
 
 
 @as_thread
-def mail_subscription_cancelled(subscription: models.Subscription, value: decimal.Decimal, reason: str):
+def mail_subscription_cancelled(subscription: models.Subscription, item: models.LedgerItem):
+    try:
+        charge_state = item.charge_state
+    except django.core.exceptions.ObjectDoesNotExist:
+        charge_state = None
+
     context = {
         "name": subscription.account.user.first_name,
         "plan_name": subscription.plan.name,
-        "value": value,
-        "reason": reason
+        "item": item,
+        "charge_state": charge_state
     }
     html_content = render_to_string("billing_email/billing_cancelled.html", context)
     txt_content = render_to_string("billing_email/billing_cancelled.txt", context)
@@ -145,7 +172,7 @@ def mail_subscription_cancelled(subscription: models.Subscription, value: decima
 
 
 @as_thread
-def alert_account(account: models.Account, ledger_item: models.LedgerItem, new=False):
+def alert_account(account: models.Account, ledger_item: models.LedgerItem, new=False, mail=True):
     extra = None
     if ledger_item.type == ledger_item.TYPE_CHARGE:
         if ledger_item.amount <= 0:
@@ -158,24 +185,16 @@ def alert_account(account: models.Account, ledger_item: models.LedgerItem, new=F
         emoji = "💸"
         body = f"£{ledger_item.amount:.2f} from {ledger_item.descriptor}"
 
-    if ledger_item.state == ledger_item.STATE_PENDING:
-        extra = "pending"
-        emoji = "⌛"
-    elif ledger_item.state in (ledger_item.STATE_PROCESSING, ledger_item.STATE_PROCESSING_CANCELLABLE):
-        extra = "processing"
-        emoji = "📇"
-    elif ledger_item.state == ledger_item.STATE_FAILED:
-        extra = "failed"
-        emoji = "🙅"
-    elif ledger_item.state == ledger_item.STATE_COMPLETED and not new:
-        extra = "completed"
+    extra, new_emoji = get_state_name_and_emoji(ledger_item.state, new)
+    if new_emoji:
+        emoji = new_emoji
 
     message = f"{emoji} {body}"
     if extra:
         message += f": {extra}"
 
-    if ledger_item.amount != 0:
-        mail_notif(ledger_item, extra, emoji)
+    if ledger_item.amount != 0 and mail:
+        mail_notif(ledger_item)
 
     for subscription in account.notificationsubscription_set.all():
         try:
@@ -202,16 +221,19 @@ def alert_account(account: models.Account, ledger_item: models.LedgerItem, new=F
                 sentry_sdk.capture_exception(e)
 
 
-@receiver(pre_save, sender=models.LedgerItem)
-def send_item_notif(sender, instance: models.LedgerItem, **kwargs):
-    old_instance = models.LedgerItem.objects.filter(id=instance.id).first()
-    if not old_instance:
-        instance.last_state_change_timestamp = timezone.now()
-        alert_account(instance.account, instance, new=True)
-    elif old_instance.state != instance.state:
-        instance.last_state_change_timestamp = timezone.now()
-        alert_account(instance.account, instance)
+# @receiver(pre_save, sender=models.LedgerItem)
+# def send_item_notif(sender, instance: models.LedgerItem, **kwargs):
+    # old_instance = models.LedgerItem.objects.filter(id=instance.id).first()
+    # if not old_instance:
+    #     instance.last_state_change_timestamp = timezone.now()
+    #     alert_account(instance.account, instance, new=True)
+    # elif old_instance.state != instance.state:
+    #     instance.last_state_change_timestamp = timezone.now()
+    #     alert_account(instance.account, instance)
 
+#
+# @receiver(post_save, sender=models.LedgerItem)
+def try_update_charge_state(instance: models.LedgerItem, mail=True):
     try:
         as_thread(flux.send_charge_state_notif)(instance.charge_state)
     except django.core.exceptions.ObjectDoesNotExist:
@@ -221,9 +243,8 @@ def send_item_notif(sender, instance: models.LedgerItem, **kwargs):
     except django.core.exceptions.ObjectDoesNotExist:
         pass
 
+    subscription_mail_sent = False
 
-@receiver(post_save, sender=models.LedgerItem)
-def try_update_charge_state(sender, instance: models.LedgerItem, **kwargs):
     try:
         charge_state = instance.charge_state_payment
     except django.core.exceptions.ObjectDoesNotExist:
@@ -250,8 +271,6 @@ def try_update_charge_state(sender, instance: models.LedgerItem, **kwargs):
             else:
                 charge_state.ledger_item.state = instance.STATE_COMPLETED
                 charge_state.ledger_item.save()
-            # charge_state.payment_ledger_item = None
-            # charge_state.save()
     if charge_state:
         send_charge_state_notif(charge_state)
 
@@ -279,7 +298,9 @@ def try_update_charge_state(sender, instance: models.LedgerItem, **kwargs):
                 subscription_charge.subscription.save()
         else:
             if instance.state == instance.STATE_COMPLETED:
-                mail_subscription_success(subscription_charge.subscription, instance.amount * -1)
+                if instance.amount != 0:
+                    mail_subscription_success(subscription_charge.subscription, instance)
+                    subscription_mail_sent = True
 
                 if subscription_charge.subscription.state == models.Subscription.STATE_PAST_DUE and \
                         subscription_charge.subscription.amount_unpaid <= 0:
@@ -289,20 +310,23 @@ def try_update_charge_state(sender, instance: models.LedgerItem, **kwargs):
                 subscription_charge.failed_bill_attempts += 1
                 subscription_charge.save()
 
-                error_message = charge_state_2.last_error if charge_state_2 else None
-
                 if subscription_charge.failed_bill_attempts >= SUBSCRIPTION_RETRY_ATTEMPTS:
                     if subscription_charge.subscription.state != models.Subscription.STATE_CANCELLED:
-                        mail_subscription_cancelled(subscription_charge.subscription, instance.amount * -1,
-                                                    error_message)
+                        mail_subscription_cancelled(subscription_charge.subscription, instance)
+                        subscription_mail_sent = True
                     subscription_charge.subscription.state = models.Subscription.STATE_CANCELLED
                     subscription_charge.subscription.save()
                 else:
                     if subscription_charge.subscription.state != models.Subscription.STATE_CANCELLED:
-                        mail_subscription_past_due(subscription_charge.subscription, instance.amount * -1,
-                                                   error_message)
+                        mail_subscription_past_due(subscription_charge.subscription, instance)
+                        subscription_mail_sent = True
                     subscription_charge.subscription.state = models.Subscription.STATE_PAST_DUE
                     subscription_charge.subscription.save()
+
+    if instance.state != instance.original_state:
+        instance.original_state = instance.state
+        if mail:
+            alert_account(instance.account, instance, mail=not subscription_mail_sent)
 
 
 def send_charge_state_notif(instance: models.ChargeState):
@@ -394,13 +418,6 @@ class ChargeStateRequiresActionError(Exception):
 def attempt_charge_off_session(charge_state):
     account = charge_state.account  # type: models.Account
 
-    if not account.billing_address:
-        raise ChargeError(None, "No default billing address", must_reject=True)
-
-    can_sell, can_sell_reason = account.can_sell
-    if not can_sell:
-        raise ChargeError(None, can_sell_reason, must_reject=True)
-
     from_account_balance = min(charge_state.account.balance, -charge_state.ledger_item.amount)
     left_to_be_paid = -(charge_state.ledger_item.amount + from_account_balance)
     needs_payment = left_to_be_paid > 0
@@ -424,6 +441,13 @@ def attempt_charge_off_session(charge_state):
             charged_amount += vat_charged
 
     if needs_payment:
+        if not account.billing_address:
+            raise ChargeError(None, "No default billing address", must_reject=True)
+
+        can_sell, can_sell_reason = account.can_sell
+        if not can_sell:
+            raise ChargeError(None, can_sell_reason, must_reject=True)
+
         if charge_state.account.default_stripe_payment_method_id:
             payment_method = stripe.PaymentMethod.retrieve(charge_state.account.default_stripe_payment_method_id)
             method_country = utils.country_from_stripe_payment_method(payment_method)
@@ -562,7 +586,7 @@ def attempt_charge_off_session(charge_state):
             ledger_item.type_id = payment_intent['id']
             ledger_item.save()
             charge_state.payment_ledger_item = ledger_item
-            charge_state.save()
+            charge_state.save(mail=False)
             update_from_payment_intent(payment_intent, ledger_item)
         elif selected_payment_method_type == "bacs_mandate_stripe":
             payment_intent = stripe.PaymentIntent.create(
@@ -584,7 +608,7 @@ def attempt_charge_off_session(charge_state):
             ledger_item.type_id = payment_intent['id']
             ledger_item.save()
             charge_state.payment_ledger_item = ledger_item
-            charge_state.save()
+            charge_state.save(mail=False)
             update_from_payment_intent(payment_intent, ledger_item)
         elif selected_payment_method_type == "sepa_mandate_stripe":
             payment_intent = stripe.PaymentIntent.create(
@@ -606,7 +630,7 @@ def attempt_charge_off_session(charge_state):
             ledger_item.type_id = payment_intent['id']
             ledger_item.save()
             charge_state.payment_ledger_item = ledger_item
-            charge_state.save()
+            charge_state.save(mail=False)
             update_from_payment_intent(payment_intent, ledger_item)
         elif selected_payment_method_type == "ach_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
@@ -624,7 +648,7 @@ def attempt_charge_off_session(charge_state):
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
             ledger_item.evidence_ach_mandate = selected_payment_method_id
-            ledger_item.save()
+            ledger_item.save(mail=False)
         elif selected_payment_method_type == "autogiro_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
@@ -641,7 +665,7 @@ def attempt_charge_off_session(charge_state):
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
             ledger_item.evidence_autogiro_mandate = selected_payment_method_id
-            ledger_item.save()
+            ledger_item.save(mail=False)
         elif selected_payment_method_type == "bacs_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
@@ -658,7 +682,7 @@ def attempt_charge_off_session(charge_state):
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
             ledger_item.evidence_gc_bacs_mandate = selected_payment_method_id
-            ledger_item.save()
+            ledger_item.save(mail=False)
         elif selected_payment_method_type == "becs_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
@@ -675,7 +699,7 @@ def attempt_charge_off_session(charge_state):
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
             ledger_item.evidence_becs_mandate = selected_payment_method_id
-            ledger_item.save()
+            ledger_item.save(mail=False)
         elif selected_payment_method_type == "becs_nz_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
@@ -692,7 +716,7 @@ def attempt_charge_off_session(charge_state):
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
             ledger_item.evidence_becs_nz_mandate = selected_payment_method_id
-            ledger_item.save()
+            ledger_item.save(mail=False)
         elif selected_payment_method_type == "betalingsservice_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
@@ -709,7 +733,7 @@ def attempt_charge_off_session(charge_state):
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
             ledger_item.evidence_betalingsservice_mandate = selected_payment_method_id
-            ledger_item.save()
+            ledger_item.save(mail=False)
         elif selected_payment_method_type == "pad_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
@@ -726,7 +750,7 @@ def attempt_charge_off_session(charge_state):
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
             ledger_item.evidence_pad_mandate = selected_payment_method_id
-            ledger_item.save()
+            ledger_item.save(mail=False)
         elif selected_payment_method_type == "sepa_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
@@ -743,14 +767,14 @@ def attempt_charge_off_session(charge_state):
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
             ledger_item.evidence_gc_sepa_mandate = selected_payment_method_id
-            ledger_item.save()
+            ledger_item.save(mail=False)
     else:
         charge_state.ledger_item.state = models.LedgerItem.STATE_COMPLETED
-        charge_state.ledger_item.save()
+        charge_state.ledger_item.save(mail=False)
 
 
 def charge_account(account: models.Account, amount: decimal.Decimal, descriptor: str, type_id: str, can_reject=True,
-                   off_session=True, return_uri=None, notif_queue=None, supports_delayed=False):
+                   off_session=True, return_uri=None, notif_queue=None, supports_delayed=False, mail=True):
     ledger_item = models.LedgerItem(
         account=account,
         descriptor=descriptor,
@@ -771,17 +795,21 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
         if off_session:
             raise ChargeError(None, "Account does not exist")
 
-        ledger_item.save()
+        ledger_item.save(mail=False)
         charge_state.save()
+        if mail:
+            try_update_charge_state(ledger_item, mail)
         raise ChargeStateRequiresActionError(
             charge_state, settings.EXTERNAL_URL_BASE + reverse('complete_order', args=(charge_state.id,))
         )
 
     if off_session:
-        ledger_item.save()
+        ledger_item.save(mail=False)
         charge_state.save()
         try:
             attempt_charge_off_session(charge_state)
+            if mail:
+                try_update_charge_state(ledger_item, mail)
             return charge_state
         except ChargeError as e:
             if not e.must_reject and not can_reject:
@@ -791,19 +819,31 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
             charge_state.save()
             e.charge_state = charge_state
             if supports_delayed:
+                ledger_item.save(mail=mail)
                 raise ChargeStateRequiresActionError(
                     charge_state, settings.EXTERNAL_URL_BASE + reverse('complete_order', args=(charge_state.id,))
                 )
             else:
                 ledger_item.state = ledger_item.STATE_FAILED
-            ledger_item.save()
+            ledger_item.save(mail=mail)
             raise e
     else:
-        ledger_item.save()
-        charge_state.save()
-        raise ChargeStateRequiresActionError(
-            charge_state, settings.EXTERNAL_URL_BASE + reverse('complete_order', args=(charge_state.id,))
-        )
+        from_account_balance = min(account.balance, -ledger_item.amount)
+        left_to_be_paid = -(ledger_item.amount + from_account_balance)
+        needs_payment = left_to_be_paid > 0
+
+        if needs_payment:
+            ledger_item.save(mail=False)
+            charge_state.save()
+            if mail:
+                try_update_charge_state(ledger_item, mail)
+            raise ChargeStateRequiresActionError(
+                charge_state, settings.EXTERNAL_URL_BASE + reverse('complete_order', args=(charge_state.id,))
+            )
+        else:
+            ledger_item.state = models.LedgerItem.STATE_COMPLETED
+            ledger_item.save(mail=mail)
+            return charge_state
 
 
 def process_ledger_item_refund(ledger_item: models.LedgerItem, amount: decimal.Decimal):

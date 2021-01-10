@@ -1,0 +1,3 @@
+Description: {{ item.descriptor }}
+Amount: {{ item.amount|floatformat:2 }} GBP
+State: {% if item.state == "P" %}Pending{% elif item.state == "S" or item.state == "A" %}Processing{% elif item.state == "F" %}Failed{% elif item.state == "C" %}Completed{% endif %}
