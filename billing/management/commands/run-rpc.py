@@ -58,7 +58,7 @@ class Command(BaseCommand):
         try:
             amount = models.ExchangeRate.get_rate(msg.from_currency, msg.to_currency) * amount
         except models.ExchangeRate.DoesNotExist:
-            return b''
+            return billing.proto.billing_pb2.ConvertCurrencyResponse()
         amount_vat = amount
 
         billing_address_country = None
