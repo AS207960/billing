@@ -55,7 +55,10 @@ class Command(BaseCommand):
     def convert_currency(msg: billing.proto.billing_pb2.ConvertCurrencyRequest) \
             -> billing.proto.billing_pb2.ConvertCurrencyResponse:
         amount = decimal.Decimal(msg.amount) / decimal.Decimal(100)
-        amount = models.ExchangeRate.get_rate(msg.from_currency, msg.to_currency) * amount
+        try:
+            amount = models.ExchangeRate.get_rate(msg.from_currency, msg.to_currency) * amount
+        except models.ExchangeRate.DoesNotExist:
+            return b''
         amount_vat = amount
 
         billing_address_country = None
