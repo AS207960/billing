@@ -62,6 +62,7 @@ class Command(BaseCommand):
         amount_vat = amount
 
         billing_address_country = None
+        billing_address_postal_code = None
         if msg.HasField("country_selection"):
             billing_address_country = msg.country_selection.value.lower()
 
@@ -69,6 +70,7 @@ class Command(BaseCommand):
             account = models.Account.objects.filter(user__username=msg.username.value).first()
             if not billing_address_country and account.billing_address:
                 billing_address_country = account.billing_address.country_code.code.lower()
+                billing_address_postal_code = account.billing_address.postal_code
         else:
             account = None
 
@@ -88,11 +90,13 @@ class Command(BaseCommand):
                 if ip_res.status == billing.proto.geoip_pb2.IPLookupResponse.OK:
                     if ip_res.data.HasField("country"):
                         billing_address_country = ip_res.data.country.value.lower()
+                    if ip_res.data.HasField("postal_code"):
+                        billing_address_postal_code = ip_res.data.postal_code.value
 
         if not billing_address_country:
             billing_address_country = "gb"
 
-        country_vat_rate = vat.get_vat_rate(billing_address_country)
+        country_vat_rate = vat.get_vat_rate(billing_address_country, billing_address_postal_code)
         if country_vat_rate is not None:
             amount_vat += (amount * country_vat_rate)
 

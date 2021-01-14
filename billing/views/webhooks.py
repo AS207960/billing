@@ -191,7 +191,10 @@ def attempt_complete_bank_transfer(ref: str, amount: decimal.Decimal, trans_acco
             if can_sell:
                 vat_rate = decimal.Decimal(0)
                 if known_account.account.taxable:
-                    country_vat_rate = vat.get_vat_rate(known_account.account.billing_address.country_code.code.upper())
+                    country_vat_rate = vat.get_vat_rate(
+                        known_account.account.billing_address.country_code.code.upper(),
+                        known_account.account.billing_address.postal_code
+                    )
                     if country_vat_rate is not None:
                         vat_rate = country_vat_rate
 

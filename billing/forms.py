@@ -128,6 +128,12 @@ class BillingAddressForm(forms.ModelForm):
                 raise django.core.exceptions.ValidationError({
                     'postal_code': ["Invalid postal code format for the UK"]
                 })
+        if country_code == "ES":
+            postal_code_match = utils.spain_postcode_re.fullmatch(self.cleaned_data['postal_code'])
+            if not postal_code_match:
+                raise django.core.exceptions.ValidationError({
+                    'postal_code': ["Invalid postal code format for Spain"]
+                })
         if self.cleaned_data['vat_id']:
             if country_code == "GB":
                 vat_lookup_state, vat_lookup_data = vat.verify_vat_hmrc(self.cleaned_data['vat_id'])

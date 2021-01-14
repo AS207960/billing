@@ -142,7 +142,10 @@ def edit_ledger_item(request, item_id):
 
                 vat_rate = decimal.Decimal(0)
                 if ledger_item.account.taxable:
-                    country_vat_rate = vat.get_vat_rate(ledger_item.evidence_billing_address.country_code.code.lower())
+                    country_vat_rate = vat.get_vat_rate(
+                        ledger_item.evidence_billing_address.country_code.code.lower(),
+                        ledger_item.evidence_billing_address.postal_code,
+                    )
                     if country_vat_rate is not None:
                         vat_rate = country_vat_rate
 

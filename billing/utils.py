@@ -1,12 +1,9 @@
 import ipaddress
 import re
 
-canada_postcode_re = re.compile(
-    r"^(?P<district>[ABCEGHJKLMNPRSTVXY])[0-9][A-Z] ?[0-9][A-Z][0-9]$"
-)
-uk_postcode_re = re.compile(
-    r"^[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}$"
-)
+canada_postcode_re = re.compile(r"^(?P<district>[ABCEGHJKLMNPRSTVXY])[0-9][A-Z] ?[0-9][A-Z][0-9]$")
+uk_postcode_re = re.compile(r"^[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}$")
+spain_postcode_re = re.compile(r"^(?P<region>[0-9]{2})[0-9]{3}$")
 
 
 def get_ip(request):

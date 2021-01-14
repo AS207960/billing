@@ -85,7 +85,7 @@ def handle_payment(
     billing_country_name = dict(django_countries.countries)[billing_address_country.upper()]
 
     if account.taxable:
-        country_vat_rate = vat.get_vat_rate(billing_address_country)
+        country_vat_rate = vat.get_vat_rate(billing_address_country, account.billing_address.postal_code)
         if country_vat_rate is not None:
             has_vat = True
             vat_rate = country_vat_rate

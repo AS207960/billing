@@ -434,7 +434,7 @@ def attempt_charge_off_session(charge_state):
     selected_payment_method_id = None
 
     if account.taxable:
-        country_vat_rate = vat.get_vat_rate(billing_address_country)
+        country_vat_rate = vat.get_vat_rate(billing_address_country, account.billing_address.postal_code)
         if country_vat_rate is not None:
             vat_rate = country_vat_rate
             vat_charged = (left_to_be_paid * country_vat_rate)
@@ -1191,7 +1191,10 @@ def balance_funded(balance_transaction):
                 or not account.taxable:
             vat_rate = decimal.Decimal(0)
             if account.taxable:
-                country_vat_rate = vat.get_vat_rate(account.billing_address.country_code.code.upper())
+                country_vat_rate = vat.get_vat_rate(
+                    account.billing_address.country_code.code.upper(),
+                    account.billing_address.postal_code,
+                )
                 if country_vat_rate is not None:
                     vat_rate = country_vat_rate
 

@@ -12,6 +12,8 @@ from django.utils import timezone
 import dataclasses
 import enum
 
+from . import utils
+
 if settings.HMRC_CLIENT_ID:
     hmrc_oauth_client = oauthlib.oauth2.BackendApplicationClient(client_id=settings.HMRC_CLIENT_ID)
     hmrc_oauth_session = requests_oauthlib.OAuth2Session(client=hmrc_oauth_client)
@@ -87,11 +89,20 @@ VAT_RATES_FROM_2021 = {
 }
 
 
-def get_vat_rate(country):
+def get_vat_rate(country, postal_code: typing.Optional[str]):
     if timezone.now() < VAT_RATES_PRE_2021_DATE:
         vat_rates = VAT_RATES_PRE_2021
     else:
         vat_rates = VAT_RATES_FROM_2021
+
+    if country == "es" and postal_code:
+        postal_code_match = utils.spain_postcode_re.fullmatch(postal_code)
+        if postal_code_match:
+            postal_code_data = postal_code_match.groupdict()
+            if postal_code_data["region"] in ("35", "38"):
+                country = "ic"
+            elif postal_code_data["region"] in ("51", "52"):
+                country = "ea"
 
     return vat_rates.get(country.lower())
 
@@ -106,7 +117,7 @@ def get_vies_country_code(iso_code: str):
                  "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SK"]
     if iso_code not in countries:
         return None
-    if iso_code == "GR":
+    elif iso_code == "GR":
         return "EL"
     else:
         return iso_code
