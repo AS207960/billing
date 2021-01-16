@@ -13,9 +13,9 @@
             </div>
         {% endif %}
         <h3>Saved cards &#x1f4b3;</h3>
-        <div class="table-responsive table-striped table-hover table-striped">
-            <table class="table">
-                <thead class="thead-dark">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
                 <tr>
                     <th>Billing name</th>
                     <th>Brand</th>
@@ -78,7 +78,7 @@
             <h4>&#x1f1fa;&#x1f1f8; United States</h4>
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
-                    <thead class="thead-dark">
+                    <thead class="table-dark">
                     <tr>
                         <th>Account number</th>
                         <th>Account type</th>
@@ -122,7 +122,7 @@
             <h3>&#x1f1f8;&#x1f1ea; Sweden</h3>
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
-                    <thead class="thead-dark">
+                    <thead class="table-dark">
                     <tr>
                         <th>Account number</th>
                         <th>Bank</th>
@@ -164,7 +164,7 @@
             <h3>&#x1f1ec;&#x1f1e7; United Kingdom</h3>
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
-                    <thead class="thead-dark">
+                    <thead class="table-dark">
                     <tr>
                         <th>Account number</th>
                         <th>Bank</th>
@@ -206,7 +206,7 @@
             <h3>&#x1f1e6;&#x1f1fa; Australia</h3>
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
-                    <thead class="thead-dark">
+                    <thead class="table-dark">
                     <tr>
                         <th>Account number</th>
                         <th>Bank</th>
@@ -248,7 +248,7 @@
             <h3>&#x1f1f3;&#x1f1ff; New Zealand</h3>
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
-                    <thead class="thead-dark">
+                    <thead class="table-dark">
                     <tr>
                         <th>Account number</th>
                         <th>Bank</th>
@@ -290,7 +290,7 @@
             <h3>&#x1f1e9;&#x1f1f0; Denmark</h3>
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
-                    <thead class="thead-dark">
+                    <thead class="table-dark">
                     <tr>
                         <th>Account number</th>
                         <th>Bank</th>
@@ -332,7 +332,7 @@
             <h3>&#x1f1e8;&#x1f1e6; Canada</h3>
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
-                    <thead class="thead-dark">
+                    <thead class="table-dark">
                     <tr>
                         <th>Account number</th>
                         <th>Bank</th>
@@ -372,7 +372,7 @@
             <h2>SEPA Direct Debit Mandates &#x1f3e6;</h2>
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
-                    <thead class="thead-dark">
+                    <thead class="table-dark">
                     <tr>
                         <th>Account country</th>
                         <th>Account number</th>
@@ -451,7 +451,7 @@
                                 <form action="" method="post" class="align-self-stretch">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="set_payment_method">
-                                    <button type="submit" class="btn btn-primary btn-block" name="type"
+                                    <button type="submit" class="btn btn-primary w-100" name="type"
                                             value="sofort">
                                         Select
                                     </button>
@@ -477,7 +477,7 @@
                                 <form action="" method="post" class="align-self-stretch">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="set_payment_method">
-                                    <button type="submit" class="btn btn-primary btn-block" name="type"
+                                    <button type="submit" class="btn btn-primary w-100" name="type"
                                             value="giropay">
                                         Select
                                     </button>
@@ -504,7 +504,7 @@
                                 <form action="" method="post" class="align-self-stretch">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="set_payment_method">
-                                    <button type="submit" class="btn btn-primary btn-block" name="type"
+                                    <button type="submit" class="btn btn-primary w-100" name="type"
                                             value="bancontact">
                                         Select
                                     </button>
@@ -530,7 +530,7 @@
                                 <form action="" method="post" class="align-self-stretch">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="set_payment_method">
-                                    <button type="submit" class="btn btn-primary btn-block" name="type"
+                                    <button type="submit" class="btn btn-primary w-100" name="type"
                                             value="eps">
                                         Select
                                     </button>
@@ -556,7 +556,7 @@
                                 <form action="" method="post" class="align-self-stretch">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="set_payment_method">
-                                    <button type="submit" class="btn btn-primary btn-block" name="type"
+                                    <button type="submit" class="btn btn-primary w-100" name="type"
                                             value="ideal">
                                         Select
                                     </button>
@@ -582,7 +582,7 @@
                                 <form action="" method="post" class="align-self-stretch">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="set_payment_method">
-                                    <button type="submit" class="btn btn-primary btn-block" name="type"
+                                    <button type="submit" class="btn btn-primary w-100" name="type"
                                             value="p24">
                                         Select
                                     </button>
@@ -608,7 +608,7 @@
                                 <form action="" method="post" class="align-self-stretch">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="set_payment_method">
-                                    <button type="submit" class="btn btn-primary btn-block" name="type"
+                                    <button type="submit" class="btn btn-primary w-100" name="type"
                                             value="multibanco">
                                         Select
                                     </button>
@@ -722,19 +722,19 @@
         {% if can_charge %}
             <form action="" method="post">
                 {% csrf_token %}
-                <button class="btn btn-success btn-lg btn-block" name="action" value="pay">
+                <button class="btn btn-success btn-lg w-100" name="action" value="pay">
                     Order with obligation to pay
                 </button>
             </form>
         {% else %}
-            <button class="btn btn-success btn-lg btn-block" disabled>
+            <button class="btn btn-success btn-lg w-100" disabled>
                 Order with obligation to pay
             </button>
         {% endif %}
 
         <form action="" method="post" class="mt-3">
             {% csrf_token %}
-            <button class="btn btn-danger btn-block" name="action" value="cancel">
+            <button class="btn btn-danger w-100" name="action" value="cancel">
                 Cancel
             </button>
         </form>
