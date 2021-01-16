@@ -694,7 +694,7 @@
                     {% csrf_token %}
                     <label for="select-currency">Charge me in:</label> <br/>
                     <div class="input-group mb-3">
-                        <select name="currency" class="custom-select" id="select-currency">
+                        <select name="currency" class="form-select" id="select-currency">
                             {% for currency in available_currencies %}
                                 <option value="{{ currency.0 }}"
                                         {% if currency.0 == selected_currency %}selected{% endif %}>{{ currency.1 }}</option>
