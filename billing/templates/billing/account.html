@@ -51,7 +51,7 @@
                             <td>
                                 {{ card.billing_details.name }}
                                 {% if card.id == user.account.default_stripe_payment_method_id %}
-                                    <span class="badge badge-info">Default</span>
+                                    <span class="badge bg-info">Default</span>
                                 {% endif %}
                             </td>
                             <td>{{ card.card.brand|upper }}</td>
@@ -86,14 +86,14 @@
                                 <td>
                                     **** {{ mandate.payment_method.bacs_debit.last4 }}
                                     {% if mandate.mandate.payment_method_details.bacs_debit.network_status == "pending" %}
-                                        <span class="badge badge-warning">Pending</span>
+                                        <span class="badge bg-warning">Pending</span>
                                     {% elif mandate.mandate.payment_method_details.bacs_debit.network_status == "revoked" %}
-                                        <span class="badge badge-danger">Revoked</span>
+                                        <span class="badge bg-danger">Revoked</span>
                                     {% elif mandate.mandate.payment_method_details.bacs_debit.network_status == "refused" %}
-                                        <span class="badge badge-danger">Refused</span>
+                                        <span class="badge bg-danger">Refused</span>
                                     {% endif %}
                                     {% if mandate.mandate_obj.payment_method == user.account.default_stripe_payment_method_id %}
-                                        <span class="badge badge-info">Default</span>
+                                        <span class="badge bg-info">Default</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ mandate.payment_method.bacs_debit.sort_code }}</td>
@@ -131,10 +131,10 @@
                                 <td>
                                     **** {{ mandate.payment_method.sepa_debit.last4 }}
                                     {% if not mandate.mandate_obj.active %}
-                                        <span class="badge badge-danger">Inactive</span>
+                                        <span class="badge bg-danger">Inactive</span>
                                     {% endif %}
                                     {% if mandate.mandate_obj.payment_method == user.account.default_stripe_payment_method_id %}
-                                        <span class="badge badge-info">Default</span>
+                                        <span class="badge bg-info">Default</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ mandate.payment_method.sepa_debit.branch_code }}</td>
@@ -174,11 +174,11 @@
                             <tr>
                                 <td>
                                     {% if subscription.state == "A" %}
-                                        <span class="badge badge-success">Active</span>
+                                        <span class="badge bg-success">Active</span>
                                     {% elif subscription.state == "P" %}
-                                        <span class="badge badge-warning">Past due</span>
+                                        <span class="badge bg-warning">Past due</span>
                                     {% elif subscription.state == "C" %}
-                                        <span class="badge badge-danger">Cancelled</span>
+                                        <span class="badge bg-danger">Cancelled</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ subscription.plan.name }}</td>
@@ -222,15 +222,15 @@
                             <td>
                                 {{ item.descriptor }}
                                 {% if item.state == "P" %}
-                                    <span class="badge badge-warning">
+                                    <span class="badge bg-warning">
                                                 Pending
                                             </span>
                                 {% elif item.state == "S" or item.state == "A" %}
-                                    <span class="badge badge-info">
+                                    <span class="badge bg-info">
                                                 Processing
                                             </span>
                                 {% elif item.state == "F" %}
-                                    <span class="badge badge-danger">
+                                    <span class="badge bg-danger">
                                                 Failed
                                             </span>
                                 {% endif %}

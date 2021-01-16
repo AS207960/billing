@@ -13,9 +13,7 @@
                     <div class="input-group mb-3">
                         <input class="form-control form-control-lg {% if iban_error %}is-invalid{% endif %}" type="text"
                                placeholder="GB60 BARC 2000 0055 7799 11" name="iban" value="{{ iban }}">
-                        <div class="input-group-append">
                             <button class="btn btn-primary" type="submit">Search</button>
-                        </div>
                     </div>
                 </div>
                 {% if iban_error %}

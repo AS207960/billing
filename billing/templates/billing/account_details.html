@@ -88,7 +88,7 @@
                                 <td>
                                     {{ card.billing_details.name }}
                                     {% if card.id == user.account.default_stripe_payment_method_id %}
-                                        <span class="badge badge-info">Default</span>
+                                        <span class="badge bg-info">Default</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ card.card.brand|upper }}</td>
@@ -154,14 +154,14 @@
                                     <td>
                                         ****{{ mandate.last4 }}
                                         {% if mandate.status == "pending" %}
-                                            <span class="badge badge-warning">Pending</span>
+                                            <span class="badge bg-warning">Pending</span>
                                         {% elif mandate.status == "revoked" %}
-                                            <span class="badge badge-danger">Revoked</span>
+                                            <span class="badge bg-danger">Revoked</span>
                                         {% elif mandate.status == "refused" %}
-                                            <span class="badge badge-danger">Refused</span>
+                                            <span class="badge bg-danger">Refused</span>
                                         {% endif %}
                                         {% if mandate.is_default %}
-                                            <span class="badge badge-info">Default</span>
+                                            <span class="badge bg-info">Default</span>
                                         {% endif %}
                                     </td>
                                     <td>{% if mandate.account_type == "checking" %}
@@ -229,14 +229,14 @@
                                     <td>
                                         ****{{ mandate.last4 }}
                                         {% if mandate.status == "pending" %}
-                                            <span class="badge badge-warning">Pending</span>
+                                            <span class="badge bg-warning">Pending</span>
                                         {% elif mandate.status == "revoked" %}
-                                            <span class="badge badge-danger">Revoked</span>
+                                            <span class="badge bg-danger">Revoked</span>
                                         {% elif mandate.status == "refused" %}
-                                            <span class="badge badge-danger">Refused</span>
+                                            <span class="badge bg-danger">Refused</span>
                                         {% endif %}
                                         {% if mandate.is_default %}
-                                            <span class="badge badge-info">Default</span>
+                                            <span class="badge bg-info">Default</span>
                                         {% endif %}
                                     </td>
                                     <td>{{ mandate.bank }}</td>
@@ -302,14 +302,14 @@
                                     <td>
                                         ****{{ mandate.last4 }}
                                         {% if mandate.status == "pending" %}
-                                            <span class="badge badge-warning">Pending</span>
+                                            <span class="badge bg-warning">Pending</span>
                                         {% elif mandate.status == "revoked" %}
-                                            <span class="badge badge-danger">Revoked</span>
+                                            <span class="badge bg-danger">Revoked</span>
                                         {% elif mandate.status == "refused" %}
-                                            <span class="badge badge-danger">Refused</span>
+                                            <span class="badge bg-danger">Refused</span>
                                         {% endif %}
                                         {% if mandate.is_default %}
-                                            <span class="badge badge-info">Default</span>
+                                            <span class="badge bg-info">Default</span>
                                         {% endif %}
                                     </td>
                                     <td>{{ mandate.bank }}</td>
@@ -375,14 +375,14 @@
                                     <td>
                                         ****{{ mandate.last4 }}
                                         {% if mandate.status == "pending" %}
-                                            <span class="badge badge-warning">Pending</span>
+                                            <span class="badge bg-warning">Pending</span>
                                         {% elif mandate.status == "revoked" %}
-                                            <span class="badge badge-danger">Revoked</span>
+                                            <span class="badge bg-danger">Revoked</span>
                                         {% elif mandate.status == "refused" %}
-                                            <span class="badge badge-danger">Refused</span>
+                                            <span class="badge bg-danger">Refused</span>
                                         {% endif %}
                                         {% if mandate.is_default %}
-                                            <span class="badge badge-info">Default</span>
+                                            <span class="badge bg-info">Default</span>
                                         {% endif %}
                                     </td>
                                     <td>{{ mandate.bank }}</td>
@@ -449,14 +449,14 @@
                                     <td>
                                         ****{{ mandate.last4 }}
                                         {% if mandate.status == "pending" %}
-                                            <span class="badge badge-warning">Pending</span>
+                                            <span class="badge bg-warning">Pending</span>
                                         {% elif mandate.status == "revoked" %}
-                                            <span class="badge badge-danger">Revoked</span>
+                                            <span class="badge bg-danger">Revoked</span>
                                         {% elif mandate.status == "refused" %}
-                                            <span class="badge badge-danger">Refused</span>
+                                            <span class="badge bg-danger">Refused</span>
                                         {% endif %}
                                         {% if mandate.is_default %}
-                                            <span class="badge badge-info">Default</span>
+                                            <span class="badge bg-info">Default</span>
                                         {% endif %}
                                     </td>
                                     <td>{{ mandate.bank }}</td>
@@ -524,14 +524,14 @@
                                     <td>
                                         ****{{ mandate.last4 }}
                                         {% if mandate.status == "pending" %}
-                                            <span class="badge badge-warning">Pending</span>
+                                            <span class="badge bg-warning">Pending</span>
                                         {% elif mandate.status == "revoked" %}
-                                            <span class="badge badge-danger">Revoked</span>
+                                            <span class="badge bg-danger">Revoked</span>
                                         {% elif mandate.status == "refused" %}
-                                            <span class="badge badge-danger">Refused</span>
+                                            <span class="badge bg-danger">Refused</span>
                                         {% endif %}
                                         {% if mandate.is_default %}
-                                            <span class="badge badge-info">Default</span>
+                                            <span class="badge bg-info">Default</span>
                                         {% endif %}
                                     </td>
                                     <td>{{ mandate.bank }}</td>
@@ -599,14 +599,14 @@
                                     <td>
                                         ****{{ mandate.last4 }}
                                         {% if mandate.status == "pending" %}
-                                            <span class="badge badge-warning">Pending</span>
+                                            <span class="badge bg-warning">Pending</span>
                                         {% elif mandate.status == "revoked" %}
-                                            <span class="badge badge-danger">Revoked</span>
+                                            <span class="badge bg-danger">Revoked</span>
                                         {% elif mandate.status == "refused" %}
-                                            <span class="badge badge-danger">Refused</span>
+                                            <span class="badge bg-danger">Refused</span>
                                         {% endif %}
                                         {% if mandate.is_default %}
-                                            <span class="badge badge-info">Default</span>
+                                            <span class="badge bg-info">Default</span>
                                         {% endif %}
                                     </td>
                                     <td>{{ mandate.bank }}</td>
@@ -673,14 +673,14 @@
                                 <td>
                                     ****{{ mandate.last4 }}
                                     {% if mandate.status == "pending" %}
-                                        <span class="badge badge-warning">Pending</span>
+                                        <span class="badge bg-warning">Pending</span>
                                     {% elif mandate.status == "revoked" %}
-                                        <span class="badge badge-danger">Revoked</span>
+                                        <span class="badge bg-danger">Revoked</span>
                                     {% elif mandate.status == "refused" %}
-                                        <span class="badge badge-danger">Refused</span>
+                                        <span class="badge bg-danger">Refused</span>
                                     {% endif %}
                                     {% if mandate.is_default %}
-                                        <span class="badge badge-info">Default</span>
+                                        <span class="badge bg-info">Default</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ mandate.bank }}</td>
@@ -745,11 +745,11 @@
                             <tr>
                                 <td>
                                     {% if subscription.state == "A" %}
-                                        <span class="badge badge-success">Active</span>
+                                        <span class="badge bg-success">Active</span>
                                     {% elif subscription.state == "P" %}
-                                        <span class="badge badge-warning">Past due</span>
+                                        <span class="badge bg-warning">Past due</span>
                                     {% elif subscription.state == "C" %}
-                                        <span class="badge badge-danger">Cancelled</span>
+                                        <span class="badge bg-danger">Cancelled</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ subscription.plan.name }}</td>

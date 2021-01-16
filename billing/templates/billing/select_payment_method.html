@@ -41,7 +41,7 @@
                             </td>
                             <td>
                                 {% if selected_payment_method_type == "stripe_pm" and selected_payment_method_id == card.id %}
-                                    <span class="badge badge-pill badge-success">Selected</span>
+                                    <span class="badge badge-pill bg-success">Selected</span>
                                 {% else %}
                                     <form action="" method="post">
                                         {% csrf_token %}
@@ -97,7 +97,7 @@
                             <td>{{ mandate.ref }}</td>
                             <td>
                                 {% if mandate.selected %}
-                                    <span class="badge badge-pill badge-success">Selected</span>
+                                    <span class="badge badge-pill bg-success">Selected</span>
                                 {% else %}
                                     <form action="" method="post">
                                         {% csrf_token %}
@@ -138,7 +138,7 @@
                             <td>{{ mandate.ref }}</td>
                             <td>
                                 {% if mandate.selected %}
-                                    <span class="badge badge-pill badge-success">Selected</span>
+                                    <span class="badge badge-pill bg-success">Selected</span>
                                 {% else %}
                                     <form action="" method="post">
                                         {% csrf_token %}
@@ -180,7 +180,7 @@
                             <td>{{ mandate.ref }}</td>
                             <td>
                                 {% if mandate.selected %}
-                                    <span class="badge badge-pill badge-success">Selected</span>
+                                    <span class="badge badge-pill bg-success">Selected</span>
                                 {% else %}
                                     <form action="" method="post">
                                         {% csrf_token %}
@@ -222,7 +222,7 @@
                             <td>{{ mandate.ref }}</td>
                             <td>
                                 {% if mandate.selected %}
-                                    <span class="badge badge-pill badge-success">Selected</span>
+                                    <span class="badge badge-pill bg-success">Selected</span>
                                 {% else %}
                                     <form action="" method="post">
                                         {% csrf_token %}
@@ -264,7 +264,7 @@
                             <td>{{ mandate.ref }}</td>
                             <td>
                                 {% if mandate.selected %}
-                                    <span class="badge badge-pill badge-success">Selected</span>
+                                    <span class="badge badge-pill bg-success">Selected</span>
                                 {% else %}
                                     <form action="" method="post">
                                         {% csrf_token %}
@@ -306,7 +306,7 @@
                             <td>{{ mandate.ref }}</td>
                             <td>
                                 {% if mandate.selected %}
-                                    <span class="badge badge-pill badge-success">Selected</span>
+                                    <span class="badge badge-pill bg-success">Selected</span>
                                 {% else %}
                                     <form action="" method="post">
                                         {% csrf_token %}
@@ -348,7 +348,7 @@
                             <td>{{ mandate.ref }}</td>
                             <td>
                                 {% if mandate.selected %}
-                                    <span class="badge badge-pill badge-success">Selected</span>
+                                    <span class="badge badge-pill bg-success">Selected</span>
                                 {% else %}
                                     <form action="" method="post">
                                         {% csrf_token %}
@@ -390,7 +390,7 @@
                             <td>{{ mandate.ref }}</td>
                             <td>
                                 {% if mandate.selected %}
-                                    <span class="badge badge-pill badge-success">Selected</span>
+                                    <span class="badge badge-pill bg-success">Selected</span>
                                 {% else %}
                                     <form action="" method="post">
                                         {% csrf_token %}
@@ -423,7 +423,7 @@
                         <h5 class="card-title">Bank transfer / Direct Debit</h5>
                         {% if selected_payment_method_type == "bank_transfer" or selected_payment_method_type == "bank_transfer_stripe" %}
                             <h4 class="mt-0">
-                                <span class="badge badge-pill badge-success">Selected</span>
+                                <span class="badge badge-pill bg-success">Selected</span>
                             </h4>
                             <a href="{% url 'top_up_bank_transfer' %}"
                                class="btn btn-info align-self-stretch">Change</a>
@@ -445,7 +445,7 @@
                                  style="flex-grow: 1">
                             {% if selected_payment_method_type == "sofort" %}
                                 <h4 class="my-0">
-                                    <span class="badge badge-pill badge-success">Selected</span>
+                                    <span class="badge badge-pill bg-success">Selected</span>
                                 </h4>
                             {% else %}
                                 <form action="" method="post" class="align-self-stretch">
@@ -471,7 +471,7 @@
                             <img src="{% static 'billing/imgs/giropay.svg' %}" alt="giropay" class="mb-3 mw-100"
                                  style="flex-grow: 1">
                             {% if selected_payment_method_type == "giropay" %}
-                                <h4 class="my-0"><span class="badge badge-pill badge-success">Selected</span>
+                                <h4 class="my-0"><span class="badge badge-pill bg-success">Selected</span>
                                 </h4>
                             {% else %}
                                 <form action="" method="post" class="align-self-stretch">
@@ -498,7 +498,7 @@
                                  class="mb-3 mw-100"
                                  style="flex-grow: 1">
                             {% if selected_payment_method_type == "bancontact" %}
-                                <h4 class="my-0"><span class="badge badge-pill badge-success">Selected</span>
+                                <h4 class="my-0"><span class="badge badge-pill bg-success">Selected</span>
                                 </h4>
                             {% else %}
                                 <form action="" method="post" class="align-self-stretch">
@@ -524,7 +524,7 @@
                             <img src="{% static 'billing/imgs/giropay-eps.svg' %}" alt="EPS" class="mb-3 mw-100"
                                  style="flex-grow: 1">
                             {% if selected_payment_method_type == "eps" %}
-                                <h4 class="my-0"><span class="badge badge-pill badge-success">Selected</span>
+                                <h4 class="my-0"><span class="badge badge-pill bg-success">Selected</span>
                                 </h4>
                             {% else %}
                                 <form action="" method="post" class="align-self-stretch">
@@ -550,7 +550,7 @@
                             <img src="{% static 'billing/imgs/ideal.svg' %}" alt="iDEAL" class="mb-3 mw-100"
                                  style="flex-grow: 1">
                             {% if selected_payment_method_type == "ideal" %}
-                                <h4 class="my-0"><span class="badge badge-pill badge-success">Selected</span>
+                                <h4 class="my-0"><span class="badge badge-pill bg-success">Selected</span>
                                 </h4>
                             {% else %}
                                 <form action="" method="post" class="align-self-stretch">
@@ -576,7 +576,7 @@
                             <img src="{% static 'billing/imgs/przelewy-24.svg' %}" alt="Multibanco" class="mb-3"
                                  style="flex-grow: 1; max-width: 100px;">
                             {% if selected_payment_method_type == "p24" %}
-                                <h4 class="my-0"><span class="badge badge-pill badge-success">Selected</span>
+                                <h4 class="my-0"><span class="badge badge-pill bg-success">Selected</span>
                                 </h4>
                             {% else %}
                                 <form action="" method="post" class="align-self-stretch">
@@ -602,7 +602,7 @@
                             <img src="{% static 'billing/imgs/multibanco.svg' %}" alt="Multibanco" class="mb-3"
                                  style="flex-grow: 1; max-width: 100px">
                             {% if selected_payment_method_type == "multibanco" %}
-                                <h4 class="my-0"><span class="badge badge-pill badge-success">Selected</span>
+                                <h4 class="my-0"><span class="badge badge-pill bg-success">Selected</span>
                                 </h4>
                             {% else %}
                                 <form action="" method="post" class="align-self-stretch">
@@ -633,12 +633,10 @@
                     <div class="input-group mb-3">
                         <input type="number" name="amount" min="2" step="0.01" class="form-control" required=""
                                id="amount" value="{{ charge_amount|floatformat:2 }}">
-                        <div class="input-group-append">
                             <button type="submit" name="action" value="set_amount"
                                     class="btn btn-secondary btn-sm">
                                 Update
                             </button>
-                        </div>
                     </div>
                 </div>
             </form>
@@ -702,12 +700,10 @@
                                         {% if currency.0 == selected_currency %}selected{% endif %}>{{ currency.1 }}</option>
                             {% endfor %}
                         </select>
-                        <div class="input-group-append">
                             <button type="submit" name="action" value="set_currency"
                                     class="btn btn-secondary btn-sm">
                                 Update
                             </button>
-                        </div>
                     </div>
                 </form>
             {% endif %}

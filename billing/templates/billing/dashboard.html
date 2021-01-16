@@ -58,9 +58,9 @@
                 </div>
                 <div class="card mt-3">
                     <div class="card-body">
-                        <a href="{% url 'top_up' %}" class="btn btn-primary btn-block">&#x1f4b7; Top-up
+                        <a href="{% url 'top_up' %}" class="btn btn-primary btn-block w-100 my-1">&#x1f4b7; Top-up
                             &#x1f4b7;</a>
-                        <a href="{% url 'statement_export' %}" class="btn btn-primary btn-block">&#x1f9fe; Statement
+                        <a href="{% url 'statement_export' %}" class="btn btn-primary btn-block w-100 my-1">&#x1f9fe; Statement
                             export &#x1f9fe;</a>
                     </div>
                 </div>
@@ -86,9 +86,9 @@
             </div>
             <div class="col-md-9">
                 <h2>Transactions &#x1f4dc;</h2>
-                <div class="table-responsive table-striped table-hover table-striped">
-                    <table class="table">
-                        <thead class="thead-dark">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped">
+                        <thead class="table-dark">
                         <tr>
                             <th>Time</th>
                             <th>Description</th>
@@ -121,20 +121,20 @@
                                 <td>
                                     {{ item.descriptor }}
                                     {% if item.is_reversal %}
-                                        <span class="badge badge-primary">
+                                        <span class="badge bg-primary">
                                             &#x21a9;&#xfe0f; Reversal
                                         </span>
                                     {% endif %}
                                     {% if item.state == "P" %}
-                                        <span class="badge badge-warning">
+                                        <span class="badge bg-warning">
                                             &#x23f3; Pending
                                         </span>
                                     {% elif item.state == "S" or item.state == "A" %}
-                                        <span class="badge badge-info">
+                                        <span class="badge bg-info">
                                             &#x1f4c7; Processing
                                         </span>
                                     {% elif item.state == "F" %}
-                                        <span class="badge badge-danger">
+                                        <span class="badge bg-danger">
                                              &#x1f645; Failed
                                         </span>
                                     {% endif %}
