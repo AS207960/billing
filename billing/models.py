@@ -474,7 +474,15 @@ class LedgerItem(models.Model):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.original_state = self.state if not self._state.adding else None
+        self._original_state = self.state
+
+    @property
+    def original_state(self):
+        return self._original_state if not self._state.adding else None
+
+    @original_state.setter
+    def original_state(self, val):
+        self._original_state = val
 
     def save(self, mail=True, *args, **kwargs):
         if self.state == self.STATE_COMPLETED and not self.completed_timestamp:
