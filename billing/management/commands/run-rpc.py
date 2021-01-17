@@ -68,7 +68,7 @@ class Command(BaseCommand):
 
         if msg.HasField("username"):
             account = models.Account.objects.filter(user__username=msg.username.value).first()
-            if not billing_address_country and account.billing_address:
+            if account and not billing_address_country and account.billing_address:
                 billing_address_country = account.billing_address.country_code.code.lower()
                 billing_address_postal_code = account.billing_address.postal_code
         else:
