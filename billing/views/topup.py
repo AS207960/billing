@@ -8,6 +8,7 @@ import gocardless_pro.errors
 import schwifty
 import stripe
 import stripe.error
+import urllib.parse
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseBadRequest, HttpResponseForbidden, Http404
@@ -1137,6 +1138,15 @@ def complete_top_up_card(request, item_id):
 @login_required
 def top_up_bank_transfer(request):
     account = request.user.account  # type: models.Account
+    
+    referer = request.META.get("HTTP_REFERER")
+    if referer:
+        redirect_uri = referer
+    else:
+        redirect_uri = reverse('top_up')
+        
+    request.session["bank_transfer_redirect_uri"] = redirect_uri
+    redirect_uri = urllib.parse.quote_plus(redirect_uri)
 
     if not account.billing_address:
         return render(request, "billing/top_up_no_address.html")
@@ -1152,7 +1162,8 @@ def top_up_bank_transfer(request):
                     "country": billing_address_country,
                     "taxable": account.taxable,
                     "iban": request.POST.get("iban"),
-                    "iban_error": str(e)
+                    "iban_error": str(e),
+                    "redirect_uri": redirect_uri,
                 })
 
             if iban.country_code.lower() != billing_address_country:
@@ -1160,7 +1171,8 @@ def top_up_bank_transfer(request):
                     "country": billing_address_country,
                     "taxable": account.taxable,
                     "iban": request.POST.get("iban"),
-                    "iban_error": "IBAN country and billing address country must match."
+                    "iban_error": "IBAN country and billing address country must match.",
+                    "redirect_uri": redirect_uri,
                 })
 
             try:
@@ -1171,6 +1183,7 @@ def top_up_bank_transfer(request):
                     return render(request, "billing/top_up_bacs_no_schemes.html", {
                         "country": billing_address_country,
                         "taxable": account.taxable,
+                        "redirect_uri": redirect_uri,
                     })
                 else:
                     return render(request, "billing/top_up_bacs_schemes.html", {
@@ -1178,16 +1191,19 @@ def top_up_bank_transfer(request):
                         "bank_name": lookup.bank_name,
                         "schemes": lookup.available_debit_schemes,
                         "taxable": account.taxable,
+                        "redirect_uri": redirect_uri,
                     })
             except gocardless_pro.errors.ValidationFailedError as e:
                 return render(request, "billing/top_up_bacs_no_schemes.html", {
                     "country": billing_address_country,
                     "taxable": account.taxable,
+                    "redirect_uri": redirect_uri,
                 })
 
     return render(request, "billing/top_up_bacs_search.html", {
         "country": billing_address_country,
         "taxable": account.taxable,
+        "redirect_uri": redirect_uri,
     })
 
 
@@ -1281,6 +1297,8 @@ def top_up_bank_transfer_local(request, country):
         form_c = forms.USBankAccountForm
     else:
         raise Http404()
+    
+    redirect_uri = request.session.get("bank_transfer_redirect_uri", reverse("top_up"))
 
     if request.method == "POST":
         form = form_c(request.POST)
@@ -1294,13 +1312,15 @@ def top_up_bank_transfer_local(request, country):
                 lookup = gocardless_client.bank_details_lookups.create(params=account_data)
                 if not len(lookup.available_debit_schemes):
                     return render(request, "billing/top_up_bacs_no_schemes.html", {
-                        "country": country
+                        "country": country,
+                        "redirect_uri": redirect_uri,
                     })
                 else:
                     return render(request, "billing/top_up_bacs_schemes.html", {
                         "bank_name": lookup.bank_name,
                         "schemes": lookup.available_debit_schemes,
-                        "country": country
+                        "country": country,
+                        "redirect_uri": redirect_uri,
                     })
             except gocardless_pro.errors.ValidationFailedError as e:
                 if e.errors:
@@ -1313,7 +1333,8 @@ def top_up_bank_transfer_local(request, country):
 
     return render(request, "billing/top_up_bacs_search_local.html", {
         "country": country_name,
-        "form": form
+        "form": form,
+        "redirect_uri": redirect_uri,
     })
 
 
@@ -1382,7 +1403,8 @@ def top_up_bank_details(request, currency):
         request.session["selected_payment_method"] = f"bank_transfer_stripe;gbp"
     else:
         request.session["selected_payment_method"] = f"bank_transfer;{currency}"
-    return redirect("top_up")
+        
+    return redirect(request.session.get("bank_transfer_redirect_uri", reverse("top_up")))
 
 
 @login_required

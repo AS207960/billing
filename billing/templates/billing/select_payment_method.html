@@ -644,12 +644,12 @@
         <table class="table table-borderless">
             <tbody>
             <tr>
-                <th scope="row" class="font-weight-normal">{{ charge_descriptor }}</th>
+                <th scope="row" class="fw-normal">{{ charge_descriptor }}</th>
                 <td>&pound;{{ charge_amount|floatformat:2 }}</td>
             </tr>
             {% if from_account_balance %}
                 <tr>
-                    <th scope="row" class="font-weight-normal">From account balance</th>
+                    <th scope="row" class="fw-normal">From account balance</th>
                     <td>&pound;{{ from_account_balance|floatformat:2 }}</td>
                 </tr>
             {% endif %}
@@ -661,7 +661,7 @@
             {% endif %}
             {% if has_vat %}
                 <tr>
-                    <th scope="row" class="font-weight-normal">VAT @ {{ vat_rate|mul:100|floatformat:2 }}%</th>
+                    <th scope="row" class="fw-normal">VAT @ {{ vat_rate|mul:100|floatformat:2 }}%</th>
                     <td>&pound;{{ vat_charged|floatformat:2 }}</td>
                 </tr>
             {% endif %}
