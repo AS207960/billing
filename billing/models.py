@@ -740,7 +740,7 @@ class Subscription(models.Model):
 
     id = as207960_utils.models.TypedUUIDField('billing_subscription', primary_key=True)
     plan = models.ForeignKey(RecurringPlan, on_delete=models.CASCADE)
-    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, blank=True, null=True)
     last_billed = models.DateTimeField()
     state = models.CharField(max_length=1, choices=STATES)
 
