@@ -289,7 +289,7 @@ def try_update_charge_state(instance: models.LedgerItem, mail=True):
 
     if subscription_charge:
         if not subscription_charge.subscription.account:
-            subscription_charge.subscription.account = charge_state.account
+            subscription_charge.subscription.account = instance.account
             subscription_charge.save()
         if subscription_charge.is_setup_charge:
             if instance.state == instance.STATE_COMPLETED:
