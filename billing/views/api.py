@@ -266,6 +266,7 @@ def subscribe_user(request, user_id):
         else:
             subscription_charge.ledger_item = charge_state.ledger_item
         subscription_charge.save()
+        tasks.try_update_charge_state(subscription_charge.ledger_item, False)
 
         if redirect_url:
             return HttpResponse(json.dumps({
@@ -345,6 +346,7 @@ def log_usage(request, subscription_id):
                 else:
                     subscription_charge.ledger_item = charge_state.ledger_item
                 subscription_charge.save()
+                tasks.try_update_charge_state(subscription_charge.ledger_item, False)
 
                 if redirect_url:
                     return HttpResponse(json.dumps({
