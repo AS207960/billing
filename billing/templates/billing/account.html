@@ -12,14 +12,22 @@
                     Completed and processing balance:
                     <b>&pound;{{ account.processing_and_completed_balance|floatformat:2 }}</b><br/>
                     Pending balance: <b>&pound;{{ account.pending_balance|floatformat:2 }}</b><br/>
-                    Stripe customer ID: {% if account.stripe_customer_id %}
-                    <a href="https://dashboard.stripe.com/customers/{{ account.stripe_customer_id }}" target="_blank">
-                        <b>{{ account.stripe_customer_id }}</b>
-                    </a>
-                {% else %}
-                    <b>N/A</b>
-                {% endif %}
+                    Stripe customer ID:
+                    {% if account.stripe_customer_id %}
+                        <a href="https://dashboard.stripe.com/customers/{{ account.stripe_customer_id }}"
+                           target="_blank">
+                            <b>{{ account.stripe_customer_id }}</b>
+                        </a>
+                    {% else %}
+                        <b>N/A</b>
+                    {% endif %}
                 </p>
+                {% if account.virtual_uk_bank %}
+                    <p>
+                        Sort Code: <b>{{ account.virtual_uk_bank.formatted_sort_code }}</b><br/>
+                        Account number: <b>{{ account.virtual_uk_bank.account_number }}</b>
+                    </p>
+                {% endif %}
             </div>
             <div class="col">
                 {% if perms.billing.add_ledgeritem %}
@@ -29,6 +37,14 @@
                         <a href="{% url 'manual_top_up_account' account.user.username %}" class="btn btn-info">Manual
                             top-up</a>
                     </div>
+                {% endif %}
+                {% if account.billing_address %}
+                    <p>
+                        {{ billing_address.formatted|linebreaksbr }}
+                        {% if billing_address.formatted_vat_id %}
+                            <br/><b>VAT ID:</b> {{ billing_address.formatted_vat_id }}
+                        {% endif %}
+                    </p>
                 {% endif %}
             </div>
         </div>
