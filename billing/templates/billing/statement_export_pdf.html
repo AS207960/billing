@@ -10,21 +10,45 @@
         body {
             background: none;
         }
+
+        @media print {
+            .container {
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: none;
+            }
+        }
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="row mt-5">
+<div class="container mt-5">
+    <div class="row">
         <div class="col">
             <img src="https://as207960.net/assets/img/logo.svg" height="75" alt="">
-            <span class="navbar-brand mb-0 h1">Glauca</span>
+            <span class="h3">AS207960 / Glauca</span>
+            {% if account.billing_address %}
+                <p class="mt-3">
+                    {{ account.billing_address.formatted|linebreaksbr }}
+                </p>
+            {% endif %}
         </div>
         <div class="col">
-            <h1>Account statement</h1>
+            <h1>Statement of account</h1>
             <h2>For {{ account.user.first_name }} {{ account.user.last_name }}</h2>
-            <p class="lead">
+            <p>
                 {{ from_date }} - {{ to_date }}
             </p>
+            <p class="lead">
+                Balance: <b>{{ closing_balance|floatformat:2 }} GBP</b><br/>
+                Total incoming: <b>{{ total_incoming|floatformat:2 }} GBP</b><br/>
+                Total outgoing: <b>{{ total_outgoing|floatformat:2 }} GBP</b><br/>
+            </p>
+            {% if account.virtual_uk_bank %}
+                <p>
+                    Sort Code: <b>{{ account.virtual_uk_bank.formatted_sort_code }}</b><br/>
+                    Account number: <b>{{ account.virtual_uk_bank.account_number }}</b>
+                </p>
+            {% endif %}
         </div>
     </div>
 
@@ -39,6 +63,15 @@
         </tr>
         </thead>
         <tbody>
+        <tr>
+            <td></td>
+            <td>Brought forward</td>
+            <td></td>
+            <td></td>
+            <td>
+                {{ starting_balance|floatformat:2 }}
+            </td>
+        </tr>
         {% for item in items %}
             <tr>
                 <td>{{ item.timestamp }}</td>
@@ -71,12 +104,17 @@
     </div>
 
     <p class="mb-5">
-        AS207960 Cyfyngedig, trading as Glauca, is a limited company registered in Wales under company number 12417574
+        AS207960 Cyfyngedig, trading as Glauca Digital, is a limited company registered in Wales under company number
+        12417574,
+        having a registered office at 13 Pen-y-lan Terrace, Caerdydd, Cymru, CF23 9EU.
     </p>
 </div>
 <script>
     window.addEventListener('load', function () {
-       window.print();
+        setTimeout(function () {
+            window.print();
+            window.history.back();
+        }, 100);
     });
 </script>
 </body>

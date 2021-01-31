@@ -3,6 +3,11 @@
 {% block content %}
     <div class="container my-3">
         <h1>Account statement export</h1>
-        {% crispy form %}
+
+        <div class="row d-flex flex-column align-items-center">
+            <div class="col-12 col-md-6">
+                {% crispy form form.helper %}
+            </div>
+        </div>
     </div>
 {% endblock %}

@@ -6,6 +6,8 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template import loader
+import datetime
+import decimal
 from django.db.models import Q
 from .. import forms, models
 from ..apps import gocardless_client
@@ -32,10 +34,18 @@ def statement_export(request):
         if form.is_valid():
             from_date = form.cleaned_data["date_from"]
             to_date = form.cleaned_data["date_to"]
+            from_datetime = datetime.datetime(
+                year=from_date.year, month=from_date.month, day=from_date.day,
+                hour=0, minute=0, second=0, microsecond=0, tzinfo=datetime.timezone.utc
+            )
+            to_datetime = datetime.datetime(
+                year=to_date.year, month=to_date.month, day=to_date.day,
+                hour=23, minute=59, second=59, microsecond=999999, tzinfo=datetime.timezone.utc
+            )
             items = models.LedgerItem.objects.filter(
                 account=request.user.account,
-                timestamp__gte=from_date,
-                timestamp__lte=to_date,
+                timestamp__gte=from_datetime,
+                timestamp__lte=to_datetime,
                 state=models.LedgerItem.STATE_COMPLETED
             )
             if form.cleaned_data["format"] == forms.StatementExportForm.FORMAT_CSV:
@@ -70,11 +80,27 @@ def statement_export(request):
 
                 return response
             elif form.cleaned_data["format"] == forms.StatementExportForm.FORMAT_PDF:
+                starting_balance = request.user.account.balance_at(from_datetime)
+                closing_balance = request.user.account.balance_at(to_datetime)
+
+                total_incoming = decimal.Decimal(0)
+                total_outgoing = decimal.Decimal(0)
+
+                for item in items:
+                    if item.amount >= 0:
+                        total_incoming += item.amount
+                    else:
+                        total_outgoing -= item.amount
+
                 return render(request, "billing/statement_export_pdf.html", {
                     "account": request.user.account,
-                    "items": items,
+                    "items": reversed(items),
                     "from_date": from_date,
-                    "to_date": to_date
+                    "to_date": to_date,
+                    "starting_balance": starting_balance,
+                    "closing_balance": closing_balance,
+                    "total_incoming": total_incoming,
+                    "total_outgoing": total_outgoing,
                 })
     else:
         form = forms.StatementExportForm()

@@ -247,6 +247,7 @@ class StatementExportForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
+        self.helper.field_class = 'my-2'
         self.helper.layout = crispy_forms.layout.Layout(
             crispy_forms.layout.Div(
                 crispy_forms.layout.Div('date_from', css_class='col-sm-6'),
@@ -255,7 +256,7 @@ class StatementExportForm(forms.Form):
             ),
             'format'
         )
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Export', css_class='btn-block'))
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Export', css_class='w-100'))
 
 
 class AccountChargeForm(forms.Form):

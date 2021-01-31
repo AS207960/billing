@@ -97,6 +97,22 @@ class Account(models.Model):
         ).quantize(decimal.Decimal('1.00'))
         return balance if balance != 0 else decimal.Decimal(0)
 
+    def balance_at(self, timestamp, item_id=None):
+        queryset = self.ledgeritem_set \
+            .filter(timestamp__lte=timestamp)
+
+        if item_id:
+            queryset = queryset.filter(Q(state=LedgerItem.STATE_COMPLETED) | Q(id=item_id))
+        else:
+            queryset = queryset.filter(state=LedgerItem.STATE_COMPLETED)
+
+        balance = (
+            queryset
+           .aggregate(balance=models.Sum('amount'))
+           .get('balance') or decimal.Decimal(0)
+        ).quantize(decimal.Decimal('1.00'))
+        return balance if balance != 0 else decimal.Decimal(0)
+
     def get_stripe_id(self):
         if self.stripe_customer_id:
             return self.stripe_customer_id
@@ -554,17 +570,7 @@ class LedgerItem(models.Model):
 
     @property
     def balance_at(self):
-        queryset = self.account.ledgeritem_set \
-            .filter(timestamp__lte=self.timestamp)
-
-        queryset = queryset.filter(Q(state=self.STATE_COMPLETED) | Q(id=self.id))
-
-        balance = (
-            queryset
-           .aggregate(balance=models.Sum('amount'))
-           .get('balance') or decimal.Decimal(0)
-        ).quantize(decimal.Decimal('1.00'))
-        return balance if balance != 0 else decimal.Decimal(0)
+        return self.account.balance_at(self.timestamp, self.id)
 
     def __str__(self):
         return f"{self.descriptor} ({self.id})"
