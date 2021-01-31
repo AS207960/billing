@@ -40,9 +40,9 @@
                 {% endif %}
                 {% if account.billing_address %}
                     <p>
-                        {{ billing_address.formatted|linebreaksbr }}
-                        {% if billing_address.formatted_vat_id %}
-                            <br/><b>VAT ID:</b> {{ billing_address.formatted_vat_id }}
+                        {{ account.billing_address.formatted|linebreaksbr }}
+                        {% if account.billing_address.formatted_vat_id %}
+                            <br/><b>VAT ID:</b> {{ account.billing_address.formatted_vat_id }}
                         {% endif %}
                     </p>
                 {% endif %}
