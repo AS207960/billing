@@ -432,20 +432,20 @@ def attempt_charge_off_session(charge_state):
 
     vat_rate = decimal.Decimal(0)
     selected_currency = "gbp"
-    billing_address_country = account.billing_address.country_code.code.lower()
+    billing_address_country = account.billing_address.country_code.code.lower() if account.billing_address else None
     selected_payment_method_type = None
     selected_payment_method_id = None
-
-    if account.taxable:
-        country_vat_rate = vat.get_vat_rate(billing_address_country, account.billing_address.postal_code)
-        if country_vat_rate is not None:
-            vat_rate = country_vat_rate
-            vat_charged = (left_to_be_paid * country_vat_rate)
-            charged_amount += vat_charged
 
     if needs_payment:
         if not account.billing_address:
             raise ChargeError(None, "No default billing address", must_reject=True)
+
+        if account.taxable:
+            country_vat_rate = vat.get_vat_rate(billing_address_country, account.billing_address.postal_code)
+            if country_vat_rate is not None:
+                vat_rate = country_vat_rate
+                vat_charged = (left_to_be_paid * country_vat_rate)
+                charged_amount += vat_charged
 
         can_sell, can_sell_reason = account.can_sell
         if not can_sell:
