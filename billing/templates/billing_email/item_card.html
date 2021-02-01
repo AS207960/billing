@@ -37,3 +37,10 @@
         </tr>
         </tbody>
     </table>
+{% if item.stripe_climate_contribution %}
+    <p>
+        <img src="{% static 'billing/imgs/climate-badge.svg' %}" alt="" style="height: 1.3rem;">
+        <b>&pound;{{ item.stripe_climate_contribution|floatformat:2 }}</b> was contributed towards
+        removing carbon from the atmosphere.
+    </p>
+{% endif %}
