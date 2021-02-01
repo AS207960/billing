@@ -43,6 +43,7 @@ data:
   EMAIL_PORT: "25"
   EMAIL_FROM: "=?UTF-8?q?AS207960=20Billing=20[TEST]?= <billing-test@as207960.net>"
   IS_TEST: "true"
+  STRIPE_CLIMATE: "true"
 ---
 apiVersion: apps/v1
 kind: Deployment
