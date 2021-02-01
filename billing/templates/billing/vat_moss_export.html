@@ -3,7 +3,7 @@
 {% block content %}
     <div class="container my-3">
         <h1>VAT MOSS - Q{{ export_quarter }} {{ export_year }}</h1>
-        <h2>Total VAT due: {{ total_vat|floatformat:2 }} EUR</h2>
+        <h2>Total VAT due: {{ total_vat_eur|floatformat:2 }} EUR / {{ total_vat_gbp|floatformat:2 }} GBP</h2>
         <div class="row d-flex flex-column align-items-center">
             <div class="col-12 col-md-6">
                 {% for country in countries %}
@@ -19,17 +19,32 @@
                             </tr>
                             </thead>
                             <tbody>
-                            {% for vat_rate in country.vat_rates %}
+                            {% for vat_month in country.vat_months %}
                                 <tr>
-                                    <td>{{ vat_rate.vat_rate|floatformat:2 }}%</td>
-                                    <td>{{ vat_rate.total_sales|floatformat:2 }} EUR</td>
-                                    <td>{{ vat_rate.vat_due|floatformat:2 }} EUR</td>
+                                    <th scope="rowgroup" colspan="3">{{ vat_month.month_name }}</th>
                                 </tr>
+                                {% for vat_rate in vat_month.vat_rates %}
+                                    <tr>
+                                        <td>{{ vat_rate.vat_rate|floatformat:2 }}%</td>
+                                        <td>{{ vat_rate.total_sales_eur|floatformat:2 }} EUR / {{ vat_rate.total_sales_gbp|floatformat:2 }} GBP</td>
+                                        <td>{{ vat_rate.vat_due_eur|floatformat:2 }} EUR / {{ vat_rate.vat_due_gbp|floatformat:2 }} GBP</td>
+                                    </tr>
+                                {% endfor %}
                             {% endfor %}
+                                <tr>
+                                    <th scope="rowgroup" colspan="3">Totals</th>
+                                </tr>
+                                {% for vat_rate in country.vat_rate_sums %}
+                                    <tr>
+                                        <td>{{ vat_rate.vat_rate|floatformat:2 }}%</td>
+                                        <td>{{ vat_rate.total_sales_eur|floatformat:2 }} EUR / {{ vat_rate.total_sales_gbp|floatformat:2 }} GBP</td>
+                                        <td>{{ vat_rate.vat_due_eur|floatformat:2 }} EUR / {{ vat_rate.vat_due_gbp|floatformat:2 }} GBP</td>
+                                    </tr>
+                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
-                    <h4>Total VAT due: {{ country.total_vat|floatformat:2 }} EUR</h4>
+                    <h4>Total VAT due: {{ country.total_vat_eur|floatformat:2 }} EUR / {{ country.total_vat_gbp|floatformat:2 }} GBP</h4>
                 {% endfor %}
             </div>
         </div>

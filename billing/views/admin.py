@@ -4,6 +4,7 @@ import decimal
 import dateutil.relativedelta
 import django_countries
 import pytz
+import calendar
 import stripe
 import stripe.error
 from django.contrib.auth import get_user_model
@@ -248,44 +249,83 @@ def view_vat_moss(request):
             for item in items:
                 if item.country_code not in countries:
                     countries[item.country_code] = {}
+                if item.timestamp.month not in countries[item.country_code]:
+                    countries[item.country_code][item.timestamp.month] = {}
                 vat_rate = str(item.vat_rate)
-                if vat_rate not in countries[item.country_code]:
-                    countries[item.country_code][vat_rate] = decimal.Decimal(0)
+                if vat_rate not in countries[item.country_code][item.timestamp.month]:
+                    countries[item.country_code][item.timestamp.month][vat_rate] = {
+                        "gbp": decimal.Decimal(0),
+                        "eur": decimal.Decimal(0),
+                    }
                 if item.eur_exchange_rate:
                     exchange_rate = item.eur_exchange_rate
                 elif item.reversal_for and item.reversal_for.eur_exchange_rate:
                     exchange_rate = item.reversal_for.eur_exchange_rate
                 else:
                     exchange_rate = models.ExchangeRate.get_rate("gbp", "eur")
-                countries[item.country_code][vat_rate] += item.charged_amount * exchange_rate
+                countries[item.country_code][item.timestamp.month][vat_rate]["gbp"] += item.charged_amount
+                countries[item.country_code][item.timestamp.month][vat_rate]["eur"]\
+                    += item.charged_amount * exchange_rate
 
             def map_vat_rate(v):
                 rate = decimal.Decimal(v[0])
                 return {
                     "vat_rate": rate * decimal.Decimal(100),
-                    "total_sales": v[1],
-                    "vat_due": v[1] * rate
+                    "total_sales_gbp": v[1]["gbp"],
+                    "total_sales_eur": v[1]["eur"],
+                    "vat_due_gbp": v[1]["gbp"] * rate,
+                    "vat_due_eur": v[1]["eur"] * rate,
+                }
+
+            def map_vat_month(m):
+                vat_rates = list(map(map_vat_rate, m[1].items()))
+                month_vat_gbp = sum(map(lambda v: v["vat_due_gbp"], vat_rates))
+                month_vat_eur = sum(map(lambda v: v["vat_due_eur"], vat_rates))
+                return {
+                    "vat_rates": vat_rates,
+                    "vat_due_gbp": month_vat_gbp,
+                    "vat_due_eur": month_vat_eur,
+                    "month_name": calendar.month_name[m[0]]
                 }
 
             def map_country(c):
                 cc = c[0].upper()
-                vat_rates = list(map(map_vat_rate, c[1].items()))
-                country_vat = sum(map(lambda v: v["vat_due"], vat_rates))
+                vat_months = list(map(map_vat_month, c[1].items()))
+                country_vat_gbp = sum(map(lambda v: v["vat_due_gbp"], vat_months))
+                country_vat_eur = sum(map(lambda v: v["vat_due_eur"], vat_months))
+
+                vat_rates = {}
+                for vat_month in vat_months:
+                    for vat_rate in vat_month["vat_rates"]:
+                        vat_rate_per = vat_rate["vat_rate"] / decimal.Decimal(100)
+                        if vat_rate_per not in vat_rates:
+                            vat_rates[vat_rate_per] = {
+                                "gbp": decimal.Decimal(0),
+                                "eur": decimal.Decimal(0),
+                            }
+                            vat_rates[vat_rate_per]["gbp"] += vat_rate["total_sales_gbp"]
+                            vat_rates[vat_rate_per]["eur"] += vat_rate["total_sales_eur"]
+
                 return {
                     "country_code": c[0],
                     "country_name": dict(django_countries.countries)[cc],
                     "country_emoji": chr(ord(cc[0]) + 127397) + chr(ord(cc[1]) + 127397),
-                    "vat_rates": vat_rates,
-                    "total_vat": country_vat,
+                    "vat_months": vat_months,
+                    "vat_rate_sums": list(map(map_vat_rate, vat_rates.items())),
+                    "total_vat_gbp": country_vat_gbp,
+                    "total_vat_eur": country_vat_eur,
                 }
 
             countries = list(map(map_country, countries.items()))
-            total_vat = sum(map(lambda c: c["total_vat"], countries))
+            print(countries)
+            total_vat_eur = sum(map(lambda c: c["total_vat_eur"], countries))
+            total_vat_gbp = sum(map(lambda c: c["total_vat_gbp"], countries))
             return render(request, "billing/vat_moss_export.html", {
                 "export_year": form.cleaned_data['year'],
                 "export_quarter": form.cleaned_data['quarter'],
                 "countries": countries,
-                "total_vat": total_vat,
+                "total_vat_eur": total_vat_eur,
+                "total_vat_gbp": total_vat_gbp,
             })
     else:
         form = forms.VATMOSSForm()
