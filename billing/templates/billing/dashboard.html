@@ -1,5 +1,6 @@
 {% extends 'billing/base.html' %}
 {% load mathfilters %}
+{% load static %}
 {% block content %}
     <div class="container my-3">
         <h1>Account dashboard</h1>
@@ -60,7 +61,8 @@
                     <div class="card-body">
                         <a href="{% url 'top_up' %}" class="btn btn-primary btn-block w-100 my-1">&#x1f4b7; Top-up
                             &#x1f4b7;</a>
-                        <a href="{% url 'statement_export' %}" class="btn btn-primary btn-block w-100 my-1">&#x1f9fe; Statement
+                        <a href="{% url 'statement_export' %}" class="btn btn-primary btn-block w-100 my-1">&#x1f9fe;
+                            Statement
                             export &#x1f9fe;</a>
                     </div>
                 </div>
@@ -137,6 +139,10 @@
                                         <span class="badge bg-danger">
                                              &#x1f645; Failed
                                         </span>
+                                    {% endif %}
+                                    {% if item.stripe_climate_contribution %}
+                                        <img src="{% static 'billing/imgs/climate-badge.svg' %}" alt=""
+                                             style="height: 1.3rem;">
                                     {% endif %}
                                 </td>
                                 <td {% if item.amount >= 0 %}class="text-success"{% endif %}>

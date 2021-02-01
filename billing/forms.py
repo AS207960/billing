@@ -11,6 +11,29 @@ from phonenumber_field.formfields import PhoneNumberField
 from . import models, apps, vat, utils
 
 
+class VATMOSSForm(forms.Form):
+    QUARTERS = (
+        (1, "Q1 (1st January - 31st March)"),
+        (2, "Q2 (1st April - 30th June)"),
+        (3, "Q3 (1st July - 30th September)"),
+        (4, "Q4 (1st October - 31st December)"),
+    )
+
+    year = forms.IntegerField(min_value=0)
+    quarter = forms.TypedChoiceField(choices=QUARTERS, widget=forms.RadioSelect(), coerce=int)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.field_class = 'my-2'
+        self.helper.layout = crispy_forms.layout.Layout(
+            'year',
+            'quarter'
+        )
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Export', css_class='w-100'))
+
+
 class TopUpForm(forms.Form):
     METHOD_CARD = 'C'
     METHOD_BACS = 'B'

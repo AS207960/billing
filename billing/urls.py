@@ -80,6 +80,7 @@ urlpatterns = [
     path('sw.js', views.sw),
     path('accounts/', views.admin.view_accounts, name='view_accounts'),
     path('accounts/deferrals/', views.admin.view_account_deferrals, name='view_account_deferrals'),
+    path('accounts/vat_moss/', views.admin.view_vat_moss, name='view_vat_moss'),
     path('accounts/edit_item/<item_id>/', views.admin.edit_ledger_item, name='edit_ledger_item'),
     path('accounts/<account_id>/', views.admin.view_account, name='view_account'),
     path('accounts/<account_id>/charge/', views.admin.charge_account, name='charge_account'),

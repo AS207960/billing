@@ -1,0 +1,37 @@
+{% extends 'billing/base.html' %}
+{% load crispy_forms_tags %}
+{% block content %}
+    <div class="container my-3">
+        <h1>VAT MOSS - Q{{ export_quarter }} {{ export_year }}</h1>
+        <h2>Total VAT due: {{ total_vat|floatformat:2 }} EUR</h2>
+        <div class="row d-flex flex-column align-items-center">
+            <div class="col-12 col-md-6">
+                {% for country in countries %}
+                    <hr/>
+                    <h3>{{ country.country_name }} {{ country.country_emoji }}</h3>
+                    <div class="table-responsive table-striped table-hover table-striped">
+                        <table class="table">
+                            <thead class="table-dark">
+                            <tr>
+                                <th>VAT Rate</th>
+                                <th>Total sales</th>
+                                <th>VAT Due</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for vat_rate in country.vat_rates %}
+                                <tr>
+                                    <td>{{ vat_rate.vat_rate|floatformat:2 }}%</td>
+                                    <td>{{ vat_rate.total_sales|floatformat:2 }} EUR</td>
+                                    <td>{{ vat_rate.vat_due|floatformat:2 }} EUR</td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <h4>Total VAT due: {{ country.total_vat|floatformat:2 }} EUR</h4>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

@@ -210,7 +210,8 @@ def attempt_complete_bank_transfer(ref: str, amount: decimal.Decimal, trans_acco
                     timestamp=timezone.now(),
                     state=models.LedgerItem.STATE_COMPLETED,
                     evidence_bank_account=known_account,
-                    evidence_billing_address=known_account.account.billing_address
+                    evidence_billing_address=known_account.account.billing_address,
+                    eur_exchange_rate=models.ExchangeRate.get_rate("gbp", "eur")
                 )
                 new_ledger_item.save()
                 found = True

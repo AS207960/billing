@@ -435,6 +435,7 @@ def attempt_charge_off_session(charge_state):
     billing_address_country = account.billing_address.country_code.code.lower() if account.billing_address else None
     selected_payment_method_type = None
     selected_payment_method_id = None
+    climate_contribution = False
 
     if needs_payment:
         if not account.billing_address:
@@ -460,6 +461,7 @@ def attempt_charge_off_session(charge_state):
                         selected_currency = 'gbp'
             else:
                 raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
+            climate_contribution = True
             selected_payment_method_type = "stripe_pm"
             selected_payment_method_id = charge_state.account.default_stripe_payment_method_id
         elif charge_state.account.default_sepa_mandate:
@@ -469,6 +471,7 @@ def attempt_charge_off_session(charge_state):
                 selected_currency = 'eur'
             else:
                 raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
+            climate_contribution = True
             selected_payment_method_type = "sepa_mandate_stripe"
             selected_payment_method_id = charge_state.account.default_sepa_mandate.payment_method
         elif charge_state.account.default_bacs_mandate:
@@ -478,6 +481,7 @@ def attempt_charge_off_session(charge_state):
                 selected_currency = 'gbp'
             else:
                 raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
+            climate_contribution = True
             selected_payment_method_type = "bacs_mandate_stripe"
             selected_payment_method_id = charge_state.account.default_bacs_mandate.payment_method
         elif charge_state.account.default_ach_mandate:
@@ -554,8 +558,11 @@ def attempt_charge_off_session(charge_state):
             vat_rate=vat_rate,
             country_code=billing_address_country,
             evidence_billing_address=account.billing_address,
-            charged_amount=charged_amount
+            charged_amount=charged_amount,
+            eur_exchange_rate=models.ExchangeRate.get_rate("gbp", "eur")
         )
+        if climate_contribution and settings.STRIPE_CLIMATE:
+            ledger_item.stripe_climate_contribution = charged_amount * decimal.Decimal(settings.STRIPE_CLIMATE_RATE)
 
         amount = models.ExchangeRate.get_rate("gbp", selected_currency) * charged_amount
         amount_int = int(round(amount * decimal.Decimal(100)))
@@ -1224,7 +1231,8 @@ def balance_funded(balance_transaction):
                 type=models.LedgerItem.TYPE_STRIPE_BACS,
                 type_id=payment_intent["id"],
                 timestamp=datetime.datetime.utcfromtimestamp(balance_transaction["created"]),
-                evidence_billing_address=account.billing_address
+                evidence_billing_address=account.billing_address,
+                eur_exchange_rate=models.ExchangeRate.get_rate("gbp", "eur")
             )
             update_from_payment_intent(payment_intent, ledger_item=new_ledger_item)
 

@@ -417,6 +417,7 @@ def handle_payment(
                 country_code=billing_address_country,
                 evidence_billing_address=account.billing_address,
                 charged_amount=charged_amount,
+                eur_exchange_rate=models.ExchangeRate.get_rate("gbp", "eur")
             )
             if climate_contribution and settings.STRIPE_CLIMATE:
                 ledger_item.stripe_climate_contribution = charged_amount * decimal.Decimal(settings.STRIPE_CLIMATE_RATE)

@@ -88,6 +88,11 @@ VAT_RATES_FROM_2021 = {
     "sk": decimal.Decimal("0.20"),
 }
 
+VAT_MOSS_COUNTRIES = (
+    "at", "be", "bg", "cy", "cz", "de", "dk", "ee", "gr", "es", "fi", "fr", "xi", "hu", "ie", "it", "lt", "lu", "lv",
+    "mt", "nl", "pl", "pt", "ro", "se", "sk"
+)
+
 
 def get_vat_rate(country, postal_code: typing.Optional[str]):
     if timezone.now() < VAT_RATES_PRE_2021_DATE:
@@ -112,15 +117,13 @@ def need_billing_evidence():
 
 
 def get_vies_country_code(iso_code: str):
-    iso_code = iso_code.upper()
-    countries = ["AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "GR", "ES", "FI", "FR", "XI", "HU", "IE", "IT", "LT",
-                 "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SK"]
-    if iso_code not in countries:
+    iso_code = iso_code.lower()
+    if iso_code not in VAT_MOSS_COUNTRIES:
         return None
-    elif iso_code == "GR":
+    elif iso_code == "gr":
         return "EL"
     else:
-        return iso_code
+        return iso_code.upper()
 
 
 class VerifyVATStatus(enum.Enum):

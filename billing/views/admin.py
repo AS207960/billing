@@ -1,14 +1,16 @@
+import datetime
 import decimal
 
-import stripe
-import datetime
-import stripe.error
-import pytz
 import dateutil.relativedelta
+import django_countries
+import pytz
+import stripe
+import stripe.error
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import DecimalField, OuterRef, Sum, Subquery
 from django.shortcuts import get_object_or_404, redirect, render
+
 from .. import forms, models, tasks, vat
 
 
@@ -206,4 +208,88 @@ def view_account_deferrals(request):
 
     return render(request, "billing/account_deferrals.html", {
         "reporting_periods": reversed(reporting_periods)
+    })
+
+
+@login_required
+@permission_required('billing.view_ledgeritem', raise_exception=True)
+def view_vat_moss(request):
+    quarters = (
+        ((1, 1), (3, 31)),
+        ((4, 1), (6, 30)),
+        ((7, 1), (9, 30)),
+        ((10, 1), (12, 31)),
+    )
+
+    if request.method == "POST":
+        form = forms.VATMOSSForm(request.POST)
+
+        if form.is_valid():
+            quarter_dates = quarters[form.cleaned_data['quarter'] - 1]
+            quarter_start_date = datetime.date(
+                year=form.cleaned_data['year'], month=quarter_dates[0][0], day=quarter_dates[0][1])
+            quarter_end_date = datetime.date(
+                year=form.cleaned_data['year'], month=quarter_dates[1][0], day=quarter_dates[1][1])
+            quarter_start_datetime = datetime.datetime(
+                year=quarter_start_date.year, month=quarter_start_date.month, day=quarter_end_date.day,
+                hour=0, minute=0, second=0, microsecond=0, tzinfo=datetime.timezone.utc
+            )
+            quarter_end_datetime = datetime.datetime(
+                year=quarter_end_date.year, month=quarter_end_date.month, day=quarter_end_date.day,
+                hour=23, minute=59, second=59, microsecond=999999, tzinfo=datetime.timezone.utc
+            )
+            items = models.LedgerItem.objects.filter(
+                timestamp__gte=quarter_start_datetime,
+                timestamp__lte=quarter_end_datetime,
+                state=models.LedgerItem.STATE_COMPLETED,
+                country_code__in=vat.VAT_MOSS_COUNTRIES,
+            )
+            countries = {}
+            for item in items:
+                if item.country_code not in countries:
+                    countries[item.country_code] = {}
+                vat_rate = str(item.vat_rate)
+                if vat_rate not in countries[item.country_code]:
+                    countries[item.country_code][vat_rate] = decimal.Decimal(0)
+                if item.eur_exchange_rate:
+                    exchange_rate = item.eur_exchange_rate
+                elif item.reversal_for and item.reversal_for.eur_exchange_rate:
+                    exchange_rate = item.reversal_for.eur_exchange_rate
+                else:
+                    exchange_rate = models.ExchangeRate.get_rate("gbp", "eur")
+                countries[item.country_code][vat_rate] += item.charged_amount * exchange_rate
+
+            def map_vat_rate(v):
+                rate = decimal.Decimal(v[0])
+                return {
+                    "vat_rate": rate * decimal.Decimal(100),
+                    "total_sales": v[1],
+                    "vat_due": v[1] * rate
+                }
+
+            def map_country(c):
+                cc = c[0].upper()
+                vat_rates = list(map(map_vat_rate, c[1].items()))
+                country_vat = sum(map(lambda v: v["vat_due"], vat_rates))
+                return {
+                    "country_code": c[0],
+                    "country_name": dict(django_countries.countries)[cc],
+                    "country_emoji": chr(ord(cc[0]) + 127397) + chr(ord(cc[1]) + 127397),
+                    "vat_rates": vat_rates,
+                    "total_vat": country_vat,
+                }
+
+            countries = list(map(map_country, countries.items()))
+            total_vat = sum(map(lambda c: c["total_vat"], countries))
+            return render(request, "billing/vat_moss_export.html", {
+                "export_year": form.cleaned_data['year'],
+                "export_quarter": form.cleaned_data['quarter'],
+                "countries": countries,
+                "total_vat": total_vat,
+            })
+    else:
+        form = forms.VATMOSSForm()
+
+    return render(request, "billing/vat_moss_select.html", {
+        "form": form
     })
