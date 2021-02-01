@@ -231,7 +231,7 @@ def view_vat_moss(request):
             quarter_end_date = datetime.date(
                 year=form.cleaned_data['year'], month=quarter_dates[1][0], day=quarter_dates[1][1])
             quarter_start_datetime = datetime.datetime(
-                year=quarter_start_date.year, month=quarter_start_date.month, day=quarter_end_date.day,
+                year=quarter_start_date.year, month=quarter_start_date.month, day=quarter_start_date.day,
                 hour=0, minute=0, second=0, microsecond=0, tzinfo=datetime.timezone.utc
             )
             quarter_end_datetime = datetime.datetime(
