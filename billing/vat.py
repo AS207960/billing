@@ -113,7 +113,7 @@ def need_billing_evidence():
 
 def get_vies_country_code(iso_code: str):
     iso_code = iso_code.upper()
-    countries = ["AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "GR", "ES", "FI", "FR", "GB", "HU", "IE", "IT", "LT",
+    countries = ["AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "GR", "ES", "FI", "FR", "XI", "HU", "IE", "IT", "LT",
                  "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SK"]
     if iso_code not in countries:
         return None

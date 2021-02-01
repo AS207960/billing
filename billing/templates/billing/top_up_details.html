@@ -59,14 +59,23 @@
 
                 {% if billing_country_name %}
                     {% if has_vat %}
-                        <p>We charged you the  taxes applicable in {{ billing_country_name }}.</p>
+                        <p>We charged you the taxes applicable in {{ billing_country_name }}.</p>
                     {% else %}
                         <p>No taxes levied. Reverse charge procedure applies in the EU.</p>
                     {% endif %}
                 {% endif %}
 
+                {% if ledger_item.stripe_climate_contribution %}
+                    <div class="alert alert-info">
+                        <img src="{% static 'billing/imgs/climate-badge.svg' %}" alt="" style="height: 1.3rem;">
+                        <b>&pound;{{ ledger_item.stripe_climate_contribution|floatformat:2 }}</b> was contributed towards
+                        removing carbon from the atmosphere.
+                    </div>
+                {% endif %}
+
                 {% if ledger_item.amount_refundable > 0 %}
-                    <a href="{% url 'toup_up_refund' ledger_item.id %}" class="btn btn-block btn-secondary">Request refund</a>
+                    <a href="{% url 'toup_up_refund' ledger_item.id %}" class="btn w-100 btn-secondary">Request
+                        refund</a>
                 {% else %}
                     <p>This top-up cannot be refunded. Please contact us for details.</p>
                 {% endif %}

@@ -213,6 +213,9 @@ XFF_HEADER_REQUIRED = True
 
 RABBITMQ_RPC_URL = os.getenv("RABBITMQ_RPC_URL")
 
+STRIPE_CLIMATE = bool(os.getenv("STRIPE_CLIMATE"))
+STRIPE_CLIMATE_RATE = "0.01"
+
 IDEMPOTENCY_KEY = {
     'ENCODER_CLASS': 'idempotency_key.encoders.BasicKeyEncoder',
     'CONFLICT_STATUS_CODE': status.HTTP_409_CONFLICT,

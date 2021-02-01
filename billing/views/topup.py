@@ -110,6 +110,7 @@ def handle_payment(
     selected_payment_method_type = None
     selected_payment_method_id = None
     to_be_charged = None
+    climate_contribution = False
 
     if needs_payment:
         if not request.session.get("selected_payment_method"):
@@ -170,6 +171,7 @@ def handle_payment(
             if selected_payment_method_type == "giropay":
                 if billing_address_country == "de" or not account.taxable:
                     available_currencies = ['eur']
+                    climate_contribution = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
@@ -177,12 +179,14 @@ def handle_payment(
                 if billing_address_country == "be" or not account.taxable:
                     available_currencies = ['eur']
                     mandate_acceptance = True
+                    climate_contribution = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
             elif selected_payment_method_type == "eps":
                 if billing_address_country == "at" or not account.taxable:
                     available_currencies = ['eur']
+                    climate_contribution = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
@@ -190,12 +194,14 @@ def handle_payment(
                 if billing_address_country == "nl" or not account.taxable:
                     available_currencies = ['eur']
                     mandate_acceptance = True
+                    climate_contribution = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
             elif selected_payment_method_type == "p24":
                 if billing_address_country == "pl" or not account.taxable:
                     available_currencies = ['eur']
+                    climate_contribution = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
@@ -209,12 +215,14 @@ def handle_payment(
                 if billing_address_country in ("at", "be", "de", "it", "nl", "es") or not account.taxable:
                     available_currencies = ['eur']
                     mandate_acceptance = True
+                    climate_contribution = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
             elif selected_payment_method_type == "bank_transfer_stripe":
                 if selected_payment_method_id == "gbp" and (billing_address_country == "gb" or not account.taxable):
                     available_currencies = ['gbp']
+                    climate_contribution = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
@@ -226,6 +234,7 @@ def handle_payment(
                 method_country = utils.country_from_stripe_payment_method(payment_method)
                 if method_country == billing_address_country or not account.taxable:
                     available_currencies = ['eur']
+                    climate_contribution = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
@@ -237,6 +246,7 @@ def handle_payment(
                 method_country = utils.country_from_stripe_payment_method(payment_method)
                 if method_country == billing_address_country or not account.taxable:
                     available_currencies = ['gbp']
+                    climate_contribution = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
@@ -328,6 +338,7 @@ def handle_payment(
                 if method_country == billing_address_country or not account.taxable:
                     if payment_method["type"] == "card":
                         available_currencies = ['gbp', 'eur', 'usd']
+                    climate_contribution = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
@@ -405,8 +416,10 @@ def handle_payment(
                 vat_rate=vat_rate,
                 country_code=billing_address_country,
                 evidence_billing_address=account.billing_address,
-                charged_amount=charged_amount
+                charged_amount=charged_amount,
             )
+            if climate_contribution and settings.STRIPE_CLIMATE:
+                ledger_item.stripe_climate_contribution = charged_amount * decimal.Decimal(settings.STRIPE_CLIMATE_RATE)
             amount_int = int(round(to_be_charged * decimal.Decimal(100)))
 
             if "selected_payment_method" in request.session:
@@ -1066,7 +1079,8 @@ def handle_payment(
             "mandate_acceptance": mandate_acceptance,
             "can_charge": can_charge,
             "needs_payment": needs_payment,
-            "charge": charge_state
+            "charge": charge_state,
+            "climate_contribution": climate_contribution and settings.STRIPE_CLIMATE
         }
     )
 

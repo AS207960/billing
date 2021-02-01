@@ -693,7 +693,7 @@
                 <form action="" method="post">
                     {% csrf_token %}
                     <label for="select-currency">Charge me in:</label> <br/>
-                    <div class="input-group mb-3">
+                    <div class="input-group">
                         <select name="currency" class="form-select" id="select-currency">
                             {% for currency in available_currencies %}
                                 <option value="{{ currency.0 }}"
@@ -706,6 +706,9 @@
                             </button>
                     </div>
                 </form>
+                <p class="small mt-1 mb-3">
+                    We'll convert the currency at the current mid-market rate without any markups.
+                </p>
             {% endif %}
 
             {% if to_be_charged %}
@@ -717,6 +720,13 @@
                     Please select a payment method.
                 </div>
             {% endif %}
+        {% endif %}
+
+        {% if climate_contribution %}
+            <div class="alert alert-info">
+                <img src="{% static 'billing/imgs/climate-badge.svg' %}" alt="" style="height: 1.3rem;">
+                <b>1% of your transaction</b> will be contributed towards removing carbon from the atmosphere.
+            </div>
         {% endif %}
 
         {% if can_charge %}

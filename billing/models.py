@@ -484,6 +484,7 @@ class LedgerItem(models.Model):
     evidence_sepa_mandate = models.ForeignKey(SEPAMandate, on_delete=models.PROTECT, blank=True, null=True)
     evidence_gc_sepa_mandate = models.ForeignKey(GCSEPAMandate, on_delete=models.PROTECT, blank=True, null=True)
     completed_timestamp = models.DateTimeField(blank=True, null=True)
+    stripe_climate_contribution = models.DecimalField(decimal_places=2, max_digits=9, default=0)
 
     class Meta:
         ordering = ['-timestamp']

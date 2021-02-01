@@ -206,6 +206,9 @@ OWN_UK_VAT_ID = None
 
 RABBITMQ_RPC_URL = "amqp://guest:guest@localhost:5672/rpc"
 
+STRIPE_CLIMATE = True
+STRIPE_CLIMATE_RATE = "0.01"
+
 COUNTRIES_COMMON_NAMES = True
 COUNTRIES_OVERRIDE = {
     "BS": "the Bahamas",

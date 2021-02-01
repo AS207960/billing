@@ -85,6 +85,14 @@
                     <p>No taxes levied. Reverse charge procedure applies in the EU.</p>
                 {% endif %}
             {% endif %}
+
+            {% if charge.payment_ledger_item and charge.payment_ledger_item.stripe_climate_contribution %}
+                <div class="alert alert-info">
+                    <img src="{% static 'billing/imgs/climate-badge.svg' %}" alt="" style="height: 1.3rem;">
+                    <b>&pound;{{ ledger_item.stripe_climate_contribution|floatformat:2 }}</b> was contributed towards
+                    removing carbon from the atmosphere.
+                </div>
+            {% endif %}
         </div>
     </div>
 {% endblock %}
