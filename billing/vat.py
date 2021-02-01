@@ -14,18 +14,27 @@ import enum
 
 from . import utils
 
-if settings.HMRC_CLIENT_ID:
-    hmrc_oauth_client = oauthlib.oauth2.BackendApplicationClient(client_id=settings.HMRC_CLIENT_ID)
-    hmrc_oauth_session = requests_oauthlib.OAuth2Session(client=hmrc_oauth_client)
-    hmrc_oauth_session.fetch_token(
-        token_url='https://test-api.service.hmrc.gov.uk/oauth/token' if settings.IS_TEST
-        else 'https://api.service.hmrc.gov.uk/oauth/token',
-        client_id=settings.HMRC_CLIENT_ID,
-        client_secret=settings.HMRC_CLIENT_SECRET,
-        include_client_id=True
-    )
-else:
-    hmrc_oauth_session = None
+_hmrc_oauth_client = None
+_hmrc_oauth_session = None
+
+
+def get_hmrc_session():
+    global _hmrc_oauth_client, _hmrc_oauth_session
+    if settings.HMRC_CLIENT_ID:
+        if not _hmrc_oauth_client:
+            _hmrc_oauth_client = oauthlib.oauth2.BackendApplicationClient(client_id=settings.HMRC_CLIENT_ID)
+        if not _hmrc_oauth_session:
+            _hmrc_oauth_session = requests_oauthlib.OAuth2Session(client=_hmrc_oauth_client)
+            _hmrc_oauth_session.fetch_token(
+                token_url='https://test-api.service.hmrc.gov.uk/oauth/token' if settings.IS_TEST
+                else 'https://api.service.hmrc.gov.uk/oauth/token',
+                client_id=settings.HMRC_CLIENT_ID,
+                client_secret=settings.HMRC_CLIENT_SECRET,
+                include_client_id=True
+            )
+
+    return _hmrc_oauth_session
+
 
 DO_NOT_SELL = [
     "al",  # Albania
@@ -160,6 +169,7 @@ class HMRCVATInfo:
 
 
 def verify_vat_hmrc(number: str):
+    hmrc_oauth_session = get_hmrc_session()
     if hmrc_oauth_session:
         hmrc_base_url = "https://test-api.service.hmrc.gov.uk" if settings.IS_TEST \
             else "https://api.service.hmrc.gov.uk"
