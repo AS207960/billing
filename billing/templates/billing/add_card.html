@@ -3,44 +3,177 @@
     <div class="container my-3">
         <h1>Add new card</h1>
 
-        <div class="form-group my-3">
-            <label>Card details</label>
-            <div id="card-element" class="form-control"></div>
-        </div>
+        <div class="row d-flex flex-column align-items-center">
+            <div class="col-12 col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="disp-card">
+                            <div class="disp-card-inner" id="disp-card-inner">
+                                <div class="disp-card-front">
+                                    {#                            {this.state.card_type ? <FontAwesomeIcon icon={brands[this.state.card_type].icon} size="3x" className="brand-icon"/> : null }#}
+                                    <div class="disp-card-pads"></div>
+                                    <div class="disp-card-number" id="disp-card-number">•••• •••• •••• ••••</div>
+                                    <div class="disp-card-name">{{ customer_name }}</div>
+                                    <div class="disp-card-expiry" id="disp-card-expiry">•• / ••</div>
+                                    <div class="disp-card-cvc" id="disp-card-cvc-front">••••</div>
+                                </div>
+                                <div class="disp-card-back">
+                                    <div class="disp-card-magstripe"></div>
+                                    <div class="disp-card-signature"></div>
+                                    <div class="disp-card-cvc" id="disp-card-cvc-back">•••</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="my-3">
+                            <label for="card-number-element" class="form-label">Card number</label>
+                            <div id="card-number-element" class="form-control"></div>
+                        </div>
+                        <div class="row my-0">
+                            <div class="col-12 col-sm-6 my-2">
+                                <label for="card-expiry-element" class="form-label">Card expiry</label>
+                                <div id="card-expiry-element" class="form-control"></div>
+                            </div>
+                            <div class="col-12 col-sm-6 my-2">
+                                <label for="card-cvc-element" class="form-label">Card CVC</label>
+                                <div id="card-cvc-element" class="form-control"></div>
+                            </div>
+                        </div>
+                        <div class="my-3">
+                            <label for="card-postal-code" class="form-label">Postal code</label>
+                            <input type="text" class="form-control" id="card-postal-code" placeholder="SW1A 1AA">
+                        </div>
+                    </div>
+                </div>
 
-        <div class="alert alert-danger" role="alert" id="card-error" style="display: none;"></div>
-        <div class="alert alert-info" role="alert" id="card-loading" style="display: none;">
-            Processing...
-        </div>
+                <div class="alert alert-danger" role="alert" id="card-error" style="display: none;"></div>
+                <div class="alert alert-info" role="alert" id="card-loading" style="display: none;">
+                    Processing...
+                </div>
 
-        <button id="submit" class="btn btn-primary w-100">Save</button>
+                <button id="submit" class="btn btn-primary w-100 btn-lg">Save</button>
+            </div>
+        </div>
     </div>
     <script src="https://js.stripe.com/v3/"></script>
     <script>
         var stripe = Stripe('{{ stripe_public_key }}');
-        var elements = stripe.elements();
-        var card = elements.create("card", {
-            style: {
-                base: {
-                    lineHeight: '1.429'
-                }
-            }
+        var elements = stripe.elements({
+            fonts: [{
+                cssSrc: "https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+            }]
         });
-        card.mount("#card-element");
+        var style = {
+            base: {
+                lineHeight: '1.5',
+                fontSize: '1.2rem',
+                fontWeight: 'normal',
+                fontFamily: 'Montserrat, sans-serif'
+            }
+        };
+        var cardNumber = elements.create("cardNumber", {
+            style: style,
+            showIcon: false,
+        });
+        var cardExpiry = elements.create("cardExpiry", {
+            style: style
+        });
+        var cardCvc = elements.create("cardCvc", {
+            style: style
+        });
+        var cardPostal = document.getElementById("card-postal-code");
+        cardNumber.mount("#card-number-element");
+        cardExpiry.mount("#card-expiry-element");
+        cardCvc.mount("#card-cvc-element");
         var error = document.getElementById("card-error");
         var loading = document.getElementById("card-loading");
+
+        var dispCardInner = document.getElementById("disp-card-inner");
+        var dispCardNumber = document.getElementById("disp-card-number");
+        var dispCardExpiry = document.getElementById("disp-card-expiry");
+        var dispCardCvcFont = document.getElementById("disp-card-cvc-front");
+        var dispCardCvcBack = document.getElementById("disp-card-cvc-back");
+        var cardBrand = null;
+
+        cardNumber.on('focus', function () {
+            dispCardNumber.classList.add('focus');
+        });
+        cardNumber.on('blur', function () {
+            dispCardNumber.classList.remove('focus');
+        });
+        cardNumber.on('change', function (e) {
+            cardBrand = e.brand;
+            dispCardInner.className = "disp-card-inner " + e.brand;
+            if (e.error) {
+                dispCardNumber.classList.add('error');
+            } else {
+                dispCardNumber.classList.remove('error');
+            }
+            if (e.complete) {
+                dispCardNumber.classList.add('complete');
+            } else {
+                dispCardNumber.classList.remove('complete');
+            }
+        })
+        cardExpiry.on('focus', function () {
+            dispCardExpiry.classList.add('focus');
+        });
+        cardExpiry.on('blur', function () {
+            dispCardExpiry.classList.remove('focus');
+        });
+        cardExpiry.on('change', function (e) {
+            if (e.error) {
+                dispCardExpiry.classList.add('error');
+            } else {
+                dispCardExpiry.classList.remove('error');
+            }
+            if (e.complete) {
+                dispCardExpiry.classList.add('complete');
+            } else {
+                dispCardExpiry.classList.remove('complete');
+            }
+        })
+        cardCvc.on('focus', function () {
+            dispCardInner.classList.add('flip');
+            dispCardCvcFont.classList.add('focus');
+            dispCardCvcBack.classList.add('focus');
+        });
+        cardCvc.on('blur', function () {
+            dispCardInner.classList.remove('flip');
+            dispCardCvcFont.classList.remove('focus');
+            dispCardCvcBack.classList.remove('focus');
+        });
+        cardCvc.on('change', function (e) {
+            if (e.error) {
+                dispCardCvcFont.classList.add('error');
+                dispCardCvcBack.classList.add('error');
+            } else {
+                dispCardCvcFont.classList.remove('error');
+                dispCardCvcBack.classList.remove('error');
+            }
+            if (e.complete) {
+                dispCardCvcFont.classList.add('complete');
+                dispCardCvcBack.classList.add('complete');
+            } else {
+                dispCardCvcFont.classList.remove('complete');
+                dispCardCvcBack.classList.remove('complete');
+            }
+        })
 
         document.getElementById("submit").addEventListener("click", function (event) {
             error.style.display = "none";
             loading.style.display = "block";
+            console.log(cardPostal.value);
             stripe.confirmCardSetup("{{ client_secret }}", {
                 payment_method: {
-                    card: card,
+                    card: cardNumber,
                     billing_details: {
-                        name: "{{ customer_name }}"
+                        name: "{{ customer_name }}",
+                        address: {
+                            postal_code: cardPostal.value,
+                        }
                     }
                 },
-            }).then(function(result) {
+            }).then(function (result) {
                 if (result.error) {
                     error.style.display = "block";
                     loading.style.display = "none";
@@ -51,4 +184,145 @@
             });
         });
     </script>
+    <style>
+        .disp-card {
+            margin: 0 auto;
+            max-width: 350px;
+            justify-self: center;
+            width: 100%;
+            font-family: monospace;
+            perspective: 600px;
+        }
+
+        .disp-card .disp-card-inner {
+            padding-top: 63.06%;
+            position: relative;
+            color: #ddd;
+            transform: rotateY(0deg);
+            transition: transform 0.5s;
+            transform-style: preserve-3d;
+        }
+
+        .disp-card .disp-card-inner .disp-card-front, .disp-card .disp-card-inner .disp-card-back {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            background: #444;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            position: absolute;
+            border-radius: 10px;
+            transition: background-color 0.5s;
+        }
+
+        .disp-card .disp-card-inner .focus {
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .disp-card .disp-card-inner .disp-card-front .disp-card-pads {
+            background-color: #ccc;
+            border-radius: 5px;
+            width: 50px;
+            height: 35px;
+            left: 40px;
+            top: 50%;
+            position: absolute;
+            transform: translateY(-150%);
+        }
+
+        .disp-card .disp-card-inner .disp-card-front .disp-card-number {
+            position: absolute;
+            top: 50%;
+            font-size: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .disp-card .disp-card-inner .disp-card-front .disp-card-name {
+            font-size: 18px;
+            bottom: 30px;
+            left: 40px;
+            position: absolute;
+        }
+
+        .disp-card .disp-card-inner .disp-card-front .disp-card-expiry {
+            bottom: 60px;
+            left: 40px;
+            position: absolute;
+        }
+
+        .disp-card .disp-card-inner .disp-card-front .disp-card-cvc {
+            top: 50%;
+            right: 40px;
+            transform: translateY(-100%);
+            position: absolute;
+            opacity: 0;
+            transition: opacity 0.1s ease-in-out;
+        }
+
+        .disp-card .disp-card-inner .disp-card-front .brand-icon {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+        }
+
+        .disp-card .disp-card-inner .disp-card-back {
+            transform: rotateY(180deg);
+        }
+
+        .disp-card .disp-card-inner .disp-card-back .disp-card-magstripe {
+            position: absolute;
+            top: 15px;
+            height: 50px;
+            background: #ccc;
+            left: 0;
+            right: 0;
+        }
+
+        .disp-card .disp-card-inner .disp-card-back .disp-card-signature {
+            position: absolute;
+            top: 40%;
+            height: 30px;
+            background: #fff;
+            left: 20px;
+            right: 70px;
+        }
+
+        .disp-card .disp-card-inner .disp-card-back .disp-card-cvc {
+            position: absolute;
+            top: 40%;
+            right: 20px;
+        }
+
+        .disp-card .disp-card-inner.amex .disp-card-front .disp-card-cvc {
+            opacity: 1;
+        }
+
+        .disp-card .disp-card-inner.flip:not(.amex) {
+            transform: rotateY(180deg);
+        }
+
+        .disp-card .disp-card-inner.amex .disp-card-front,
+        .disp-card .disp-card-inner.amex .disp-card-back {
+            background: #108168;
+        }
+        .disp-card .disp-card-inner.visa .disp-card-front,
+        .disp-card .disp-card-inner.visa .disp-card-back {
+            background: #191278;
+        }
+        .disp-card .disp-card-inner.mastercard .disp-card-front,
+        .disp-card .disp-card-inner.mastercard .disp-card-back {
+            background: #ff5f00;
+        }
+
+        .disp-card .disp-card-inner .disp-card-number.error,
+        .disp-card .disp-card-inner .disp-card-expiry.error,
+        .disp-card .disp-card-inner .disp-card-cvc.error {
+            color: #892525;
+        }
+    </style>
 {% endblock %}

@@ -43,7 +43,7 @@ class Command(BaseCommand):
                     subscription_charge.ledger_item = e.charge_state.ledger_item
                 else:
                     subscription_charge.ledger_item = charge_state.ledger_item
-                subscription_charge.ledger_item.save(mail=True)
+                subscription_charge.ledger_item.save(mail=True, force_mail=True)
                 subscription_charge.save()
 
                 subscription.last_billed = now

@@ -317,7 +317,6 @@ def view_vat_moss(request):
                 }
 
             countries = list(map(map_country, countries.items()))
-            print(countries)
             total_vat_eur = sum(map(lambda c: c["total_vat_eur"], countries))
             total_vat_gbp = sum(map(lambda c: c["total_vat_gbp"], countries))
             return render(request, "billing/vat_moss_export.html", {

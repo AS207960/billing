@@ -2,5 +2,4 @@ Description: {{ item.descriptor }}
 Amount: {{ item.amount|floatformat:2 }} GBP
 State: {% if item.state == "P" %}Pending{% elif item.state == "S" or item.state == "A" %}Processing{% elif item.state == "F" %}Failed{% elif item.state == "C" %}Completed{% endif %}{% if item.stripe_climate_contribution %}
 
-{{ item.stripe_climate_contribution|floatformat:2 }} GBP was contributed towards removing carbon from the atmosphere.
-{% endif %}
+{{ item.stripe_climate_contribution|floatformat:2 }} GBP was contributed towards removing carbon from the atmosphere.{% endif %}

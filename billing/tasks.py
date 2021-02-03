@@ -233,7 +233,7 @@ def alert_account(account: models.Account, ledger_item: models.LedgerItem, new=F
 
 #
 # @receiver(post_save, sender=models.LedgerItem)
-def try_update_charge_state(instance: models.LedgerItem, mail=True):
+def try_update_charge_state(instance: models.LedgerItem, mail=True, force_mail=False):
     try:
         as_thread(flux.send_charge_state_notif)(instance.charge_state)
     except django.core.exceptions.ObjectDoesNotExist:
@@ -326,7 +326,7 @@ def try_update_charge_state(instance: models.LedgerItem, mail=True):
                     subscription_charge.subscription.state = models.Subscription.STATE_PAST_DUE
                     subscription_charge.subscription.save()
 
-    if instance.state != instance.original_state:
+    if instance.state != instance.original_state or force_mail:
         instance.original_state = instance.state
         if mail:
             alert_account(instance.account, instance, mail=not subscription_mail_sent)
@@ -594,9 +594,9 @@ def attempt_charge_off_session(charge_state):
                 raise ChargeError(ledger_item, message, must_reject=False)
 
             ledger_item.type_id = payment_intent['id']
-            ledger_item.save()
+            ledger_item.save(mail=False)
             charge_state.payment_ledger_item = ledger_item
-            charge_state.save(mail=False)
+            charge_state.save()
             update_from_payment_intent(payment_intent, ledger_item)
         elif selected_payment_method_type == "bacs_mandate_stripe":
             payment_intent = stripe.PaymentIntent.create(
@@ -616,9 +616,9 @@ def attempt_charge_off_session(charge_state):
             ledger_item.type = models.LedgerItem.TYPE_CARD
             ledger_item.state = models.LedgerItem.STATE_PROCESSING
             ledger_item.type_id = payment_intent['id']
-            ledger_item.save()
+            ledger_item.save(mail=False)
             charge_state.payment_ledger_item = ledger_item
-            charge_state.save(mail=False)
+            charge_state.save()
             update_from_payment_intent(payment_intent, ledger_item)
         elif selected_payment_method_type == "sepa_mandate_stripe":
             payment_intent = stripe.PaymentIntent.create(
@@ -784,7 +784,8 @@ def attempt_charge_off_session(charge_state):
 
 
 def charge_account(account: models.Account, amount: decimal.Decimal, descriptor: str, type_id: str, can_reject=True,
-                   off_session=True, return_uri=None, notif_queue=None, supports_delayed=False, mail=True):
+                   off_session=True, return_uri=None, notif_queue=None, supports_delayed=False, mail=True,
+                   force_mail=False):
     ledger_item = models.LedgerItem(
         account=account,
         descriptor=descriptor,
@@ -807,8 +808,7 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
 
         ledger_item.save(mail=False)
         charge_state.save()
-        if mail:
-            try_update_charge_state(ledger_item, mail)
+        try_update_charge_state(ledger_item, mail=mail, force_mail=force_mail)
         raise ChargeStateRequiresActionError(
             charge_state, settings.EXTERNAL_URL_BASE + reverse('complete_order', args=(charge_state.id,))
         )
@@ -818,8 +818,7 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
         charge_state.save()
         try:
             attempt_charge_off_session(charge_state)
-            if mail:
-                try_update_charge_state(ledger_item, mail)
+            try_update_charge_state(ledger_item, mail=mail, force_mail=force_mail)
             return charge_state
         except ChargeError as e:
             if not e.must_reject and not can_reject:
@@ -829,13 +828,13 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
             charge_state.save()
             e.charge_state = charge_state
             if supports_delayed:
-                ledger_item.save(mail=mail)
+                ledger_item.save(mail=mail, force_mail=force_mail)
                 raise ChargeStateRequiresActionError(
                     charge_state, settings.EXTERNAL_URL_BASE + reverse('complete_order', args=(charge_state.id,))
                 )
             else:
                 ledger_item.state = ledger_item.STATE_FAILED
-            ledger_item.save(mail=mail)
+            ledger_item.save(mail=mail, force_mail=force_mail)
             raise e
     else:
         from_account_balance = min(account.balance, -ledger_item.amount)
@@ -845,14 +844,13 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
         if needs_payment:
             ledger_item.save(mail=False)
             charge_state.save()
-            if mail:
-                try_update_charge_state(ledger_item, mail)
+            try_update_charge_state(ledger_item, mail=mail, force_mail=force_mail)
             raise ChargeStateRequiresActionError(
                 charge_state, settings.EXTERNAL_URL_BASE + reverse('complete_order', args=(charge_state.id,))
             )
         else:
             ledger_item.state = models.LedgerItem.STATE_COMPLETED
-            ledger_item.save(mail=mail)
+            ledger_item.save(mail=mail, force_mail=force_mail)
             return charge_state
 
 

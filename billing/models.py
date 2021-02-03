@@ -502,7 +502,7 @@ class LedgerItem(models.Model):
     def original_state(self, val):
         self._original_state = val
 
-    def save(self, mail=True, *args, **kwargs):
+    def save(self, mail=True, force_mail=False, *args, **kwargs):
         if self.state == self.STATE_COMPLETED and not self.completed_timestamp:
             self.completed_timestamp = timezone.now()
         if self.state != self.original_state:
@@ -511,7 +511,7 @@ class LedgerItem(models.Model):
         super().save(*args, **kwargs)
 
         from . import tasks
-        tasks.try_update_charge_state(instance=self, mail=mail)
+        tasks.try_update_charge_state(instance=self, mail=mail, force_mail=force_mail)
 
     @property
     def type_name(self):
