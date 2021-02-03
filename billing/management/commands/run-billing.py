@@ -30,7 +30,6 @@ class Command(BaseCommand):
                     subscription=subscription,
                     timestamp=now,
                     last_bill_attempted=now,
-                    failed_bill_attempts=0,
                     amount=charge,
                 )
 
@@ -40,11 +39,14 @@ class Command(BaseCommand):
                         can_reject=True, off_session=True, supports_delayed=True, mail=False
                     )
                 except (tasks.ChargeError, tasks.ChargeStateRequiresActionError) as e:
-                    subscription_charge.ledger_item = e.charge_state.ledger_item
+                    ledger_item = e.charge_state.ledger_item
                 else:
-                    subscription_charge.ledger_item = charge_state.ledger_item
-                subscription_charge.ledger_item.save(mail=True, force_mail=True)
+                    ledger_item = charge_state.ledger_item
+
+                subscription_charge.last_ledger_item = ledger_item
                 subscription_charge.save()
+                ledger_item.subscription_charge = subscription_charge
+                ledger_item.save(mail=True, force_mail=True)
 
                 subscription.last_billed = now
                 subscription.save()
@@ -53,21 +55,28 @@ class Command(BaseCommand):
 
         retry_time = now - tasks.SUBSCRIPTION_RETRY_INTERVAL
         retry_charges = models.SubscriptionCharge.objects.filter(
-            ledger_item__state=models.LedgerItem.STATE_FAILED,
-            failed_bill_attempts__lt=tasks.SUBSCRIPTION_RETRY_ATTEMPTS,
+            subscription__state__in=(models.Subscription.STATE_PAST_DUE, models.Subscription.STATE_ACTIVE),
+            last_ledger_item__state=models.LedgerItem.STATE_FAILED,
             last_bill_attempted__lte=retry_time
         )
         for subscription_charge in retry_charges:
-            try:
-                charge_state = tasks.charge_account(
-                    subscription_charge.subscription.account, subscription_charge.amount,
-                    subscription_charge.subscription.plan.name, f"sb_{subscription_charge.subscription.id}",
-                    can_reject=True, off_session=True, supports_delayed=True
-                )
-            except (tasks.ChargeError, tasks.ChargeStateRequiresActionError) as e:
-                subscription_charge.ledger_item = e.charge_state.ledger_item
-            else:
-                subscription_charge.ledger_item = charge_state.ledger_item
-            subscription_charge.save()
+            print(subscription_charge)
+            if subscription_charge.failed_bill_attempts < tasks.SUBSCRIPTION_RETRY_ATTEMPTS:
+                try:
+                    charge_state = tasks.charge_account(
+                        subscription_charge.subscription.account, subscription_charge.amount,
+                        subscription_charge.subscription.plan.name, f"sb_{subscription_charge.subscription.id}",
+                        can_reject=True, off_session=True, supports_delayed=True
+                    )
+                except (tasks.ChargeError, tasks.ChargeStateRequiresActionError) as e:
+                    e.charge_state.ledger_item.subscription_charge = subscription_charge
+                    subscription_charge.last_ledger_item = e.charge_state.ledger_item
+                    e.charge_state.ledger_item.save(mail=True, force_mail=True)
+                else:
+                    charge_state.ledger_item.subscription_charge = subscription_charge
+                    subscription_charge.last_ledger_item = charge_state.ledger_item
+                    charge_state.ledger_item.save(mail=True, force_mail=True)
+                subscription_charge.last_bill_attempted = now
+                subscription_charge.save()
 
-            print(f"Retry charged subscription {subscription_charge.subscription.id}")
+                print(f"Retry charged subscription {subscription_charge.subscription.id}")

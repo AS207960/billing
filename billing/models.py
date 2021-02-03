@@ -486,6 +486,8 @@ class LedgerItem(models.Model):
     completed_timestamp = models.DateTimeField(blank=True, null=True)
     stripe_climate_contribution = models.DecimalField(decimal_places=2, max_digits=9, default=0)
     eur_exchange_rate = models.DecimalField(decimal_places=7, max_digits=20, blank=True, null=True)
+    subscription_charge = models.ForeignKey('SubscriptionCharge', on_delete=models.PROTECT, blank=True, null=True,
+                                            related_name='ledger_items')
 
     class Meta:
         ordering = ['-timestamp']
@@ -758,6 +760,18 @@ class Subscription(models.Model):
         return self.last_billed + billing_interval
 
     @property
+    def last_bill_subscription_charge(self):
+        return self.subscriptioncharge_set.order_by('-timestamp').first()
+
+    @property
+    def last_bill_attempted(self):
+        return self.last_bill_subscription_charge.last_bill_attempted
+
+    @property
+    def failed_bill_attempts(self):
+        return self.last_bill_subscription_charge.failed_bill_attempts
+
+    @property
     def usage_in_period_label(self):
         usage = self.usage_in_period
         return f"{usage} {p.plural(self.plan.unit_label, usage)}"
@@ -766,7 +780,7 @@ class Subscription(models.Model):
     def amount_unpaid(self):
         return (
                 self.subscriptioncharge_set
-                .filter(ledger_item__state=LedgerItem.STATE_FAILED)
+                .filter(last_ledger_item__state=LedgerItem.STATE_FAILED)
                 .aggregate(balance=models.Sum('amount'))
                 .get('balance') or decimal.Decimal(0)
         ).quantize(decimal.Decimal('1.00'))
@@ -831,10 +845,13 @@ class SubscriptionCharge(models.Model):
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE)
     timestamp = models.DateTimeField()
     last_bill_attempted = models.DateTimeField()
-    failed_bill_attempts = models.PositiveSmallIntegerField(default=0)
     amount = models.DecimalField(decimal_places=2, max_digits=9, default=0)
-    ledger_item = models.OneToOneField(LedgerItem, on_delete=models.PROTECT)
+    last_ledger_item = models.OneToOneField(LedgerItem, on_delete=models.PROTECT)
     is_setup_charge = models.BooleanField(blank=True, default=False)
+
+    @property
+    def failed_bill_attempts(self):
+        return self.ledger_items.filter(state=LedgerItem.STATE_FAILED).count()
 
     class Meta:
         ordering = ['-timestamp']

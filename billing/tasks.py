@@ -73,7 +73,7 @@ def mail_notif(ledger_item: models.LedgerItem):
         "name": ledger_item.account.user.first_name,
         "item": ledger_item,
         "charge_state_url": charge_state_url,
-        "charge_error": charge_error,
+        "charge_state_error": charge_error,
     }
     html_content = render_to_string("billing_email/billing_notif.html", context)
     txt_content = render_to_string("billing_email/billing_notif.txt", context)
@@ -282,11 +282,7 @@ def try_update_charge_state(instance: models.LedgerItem, mail=True, force_mail=F
     if charge_state_2:
         send_charge_state_notif(charge_state_2)
 
-    try:
-        subscription_charge = instance.subscriptioncharge
-    except django.core.exceptions.ObjectDoesNotExist:
-        subscription_charge = None
-
+    subscription_charge = instance.subscription_charge
     if subscription_charge:
         if not subscription_charge.subscription.account:
             subscription_charge.subscription.account = instance.account
@@ -310,9 +306,6 @@ def try_update_charge_state(instance: models.LedgerItem, mail=True, force_mail=F
                     subscription_charge.subscription.state = models.Subscription.STATE_ACTIVE
                     subscription_charge.subscription.save()
             elif instance.state == instance.STATE_FAILED:
-                subscription_charge.failed_bill_attempts += 1
-                subscription_charge.save()
-
                 if subscription_charge.failed_bill_attempts >= SUBSCRIPTION_RETRY_ATTEMPTS:
                     if subscription_charge.subscription.state != models.Subscription.STATE_CANCELLED:
                         mail_subscription_cancelled(subscription_charge.subscription, instance)

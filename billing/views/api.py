@@ -259,14 +259,20 @@ def subscribe_user(request, user_id):
                 return_uri=data.get("return_uri"), supports_delayed=True
             )
         except tasks.ChargeError as e:
-            subscription_charge.ledger_item = e.charge_state.ledger_item
+            e.charge_state.ledger_item.subscription_charge = subscription_charge
+            subscription_charge.last_ledger_item = e.charge_state.ledger_item
+            ledger_item = e.charge_state.ledger_item
         except tasks.ChargeStateRequiresActionError as e:
             redirect_url = e.redirect_url
-            subscription_charge.ledger_item = e.charge_state.ledger_item
+            e.charge_state.ledger_item.subscription_charge = subscription_charge
+            subscription_charge.last_ledger_item = e.charge_state.ledger_item
+            ledger_item = e.charge_state.ledger_item
         else:
-            subscription_charge.ledger_item = charge_state.ledger_item
+            charge_state.ledger_item.subscription_charge = subscription_charge
+            subscription_charge.last_ledger_item = charge_state.ledger_item
+            ledger_item = charge_state.ledger_item
         subscription_charge.save()
-        tasks.try_update_charge_state(subscription_charge.ledger_item, False)
+        tasks.try_update_charge_state(ledger_item, False)
 
         if redirect_url:
             return HttpResponse(json.dumps({
@@ -339,14 +345,20 @@ def log_usage(request, subscription_id):
                         return_uri=data.get("return_uri"), supports_delayed=True
                     )
                 except tasks.ChargeError as e:
-                    subscription_charge.ledger_item = e.charge_state.ledger_item
+                    e.charge_state.ledger_item.subscription_charge = subscription_charge
+                    subscription_charge.last_ledger_item = e.charge_state.ledger_item
+                    ledger_item = e.charge_state.ledger_item
                 except tasks.ChargeStateRequiresActionError as e:
                     redirect_url = e.redirect_url
-                    subscription_charge.ledger_item = e.charge_state.ledger_item
+                    e.charge_state.ledger_item.subscription_charge = subscription_charge
+                    subscription_charge.last_ledger_item = e.charge_state.ledger_item
+                    ledger_item = e.charge_state.ledger_item
                 else:
-                    subscription_charge.ledger_item = charge_state.ledger_item
+                    charge_state.ledger_item.subscription_charge = subscription_charge
+                    subscription_charge.last_ledger_item = charge_state.ledger_item
+                    ledger_item = charge_state.ledger_item
                 subscription_charge.save()
-                tasks.try_update_charge_state(subscription_charge.ledger_item, False)
+                tasks.try_update_charge_state(ledger_item, False)
 
                 if redirect_url:
                     return HttpResponse(json.dumps({

@@ -180,6 +180,7 @@
                         <th>Next charge</th>
                         <th>Last billed</th>
                         <th>Last bill attempted</th>
+                        <th>Failed bill attempts</th>
                         <th>Amount unpaid</th>
                         <th>Next bill</th>
                     </tr>
@@ -202,6 +203,7 @@
                                 <td>&pound;{{ subscription.next_charge|floatformat:2 }}</td>
                                 <td>{{ subscription.last_billed }}</td>
                                 <td>{{ subscription.last_bill_attempted }}</td>
+                                <td>{{ subscription.failed_bill_attempts }}</td>
                                 <td>&pound;{{ subscription.amount_unpaid|floatformat:2 }}</td>
                                 <td>{{ subscription.next_bill }}</td>
                             </tr>
