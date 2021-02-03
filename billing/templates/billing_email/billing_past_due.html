@@ -9,7 +9,7 @@
     </p>
     {% include "billing_email/item_card.html" with item=item %}
     {% if charge_state.last_error %}
-        <div style="background:#fad8d8;border-radius:5px;padding:20px;">
+        <div style="background:#fad8d8;border-radius:5px;padding:10px;margin-top: 20px;">
             <p>
                 Last error: {{ charge_state.last_error }}
             </p>

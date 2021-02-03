@@ -183,6 +183,7 @@
                         <th>Failed bill attempts</th>
                         <th>Amount unpaid</th>
                         <th>Next bill</th>
+                        <th>Next bill attempt</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -206,6 +207,7 @@
                                 <td>{{ subscription.failed_bill_attempts }}</td>
                                 <td>&pound;{{ subscription.amount_unpaid|floatformat:2 }}</td>
                                 <td>{{ subscription.next_bill }}</td>
+                                <td>{{ subscription.next_bill_attempt }}</td>
                             </tr>
                         {% endfor %}
                     {% else %}

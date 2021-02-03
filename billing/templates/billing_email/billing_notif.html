@@ -9,9 +9,11 @@
     </p>
     {% include "billing_email/item_card.html" with item=item %}
     {% if charge_state_error %}
-        <p style="width:100%;background:#fad8d8;border-radius:5px;padding:20px;">
-            Last error: {{ charge_state_error }}
-        </p>
+        <div style="background:#fad8d8;border-radius:5px;padding:10px;margin-top: 20px;">
+            <p>
+                Last error: {{ charge_state_error }}
+            </p>
+        </div>
     {% endif %}
     {% if charge_state_url %}
          <a href="{{ charge_state_url }}"

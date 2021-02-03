@@ -760,6 +760,11 @@ class Subscription(models.Model):
         return self.last_billed + billing_interval
 
     @property
+    def next_bill_attempt(self):
+        from . import tasks
+        return self.last_bill_attempted + tasks.SUBSCRIPTION_RETRY_INTERVAL
+
+    @property
     def last_bill_subscription_charge(self):
         return self.subscriptioncharge_set.order_by('-timestamp').first()
 

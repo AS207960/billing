@@ -60,7 +60,6 @@ class Command(BaseCommand):
             last_bill_attempted__lte=retry_time
         )
         for subscription_charge in retry_charges:
-            print(subscription_charge)
             if subscription_charge.failed_bill_attempts < tasks.SUBSCRIPTION_RETRY_ATTEMPTS:
                 try:
                     charge_state = tasks.charge_account(

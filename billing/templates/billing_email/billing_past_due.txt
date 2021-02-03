@@ -1,6 +1,6 @@
 Hello {{ name }},
 
-The subscription payment of £{{ value|floatformat:2 }}, for {{ plan_name }} has failed.
+The subscription payment of £{{ item.amount|abs|floatformat:2 }}, for {{ plan_name }} has failed.
 
 {% include "billing_email/item_card.txt" with item=item %}
 
