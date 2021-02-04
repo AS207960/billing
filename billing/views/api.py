@@ -333,7 +333,6 @@ def log_usage(request, subscription_id):
                     subscription=subscription,
                     timestamp=now,
                     last_bill_attempted=now,
-                    failed_bill_attempts=0,
                     amount=charge_diff,
                 )
 
@@ -344,21 +343,19 @@ def log_usage(request, subscription_id):
                         f"sb_{subscription.id}", can_reject=can_reject, off_session=off_session,
                         return_uri=data.get("return_uri"), supports_delayed=True
                     )
-                except tasks.ChargeError as e:
-                    e.charge_state.ledger_item.subscription_charge = subscription_charge
-                    subscription_charge.last_ledger_item = e.charge_state.ledger_item
-                    ledger_item = e.charge_state.ledger_item
+
                 except tasks.ChargeStateRequiresActionError as e:
+                    ledger_item = e.charge_state.ledger_item
                     redirect_url = e.redirect_url
-                    e.charge_state.ledger_item.subscription_charge = subscription_charge
-                    subscription_charge.last_ledger_item = e.charge_state.ledger_item
+                except tasks.ChargeError as e:
                     ledger_item = e.charge_state.ledger_item
                 else:
-                    charge_state.ledger_item.subscription_charge = subscription_charge
-                    subscription_charge.last_ledger_item = charge_state.ledger_item
                     ledger_item = charge_state.ledger_item
+
+                subscription_charge.last_ledger_item = ledger_item
                 subscription_charge.save()
-                tasks.try_update_charge_state(ledger_item, False)
+                ledger_item.subscription_charge = subscription_charge
+                ledger_item.save(mail=True, force_mail=True)
 
                 if redirect_url:
                     return HttpResponse(json.dumps({
