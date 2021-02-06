@@ -1,22 +1,28 @@
 {% extends 'billing/base.html' %}
 {% block content %}
     <div class="container my-3">
-        <h1>Top-up by bank transfer</h1>
+    <h1>Top-up by bank transfer</h1>
 
-        <p>
-            Please send <b>{{ amount|floatformat:2 }} GBP</b> with a reference of <b>{{ ref }}</b> to our bank account to complete the payment.
-        </p>
+    <div class="row d-flex flex-column align-items-center">
+        <div class="col-12 col-md-6">
+            <p class="lead">
+                Please send <b>{{ amount|floatformat:2 }} GBP</b> with a reference of <b>{{ ref }}</b> to our bank
+                account to complete the payment.
+            </p>
 
-        <p>
-            Account holder: <b>AS207960 Cyfyngedig</b><br/>
-            Sort Code: <b>04-00-04</b><br/>
-            Account Number: <b>53868700</b><br/>
-            IBAN: <b>GB06MONZ04000453868700</b><br/>
-            Our address: <b>13 Pen-y-lan Terrace, Caerdydd, Cymru, CF23 9EU, GB</b><br/>
-            Bank address: <b>Monzo Bank Limited, Broadwalk House, 5 Appold St, London, EC2A 2DA, GB</b><br/>
-            Payment Schemes: <b>CHAPS/SWIFT</b>
-        </p>
+            <div class="card my-4">
+                <p class="card-body mb-0">
+                    Account holder: <b>AS207960 Cyfyngedig</b><br/>
+                    Sort Code: <b>04-00-04</b><br/>
+                    Account Number: <b>53868700</b><br/>
+                    IBAN: <b>GB06MONZ04000453868700</b><br/>
+                    Our address: <b>13 Pen-y-lan Terrace<br/>Caerdydd<br/>Cymru<br/>CF23 9EU<br/>GB</b><br/>
+                    Bank address: <b>Monzo Bank Limited<br/>Broadwalk House<br/>5 Appold St<br/>London<br/>EC2A 2DA<br/>GB</b><br/>
+                    Payment Schemes: <b>Faster payments/BACS/CHAPS/SWIFT</b>
+                </p>
+            </div>
 
-        <a href="{% url 'dashboard' %}" class="btn btn-primary">Back to dashboard</a>
+            <a href="{% url 'dashboard' %}" class="btn btn-primary">Back to dashboard</a>
+        </div>
     </div>
 {% endblock %}

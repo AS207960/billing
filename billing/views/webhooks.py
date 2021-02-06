@@ -4,6 +4,7 @@ import datetime
 import decimal
 import hmac
 import re
+import typing
 import json
 
 import cryptography.exceptions
@@ -147,20 +148,24 @@ def gc_webhook(request):
     return HttpResponse(status=204)
 
 
-def attempt_complete_bank_transfer(ref: str, amount: decimal.Decimal, trans_account_data: dict, data):
+def attempt_complete_bank_transfer(
+        ref: typing.Optional[str], amount: decimal.Decimal, trans_account_data: dict, data=None,
+        ledger_item=None, known_account=None
+):
     found = False
+    error = None
 
-    if ref:
-        normalised_ref = ref.upper().replace(" ", "").replace("\n", "")
-        ledger_items = models.LedgerItem.objects.filter(
-            type=models.LedgerItem.TYPE_BACS,
-            state=models.LedgerItem.STATE_PENDING
-        )
-        ledger_item = None
-        for poss_ledger_item in ledger_items:
-            if poss_ledger_item.type_id in normalised_ref:
-                ledger_item = poss_ledger_item
-                break
+    if ref or ledger_item:
+        if not ledger_item:
+            normalised_ref = ref.upper().replace(" ", "").replace("\n", "")
+            ledger_items = models.LedgerItem.objects.filter(
+                type=models.LedgerItem.TYPE_BACS,
+                state=models.LedgerItem.STATE_PENDING
+            )
+            for poss_ledger_item in ledger_items:
+                if poss_ledger_item.type_id in normalised_ref:
+                    ledger_item = poss_ledger_item
+                    break
 
         if trans_account_data and ledger_item:
             known_account, _ = models.KnownBankAccount.objects.update_or_create(
@@ -169,7 +174,7 @@ def attempt_complete_bank_transfer(ref: str, amount: decimal.Decimal, trans_acco
             )
 
             if (
-                    ledger_item.evidence_billing_address.country_code.lower() == known_account.country_code.lower()
+                    ledger_item.evidence_billing_address.country_code.code.lower() == known_account.country_code.lower()
                     or not ledger_item.account.taxable
             ):
                 ledger_item.charged_amount = amount
@@ -178,11 +183,14 @@ def attempt_complete_bank_transfer(ref: str, amount: decimal.Decimal, trans_acco
                 ledger_item.evidence_bank_account = known_account
                 ledger_item.save()
                 found = True
+            else:
+                error = "Bank account country does not match billing address"
 
-    if not found and trans_account_data:
-        known_account = models.KnownBankAccount.objects.filter(
-            **trans_account_data
-        ).first()
+    if not found and (trans_account_data or known_account):
+        if not known_account and trans_account_data:
+            known_account = models.KnownBankAccount.objects.filter(
+                **trans_account_data
+            ).first()
         if known_account and known_account.account.billing_address and (
                 known_account.account.billing_address.country_code.code.lower() == known_account.country_code.lower()
                 or not known_account.account.taxable
@@ -215,14 +223,20 @@ def attempt_complete_bank_transfer(ref: str, amount: decimal.Decimal, trans_acco
                 )
                 new_ledger_item.save()
                 found = True
+            else:
+                error = can_sell_reason
+        else:
+            error = "Bank account country does not match billing address"
 
-    if not found:
+    if not found and data:
         email_msg = EmailMultiAlternatives(
             subject="Unmatched Bank Transaction",
             body=json.dumps(data, indent=4, sort_keys=True),
             to=['finance@as207960.net'],
         )
         email_msg.send()
+
+    return error
 
 
 @csrf_exempt
@@ -320,7 +334,7 @@ def xfw_webhook(request):
                      models.ExchangeRate.get_rate(found_t["amount"]["currency"], "GBP")
             ref = found_t["details"].get("paymentReference")
             
-            attempt_complete_bank_transfer(ref, amount, trans_account_data, found_t)
+            attempt_complete_bank_transfer(ref, amount, trans_account_data, data=found_t)
 
     return HttpResponse(status=204)
 
@@ -363,7 +377,7 @@ def monzo_webhook(request, secret_key):
                         "account_code": data["counterparty"]["account_number"],
                     }
 
-            attempt_complete_bank_transfer(ref, amount, trans_account_data, data)
+            attempt_complete_bank_transfer(ref, amount, trans_account_data, data=data)
 
     else:
         return HttpResponseBadRequest()

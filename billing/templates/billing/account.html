@@ -48,10 +48,49 @@
                 {% endif %}
             </div>
         </div>
+        {% if perms.billing.view_knownbankaccount %}
+            <hr>
+            <h2>
+                Known bank account
+                {% if perms.billing.add_knownbankaccount %}
+                    <a href="{% url 'add_bank_account' account.user.username %}" class="btn btn-primary">Add</a>
+                {% endif %}
+            </h2>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                    <tr>
+                        <th>Account country</th>
+                        <th>Account number</th>
+                        <th>Bank code</th>
+                        <th>Branch code</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% if known_bank_accounts %}
+                        {% for account in known_bank_accounts %}
+                            <tr>
+                                <td>{{ account.country_code|upper }}</td>
+                                <td>
+                                    {{ account.account_code }}
+                                </td>
+                                <td>{% if account.bank_code %}{{ account.bank_code }}{% else %}N/A{% endif %}</td>
+                                <td>{% if account.branch_code %}{{ account.branch_code }}{% else %}N/A{% endif %}</td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4">No accounts</td>
+                        </tr>
+                    {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
         <hr>
         <h2>Saved cards</h2>
-        <div class="table-responsive table-striped table-hover table-striped">
-            <table class="table">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
                 <thead class="table-dark">
                 <tr>
                     <th>Billing name</th>

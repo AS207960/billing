@@ -7,12 +7,14 @@ import pytz
 import calendar
 import stripe
 import stripe.error
+import schwifty
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import DecimalField, OuterRef, Sum, Subquery
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .. import forms, models, tasks, vat
+from ..views import webhooks
 
 
 @login_required
@@ -61,12 +63,14 @@ def view_account(request, account_id):
 
     bacs_mandates = list(map(map_mandate, models.BACSMandate.objects.filter(account=account)))
     sepa_mandates = list(map(map_mandate, models.SEPAMandate.objects.filter(account=account)))
+    known_bank_accounts = models.KnownBankAccount.objects.filter(account=account)
 
     return render(request, "billing/account.html", {
         "account": account,
         "cards": cards,
         "bacs_mandates": bacs_mandates,
         "sepa_mandates": sepa_mandates,
+        "known_bank_accounts": known_bank_accounts,
     })
 
 
@@ -131,6 +135,32 @@ def manual_top_up_account(request, account_id):
     })
 
 
+def form_to_account_data(form):
+    trans_account_data = None
+
+    if form.cleaned_data['bank_country']:
+        trans_account_data = {
+            "country_code": form.cleaned_data['bank_country'].lower(),
+            "bank_code": form.cleaned_data['bank_code'] if form.cleaned_data['bank_code'] else None,
+            "branch_code": form.cleaned_data['branch_code'] if form.cleaned_data['branch_code'] else None,
+            "account_code": form.cleaned_data['account_number']
+        }
+    else:
+        try:
+            trans_iban = schwifty.IBAN(form.cleaned_data['account_number'])
+        except ValueError:
+            form.add_error('account_number', "Invalid IBAN")
+        else:
+            trans_account_data = {
+                "country_code": trans_iban.country_code.lower(),
+                "bank_code": trans_iban.bank_code,
+                "branch_code": trans_iban.branch_code,
+                "account_code": trans_iban.account_code
+            }
+
+    return trans_account_data
+
+
 @login_required
 @permission_required('billing.change_ledgeritem', raise_exception=True)
 def edit_ledger_item(request, item_id):
@@ -143,19 +173,14 @@ def edit_ledger_item(request, item_id):
                 amount = form.cleaned_data['amount']
                 gbp_amount = models.ExchangeRate.get_rate(form.cleaned_data['currency'], 'gbp') * amount
 
-                vat_rate = decimal.Decimal(0)
-                if ledger_item.account.taxable:
-                    country_vat_rate = vat.get_vat_rate(
-                        ledger_item.evidence_billing_address.country_code.code.lower(),
-                        ledger_item.evidence_billing_address.postal_code,
-                    )
-                    if country_vat_rate is not None:
-                        vat_rate = country_vat_rate
+                trans_account_data = form_to_account_data(form)
 
-                ledger_item.amount = gbp_amount / (1 + vat_rate)
-                ledger_item.vat_rate = vat_rate
-                ledger_item.state = ledger_item.STATE_COMPLETED
-                ledger_item.save()
+                error = webhooks.attempt_complete_bank_transfer(
+                    ref=None, amount=gbp_amount, trans_account_data=trans_account_data,
+                    data=None, ledger_item=ledger_item, known_account=None
+                )
+                if error:
+                    form.add_error(None, error)
 
                 return redirect('view_account', ledger_item.account.user.username)
         else:
@@ -167,6 +192,31 @@ def edit_ledger_item(request, item_id):
         })
 
     return redirect('view_account', ledger_item.account.user.username)
+
+
+@login_required
+@permission_required('billing.add_knownbankaccount', raise_exception=True)
+def add_bank_account(request, account_id):
+    user = get_object_or_404(get_user_model(), username=account_id)
+    account = user.account  # type: models.Account
+
+    if request.method == "POST":
+        form = forms.GenericBankAccountForm(request.POST)
+        if form.is_valid():
+            trans_account_data = form_to_account_data(form)
+            if trans_account_data:
+                _known_account, _ = models.KnownBankAccount.objects.update_or_create(
+                    account=account,
+                    **trans_account_data
+                )
+                return redirect('view_account', user.username)
+    else:
+        form = forms.GenericBankAccountForm()
+
+    return render(request, "billing/add_bank_account.html", {
+        "account": account,
+        "form": form
+    })
 
 
 @login_required

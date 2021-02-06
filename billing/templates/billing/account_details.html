@@ -54,7 +54,7 @@
                                 <td>
                                     {{ account.account_code }}
                                 </td>
-                                <td>{{ account.bank_code }}</td>
+                                <td>{% if account.bank_code %}{{ account.bank_code }}{% else %}N/A{% endif %}</td>
                                 <td>{% if account.branch_code %}{{ account.branch_code }}{% else %}N/A{% endif %}</td>
                             </tr>
                         {% endfor %}

@@ -63,7 +63,7 @@ class TopUpForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Next', css_class='btn-block'))
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Next', css_class='w-100'))
 
 
 class TopUpRefundForm(forms.Form):
@@ -73,7 +73,7 @@ class TopUpRefundForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class CompleteChargeForm(forms.Form):
@@ -98,7 +98,7 @@ class CompleteChargeForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Next', css_class='btn-block'))
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Next', css_class='w-100'))
 
 
 class EditCardForm(forms.Form):
@@ -116,8 +116,9 @@ class EditCardForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
+        self.helper.field_class = 'my-2'
         self.helper.add_input(crispy_forms.layout.Hidden("action", "edit"))
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Save', css_class='btn-block'))
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Save', css_class='w-100'))
 
 
 class BillingAddressForm(forms.ModelForm):
@@ -130,14 +131,15 @@ class BillingAddressForm(forms.ModelForm):
             self.fields['country_code'].disabled = True
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Save', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Save', css_class='w-100'))
 
     class Meta:
         model = models.AccountBillingAddress
         exclude = ('id', 'account', 'deleted', 'default', 'vat_id_verification_request')
 
-    def clean(self, *args, **kwargs):
-        super().clean(*args, **kwargs)
+    def clean(self):
+        super().clean()
         country_code = self.cleaned_data['country_code']
         if country_code == "CA":
             postal_code_match = utils.canada_postcode_re.fullmatch(self.cleaned_data['postal_code'])
@@ -249,7 +251,8 @@ class SOFORTForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Next', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Next', css_class='w-100'))
 
 
 class StatementExportForm(forms.Form):
@@ -292,7 +295,8 @@ class AccountChargeForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Charge', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Charge', css_class='w-100'))
 
 
 class ManualTopUpForm(forms.Form):
@@ -303,7 +307,8 @@ class ManualTopUpForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Top-up', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Top-up', css_class='w-100'))
 
 
 class BACSMarkPaidForm(forms.Form):
@@ -322,12 +327,31 @@ class BACSMarkPaidForm(forms.Form):
         ("sgd", "Singapore Dollar"),
         ("try", "Turkish Lira")
     ))
+    bank_country = CountryField().formfield(required=False)
+    bank_code = forms.CharField(required=False)
+    branch_code = forms.CharField(required=False)
+    account_number = forms.CharField(label="Account number / IBAN")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Mark paid', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Mark paid', css_class='w-100'))
+
+
+class GenericBankAccountForm(forms.Form):
+    bank_country = CountryField().formfield(required=False)
+    bank_code = forms.CharField(required=False)
+    branch_code = forms.CharField(required=False)
+    account_number = forms.CharField(label="Account number / IBAN")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class GBBankAccountForm(forms.Form):
@@ -338,7 +362,8 @@ class GBBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class AUBankAccountForm(forms.Form):
@@ -349,7 +374,8 @@ class AUBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class ATBankAccountForm(forms.Form):
@@ -360,7 +386,8 @@ class ATBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class BEBankAccountForm(forms.Form):
@@ -370,7 +397,8 @@ class BEBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class CABankAccountForm(forms.Form):
@@ -382,7 +410,8 @@ class CABankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class CYBankAccountForm(forms.Form):
@@ -394,7 +423,8 @@ class CYBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class DKBankAccountForm(forms.Form):
@@ -405,7 +435,8 @@ class DKBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class EEBankAccountForm(forms.Form):
@@ -415,7 +446,8 @@ class EEBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class FIBankAccountForm(forms.Form):
@@ -426,7 +458,8 @@ class FIBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class FRBankAccountForm(forms.Form):
@@ -438,7 +471,8 @@ class FRBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class DEBankAccountForm(forms.Form):
@@ -449,7 +483,8 @@ class DEBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class GRBankAccountForm(forms.Form):
@@ -461,7 +496,8 @@ class GRBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class IEBankAccountForm(forms.Form):
@@ -472,7 +508,8 @@ class IEBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class ITBankAccountForm(forms.Form):
@@ -484,7 +521,8 @@ class ITBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class LVBankAccountForm(forms.Form):
@@ -495,7 +533,8 @@ class LVBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class LTBankAccountForm(forms.Form):
@@ -506,7 +545,8 @@ class LTBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class LUBankAccountForm(forms.Form):
@@ -517,7 +557,8 @@ class LUBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class MTBankAccountForm(forms.Form):
@@ -528,7 +569,8 @@ class MTBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class MCBankAccountForm(forms.Form):
@@ -540,7 +582,8 @@ class MCBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class NLBankAccountForm(forms.Form):
@@ -551,7 +594,8 @@ class NLBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class NZBankAccountForm(forms.Form):
@@ -563,7 +607,8 @@ class NZBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class PTBankAccountForm(forms.Form):
@@ -575,7 +620,8 @@ class PTBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class SMBankAccountForm(forms.Form):
@@ -587,7 +633,8 @@ class SMBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class SKBankAccountForm(forms.Form):
@@ -598,7 +645,8 @@ class SKBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class SIBankAccountForm(forms.Form):
@@ -609,7 +657,8 @@ class SIBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class ESBankAccountForm(forms.Form):
@@ -621,7 +670,8 @@ class ESBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class SEBankAccountForm(forms.Form):
@@ -632,7 +682,8 @@ class SEBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
 
 
 class USBankAccountForm(forms.Form):
@@ -647,4 +698,5 @@ class USBankAccountForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         self.helper = crispy_forms.helper.FormHelper()
-        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='btn-block'))
+        self.helper.field_class = 'my-2'
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Submit', css_class='w-100'))
