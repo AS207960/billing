@@ -769,11 +769,19 @@ class Subscription(models.Model):
         return self.subscriptioncharge_set.order_by('-timestamp').first()
 
     @property
+    def last_non_setup_bill_subscription_charge(self):
+        return self.subscriptioncharge_set.order_by('-timestamp').filter(is_setup_charge=False).first()
+
+    @property
     def last_bill_attempted(self):
+        if charge := self.last_non_setup_bill_subscription_charge:
+            return charge.last_bill_attempted
         return self.last_bill_subscription_charge.last_bill_attempted
 
     @property
     def failed_bill_attempts(self):
+        if charge := self.last_non_setup_bill_subscription_charge:
+            return charge.failed_bill_attempts
         return self.last_bill_subscription_charge.failed_bill_attempts
 
     @property
