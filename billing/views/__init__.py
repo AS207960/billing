@@ -13,7 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from . import webhooks, topup, account, dashboard, admin, api
+from . import webhooks, topup, account, dashboard, admin, api, freeagent
 from .. import forms, models, tasks, vat, utils
 
 

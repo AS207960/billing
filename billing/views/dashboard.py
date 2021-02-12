@@ -9,7 +9,7 @@ from django.template import loader
 import datetime
 import decimal
 from django.db.models import Q
-from .. import forms, models
+from .. import forms, models, tasks
 from ..apps import gocardless_client
 
 
@@ -109,6 +109,7 @@ def statement_export(request):
         "form": form
     })
 
+
 @login_required
 def fail_top_up(request, item_id):
     ledger_item = get_object_or_404(models.LedgerItem, id=item_id)
@@ -116,36 +117,7 @@ def fail_top_up(request, item_id):
     if ledger_item.account != request.user.account:
         return HttpResponseForbidden
 
-    if ledger_item.state not in (ledger_item.STATE_PENDING, ledger_item.STATE_PROCESSING_CANCELLABLE):
-        return redirect('dashboard')
-
-    if ledger_item.type not in (
-            ledger_item.TYPE_CARD, ledger_item.TYPE_BACS, ledger_item.TYPE_SOURCES, ledger_item.TYPE_CHECKOUT,
-            ledger_item.TYPE_SEPA, ledger_item.TYPE_SOFORT, ledger_item.TYPE_GIROPAY, ledger_item.TYPE_BANCONTACT,
-            ledger_item.TYPE_EPS, ledger_item.TYPE_IDEAL, ledger_item.TYPE_P24, ledger_item.TYPE_GOCARDLESS,
-            ledger_item.TYPE_STRIPE_BACS
-    ):
-        return HttpResponseBadRequest()
-
-    if ledger_item.type in (
-            ledger_item.TYPE_CARD, ledger_item.TYPE_SEPA, ledger_item.TYPE_SOFORT, ledger_item.TYPE_GIROPAY,
-            ledger_item.TYPE_BANCONTACT, ledger_item.TYPE_EPS, ledger_item.TYPE_IDEAL, ledger_item.TYPE_P24,
-            ledger_item.TYPE_STRIPE_BACS
-    ):
-        payment_intent = stripe.PaymentIntent.retrieve(ledger_item.type_id)
-        if payment_intent["status"] == "succeeded":
-            ledger_item.state = ledger_item.STATE_COMPLETED
-            ledger_item.save()
-            return redirect('dashboard')
-        stripe.PaymentIntent.cancel(ledger_item.type_id)
-    elif ledger_item.type == ledger_item.TYPE_CHECKOUT:
-        session = stripe.checkout.Session.retrieve(ledger_item.type_id)
-        stripe.PaymentIntent.cancel(session["payment_intent"])
-    elif ledger_item.type == ledger_item.TYPE_GOCARDLESS:
-        gocardless_client.payments.cancel(ledger_item.type_id)
-
-    ledger_item.state = models.LedgerItem.STATE_FAILED
-    ledger_item.save()
+    tasks.fail_payment(ledger_item)
 
     return redirect('dashboard')
 

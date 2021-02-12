@@ -1,0 +1,18 @@
+{% extends 'billing/base.html' %}
+{% block title %}Whoops{% endblock %}
+{% block content %}
+    <div class="container my-3">
+{#        <div class="bg-light p-3 rounded">#}
+                <div class="alert alert-danger" role="alert">
+                    <h4 class="alert-heading">Oh no! &#x1f631;</h4>
+                    <p>There was an error processing your request</p>
+                    {% if error %}
+                        <hr>
+                        <p class="mb-0">{{ error }}</p>
+                    {% endif %}
+                </div>
+{#            <hr>#}
+{#            <a href="{{ back_url }}" class="btn btn-primary">Go back</a>#}
+{#        </div>#}
+    </div>
+{% endblock %}

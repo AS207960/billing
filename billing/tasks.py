@@ -231,8 +231,38 @@ def alert_account(account: models.Account, ledger_item: models.LedgerItem, new=F
     #     instance.last_state_change_timestamp = timezone.now()
     #     alert_account(instance.account, instance)
 
-#
-# @receiver(post_save, sender=models.LedgerItem)
+def fail_payment(ledger_item):
+    if ledger_item.state not in (ledger_item.STATE_PENDING, ledger_item.STATE_PROCESSING_CANCELLABLE):
+        return
+
+    if ledger_item.type not in (
+            ledger_item.TYPE_CARD, ledger_item.TYPE_BACS, ledger_item.TYPE_SOURCES, ledger_item.TYPE_CHECKOUT,
+            ledger_item.TYPE_SEPA, ledger_item.TYPE_SOFORT, ledger_item.TYPE_GIROPAY, ledger_item.TYPE_BANCONTACT,
+            ledger_item.TYPE_EPS, ledger_item.TYPE_IDEAL, ledger_item.TYPE_P24, ledger_item.TYPE_GOCARDLESS,
+            ledger_item.TYPE_STRIPE_BACS
+    ):
+        return
+
+    if ledger_item.type in (
+            ledger_item.TYPE_CARD, ledger_item.TYPE_SEPA, ledger_item.TYPE_SOFORT, ledger_item.TYPE_GIROPAY,
+            ledger_item.TYPE_BANCONTACT, ledger_item.TYPE_EPS, ledger_item.TYPE_IDEAL, ledger_item.TYPE_P24,
+            ledger_item.TYPE_STRIPE_BACS
+    ):
+        payment_intent = stripe.PaymentIntent.retrieve(ledger_item.type_id)
+        if payment_intent["status"] == "succeeded":
+            ledger_item.state = ledger_item.STATE_COMPLETED
+            ledger_item.save()
+            return
+        stripe.PaymentIntent.cancel(ledger_item.type_id)
+    elif ledger_item.type == ledger_item.TYPE_CHECKOUT:
+        session = stripe.checkout.Session.retrieve(ledger_item.type_id)
+        stripe.PaymentIntent.cancel(session["payment_intent"])
+    elif ledger_item.type == ledger_item.TYPE_GOCARDLESS:
+        apps.gocardless_client.payments.cancel(ledger_item.type_id)
+
+    ledger_item.delete()
+
+
 def try_update_charge_state(instance: models.LedgerItem, mail=True, force_mail=False):
     try:
         as_thread(flux.send_charge_state_notif)(instance.charge_state)
@@ -244,6 +274,14 @@ def try_update_charge_state(instance: models.LedgerItem, mail=True, force_mail=F
         pass
 
     subscription_mail_sent = False
+
+    if instance.payment_charge_state and \
+            instance.state == instance.STATE_COMPLETED:
+        instance.payment_charge_state.payment_ledger_item = instance
+        for item in instance.payment_charge_state.payment_items.exclude(id=instance.id):
+            fail_payment(item)
+
+        instance.payment_charge_state.save()
 
     try:
         charge_state = instance.charge_state_payment
@@ -550,7 +588,8 @@ def attempt_charge_off_session(charge_state):
             country_code=billing_address_country,
             evidence_billing_address=account.billing_address,
             charged_amount=charged_amount,
-            eur_exchange_rate=models.ExchangeRate.get_rate("gbp", "eur")
+            eur_exchange_rate=models.ExchangeRate.get_rate("gbp", "eur"),
+            payment_charge_state=charge_state,
         )
         if climate_contribution and settings.STRIPE_CLIMATE:
             ledger_item.stripe_climate_contribution = charged_amount * decimal.Decimal(settings.STRIPE_CLIMATE_RATE)
@@ -559,14 +598,14 @@ def attempt_charge_off_session(charge_state):
         amount_int = int(round(amount * decimal.Decimal(100)))
 
         if selected_payment_method_type == "stripe_pm":
-            ledger_item.descriptor = "Top-up by card"
+            ledger_item.descriptor = f"Card payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_CARD
             try:
                 payment_intent = stripe.PaymentIntent.create(
                     amount=amount_int,
                     currency=selected_currency,
                     customer=charge_state.account.get_stripe_id(),
-                    description='Top-up',
+                    description=charge_state.ledger_item.descriptor,
                     receipt_email=charge_state.account.user.email,
                     statement_descriptor_suffix="Top-up",
                     payment_method=selected_payment_method_id,
@@ -594,7 +633,7 @@ def attempt_charge_off_session(charge_state):
                 amount=amount_int,
                 currency=selected_currency,
                 customer=charge_state.account.get_stripe_id(),
-                description='Top-up',
+                description=charge_state.ledger_item.descriptor,
                 receipt_email=charge_state.account.user.email,
                 statement_descriptor_suffix="Top-up",
                 payment_method=selected_payment_method_id,
@@ -603,7 +642,7 @@ def attempt_charge_off_session(charge_state):
                 off_session=True,
             )
 
-            ledger_item.descriptor = "Top-up by BACS Direct Debit"
+            ledger_item.descriptor = f"BACS Direct Debit payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_CARD
             ledger_item.state = models.LedgerItem.STATE_PROCESSING
             ledger_item.type_id = payment_intent['id']
@@ -616,7 +655,7 @@ def attempt_charge_off_session(charge_state):
                 amount=amount_int,
                 currency=selected_currency,
                 customer=charge_state.account.get_stripe_id(),
-                description='Top-up',
+                description=charge_state.ledger_item.descriptor,
                 receipt_email=charge_state.account.user.email,
                 statement_descriptor_suffix="Top-up",
                 payment_method=selected_payment_method_id,
@@ -625,7 +664,7 @@ def attempt_charge_off_session(charge_state):
                 off_session=True,
             )
 
-            ledger_item.descriptor = "Top-up by SEPA Direct Debit"
+            ledger_item.descriptor = f"SEPA Direct Debit payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_SEPA
             ledger_item.state = models.LedgerItem.STATE_PROCESSING
             ledger_item.type_id = payment_intent['id']
@@ -637,14 +676,14 @@ def attempt_charge_off_session(charge_state):
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
                 "currency": selected_currency.upper(),
-                "description": "Top up",
+                "description": charge_state.ledger_item.descriptor,
                 "retry_if_possible": False,
                 "links": {
                     "mandate": selected_payment_method_id.mandate_id
                 }
             })
 
-            ledger_item.descriptor = "Top-up by ACH Direct Debit"
+            ledger_item.descriptor = f"ACH Direct Debit payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
@@ -654,14 +693,14 @@ def attempt_charge_off_session(charge_state):
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
                 "currency": selected_currency.upper(),
-                "description": "Top up",
+                "description": charge_state.ledger_item.descriptor,
                 "retry_if_possible": False,
                 "links": {
                     "mandate": selected_payment_method_id.mandate_id
                 }
             })
 
-            ledger_item.descriptor = "Top-up by Autogiro Direct Debit"
+            ledger_item.descriptor = f"Autogiro payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
@@ -671,14 +710,14 @@ def attempt_charge_off_session(charge_state):
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
                 "currency": selected_currency.upper(),
-                "description": "Top up",
+                "description": charge_state.ledger_item.descriptor,
                 "retry_if_possible": False,
                 "links": {
                     "mandate": selected_payment_method_id.mandate_id
                 }
             })
 
-            ledger_item.descriptor = "Top-up by BACS Direct Debit"
+            ledger_item.descriptor = f"BACS Direct Debit payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
@@ -688,14 +727,14 @@ def attempt_charge_off_session(charge_state):
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
                 "currency": selected_currency.upper(),
-                "description": "Top up",
+                "description": charge_state.ledger_item.descriptor,
                 "retry_if_possible": False,
                 "links": {
                     "mandate": selected_payment_method_id.mandate_id
                 }
             })
 
-            ledger_item.descriptor = "Top-up by BECS Direct Debit"
+            ledger_item.descriptor = f"BECS Direct Debit payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
@@ -705,14 +744,14 @@ def attempt_charge_off_session(charge_state):
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
                 "currency": selected_currency.upper(),
-                "description": "Top up",
+                "description": charge_state.ledger_item.descriptor,
                 "retry_if_possible": False,
                 "links": {
                     "mandate": selected_payment_method_id.mandate_id
                 }
             })
 
-            ledger_item.descriptor = "Top-up by BECS NZ Direct Debit"
+            ledger_item.descriptor = f"BECS NZ Direct Debit payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
@@ -722,14 +761,14 @@ def attempt_charge_off_session(charge_state):
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
                 "currency": selected_currency.upper(),
-                "description": "Top up",
+                "description": charge_state.ledger_item.descriptor,
                 "retry_if_possible": False,
                 "links": {
                     "mandate": selected_payment_method_id.mandate_id
                 }
             })
 
-            ledger_item.descriptor = "Top-up by Betalingsservice"
+            ledger_item.descriptor = f"Betalingsservice payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
@@ -739,14 +778,14 @@ def attempt_charge_off_session(charge_state):
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
                 "currency": selected_currency.upper(),
-                "description": "Top up",
+                "description": charge_state.ledger_item.descriptor,
                 "retry_if_possible": False,
                 "links": {
                     "mandate": selected_payment_method_id.mandate_id
                 }
             })
 
-            ledger_item.descriptor = "Top-up by PAD Direct Debit"
+            ledger_item.descriptor = f"PAD Direct Debit payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
@@ -756,14 +795,14 @@ def attempt_charge_off_session(charge_state):
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
                 "currency": selected_currency.upper(),
-                "description": "Top up",
+                "description": charge_state.ledger_item.descriptor,
                 "retry_if_possible": False,
                 "links": {
                     "mandate": selected_payment_method_id.mandate_id
                 }
             })
 
-            ledger_item.descriptor = "Top-up by SEPA Direct Debit"
+            ledger_item.descriptor = f"SEPA Direct Debit payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
             ledger_item.type_id = payment.id
             ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE

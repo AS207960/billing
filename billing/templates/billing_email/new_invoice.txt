@@ -1,0 +1,26 @@
+Hello {{ name }},
+
+Please find attached your latest invoice.
+
+{% if payment_started %}We've taken payment from your online billing account.
+You can make changes to your account using the below link.
+
+View invoice: {{ invoice_url }}{% else %}You can view and pay your invoice online using the below link.
+You will require an AS207960 account to pay online.
+
+View and pay: {{ invoice_url }}{% endif %}{% if bank_details %}
+
+You can also pay via bank transfer to the below details;{% if bank_details.type == "gb" %}
+Sort code: {{ bank_details.sort_code }}
+Account number: {{ bank_details.account_number }}{% endif %}
+Reference: {{ bank_details.reference }}
+Amount due: {{ bank_details.amount|floatformat:2 }} {{ bank_details.currency }}{% endif %}
+
+Thanks,
+The Glauca Team
+https://glauca.digital
+
+AS207960 Cyfyngedig, trading as Glauca Digital, having a registered office at 13 Pen-y-lan Terrace, Caerdydd, Cymru, CF23 9EU, is:
+- a limited company registered in Wales (No. 12417574)
+- a registered data controller with the Information Commissioner's Office (No. ZA782876)
+- registered for VAT in the EU (No. EU372013983)

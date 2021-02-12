@@ -11,7 +11,7 @@ import schwifty
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import DecimalField, OuterRef, Sum, Subquery
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, redirect, render, reverse
 
 from .. import forms, models, tasks, vat
 from ..views import webhooks
@@ -31,10 +31,12 @@ def view_accounts(request):
                         .filter(exclude_from_accounting=False) \
                         .annotate(balance=Subquery(balances, output_field=DecimalField())) \
                         .aggregate(total_balance=Sum('balance')).get('total_balance') or decimal.Decimal(0)
+    has_freeagent_auth = bool(models.BillingConfig.load().get_freeagent_token())
 
     return render(request, "billing/accounts.html", {
         "accounts": accounts,
-        "total_balance": total_balance
+        "total_balance": total_balance,
+        "has_freeagent_auth":  has_freeagent_auth
     })
 
 

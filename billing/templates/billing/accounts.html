@@ -6,6 +6,11 @@
         <div class="btn-group my-3">
             <a href="{% url 'view_account_deferrals' %}" class="btn btn-primary">View deferrals</a>
             <a href="{% url 'view_vat_moss' %}" class="btn btn-primary">View VAT MOSS</a>
+            {% if not has_freeagent_auth and perms.billing.change_billingconfig %}
+                <a href="{% url 'link_freeagent' %}" class="btn btn-primary">Link to FreeAgent</a>
+            {% elif has_freeagent_auth and perms.billing.add_freeagentinvoice %}
+                <a href="{% url 'send_freeagent_invoice' %}" class="btn btn-primary">Send FreeAgent invoice</a>
+            {% endif %}
         </div>
         <h2>Total balances: &pound;{{ total_balance|floatformat:2 }}</h2>
         <div class="table-responsive table-striped table-hover table-striped">

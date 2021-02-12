@@ -1,0 +1,74 @@
+{% extends 'billing/base.html' %}
+{% load mathfilters %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Invoice {{ invoice.reference }}</h1>
+        <h2>{{ invoice.date }} - {{ invoice.status }}</h2>
+        <p class="lead">
+            Due by: <b>{{ invoice.due_date }}</b><br/>
+            Total due: <b>{{ invoice.due_value|floatformat:2 }} {{ invoice.currency }}</b><br/>
+        </p>
+        <div class="btn-group">
+            {% if invoice.charge_state.ledger_item.state == "C" %}
+                <a href="{% url 'order_details' invoice.charge_state.id %}" class="btn btn-info btn-lg">
+                    &#x1f440; View payment details
+                </a>
+            {% else %}
+                {% if can_pay %}
+                    <a href="{% url 'complete_order' invoice.charge_state.id %}" class="btn btn-success btn-lg">Pay</a>
+                {% endif %}
+            {% endif %}
+            <a href="{% url 'view_freeagent_invoice_pdf' invoice.id %}" target="_blank" class="btn btn-primary btn-lg">
+                View PDF
+            </a>
+        </div>
+        <div class="table-responsive mt-3">
+            <table class="table table-hover table-striped" style="table-layout: fixed;">
+                <thead class="table-dark">
+                <tr>
+                    <th>Quantity</th>
+                    <th>Details</th>
+                    <th>Unit price ({{ invoice.currency }})</th>
+                    {% if invoice.has_sales_tax %}
+                        <th>Tax rate</th>
+                    {% endif %}
+                    <th>Subtotal price ({{ invoice.currency }})</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for item in invoice.items %}
+                    <tr>
+                        <td>{{ item.quantity|floatformat:2 }} {{ item.unit }}</td>
+                        <td>{{ item.description }}</td>
+                        <td>{{ item.price|floatformat:2 }}</td>
+                        {% if invoice.has_sales_tax %}
+                            <td>{{ item.tax_rate|floatformat:2 }}%</td>
+                        {% endif %}
+                        <td>{{ item.subtotal|floatformat:2 }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+                <tfoot>
+                <tr>
+                    <td colspan="{% if invoice.has_sales_tax %}4{% else %}3{% endif %}" style="text-align: right">Net
+                        total
+                    </td>
+                    <td>{{ invoice.net_value|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td colspan="{% if invoice.has_sales_tax %}4{% else %}3{% endif %}" style="text-align: right">
+                        Taxes
+                    </td>
+                    <td>{{ invoice.sales_tax_value|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <th colspan="{% if invoice.has_sales_tax %}4{% else %}3{% endif %}" style="text-align: right">Total
+                        ({{ invoice.currency }})
+                    </th>
+                    <th>{{ invoice.total_value|floatformat:2 }}</th>
+                </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+{% endblock %}

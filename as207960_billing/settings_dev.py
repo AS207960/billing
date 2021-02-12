@@ -154,6 +154,8 @@ with open(os.path.join(BASE_DIR, "secrets/gocardless.json")) as f:
     gocardless_conf = json.load(f)
 with open(os.path.join(BASE_DIR, "secrets/transferwise.json")) as f:
     transferwise_conf = json.load(f)
+with open(os.path.join(BASE_DIR, "secrets/freeagent.json")) as f:
+    freeagent_conf = json.load(f)
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "AS207960 Billing <billing@as207960.net>"
@@ -209,34 +211,38 @@ RABBITMQ_RPC_URL = "amqp://guest:guest@localhost:5672/rpc"
 STRIPE_CLIMATE = True
 STRIPE_CLIMATE_RATE = "0.01"
 
+FREEAGENT_BASE_URL = "https://api.sandbox.freeagent.com"
+FREEAGENT_CLIENT_ID = freeagent_conf["client_id"]
+FREEAGENT_CLIENT_SECRET = freeagent_conf["client_secret"]
+
 COUNTRIES_COMMON_NAMES = True
-COUNTRIES_OVERRIDE = {
-    "BS": "the Bahamas",
-    "IO": "the British Indian Ocean Territory",
-    "KY": "the Cayman Islands",
-    "CF": "the Central African Republic",
-    "CC": "the Cocos Islands",
-    "KM": "the Comoros",
-    "CD": "the Democratic Republic of the Congo",
-    "CG": "the Congo",
-    "DO": "the Dominican Republic",
-    "FK": "the Falkland Islands",
-    "FO": "the Faroe Islands",
-    "TF": "the French Southern Territories",
-    "VA": "the Holy See",
-    "KP": "the Democratic People's Republic of Korea",
-    "KR": "the Republic of Korea",
-    "LA": "the Lao People's Democratic Republic",
-    "MH": "the Marshall Islands",
-    "MD": "the Republic of Moldova",
-    "NL": "the Netherlands",
-    "NE": "the Niger",
-    "MP": "the Northen Mariana Islands",
-    "PH": "the Philippines",
-    "RU": "the Russian Federation",
-    "CK": "the Cook Islands",
-    "AE": "the United Arab Emirates",
-    "GB": "the United Kingdom",
-    "US": "the United States of America",
-    "UM": "the United States Minor Outlying Islands",
-}
+# COUNTRIES_OVERRIDE = {
+#     "BS": "the Bahamas",
+#     "IO": "the British Indian Ocean Territory",
+#     "KY": "the Cayman Islands",
+#     "CF": "the Central African Republic",
+#     "CC": "the Cocos Islands",
+#     "KM": "the Comoros",
+#     "CD": "the Democratic Republic of the Congo",
+#     "CG": "the Congo",
+#     "DO": "the Dominican Republic",
+#     "FK": "the Falkland Islands",
+#     "FO": "the Faroe Islands",
+#     "TF": "the French Southern Territories",
+#     "VA": "the Holy See",
+#     "KP": "the Democratic People's Republic of Korea",
+#     "KR": "the Republic of Korea",
+#     "LA": "the Lao People's Democratic Republic",
+#     "MH": "the Marshall Islands",
+#     "MD": "the Republic of Moldova",
+#     "NL": "the Netherlands",
+#     "NE": "the Niger",
+#     "MP": "the Northen Mariana Islands",
+#     "PH": "the Philippines",
+#     "RU": "the Russian Federation",
+#     "CK": "the Cook Islands",
+#     "AE": "the United Arab Emirates",
+#     "GB": "the United Kingdom",
+#     "US": "the United States of America",
+#     "UM": "the United States Minor Outlying Islands",
+# }

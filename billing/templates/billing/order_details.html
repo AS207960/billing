@@ -27,6 +27,12 @@
                     {% if reversal %}
                         <br/>Refunded on: <b>{{ reversal.timestamp }}</b>
                     {% endif %}
+                    {% if charge.freeagent_invoice %}
+                        <br/><a href="{% url 'view_freeagent_invoice' charge.freeagent_invoice.id %}"
+                                class="btn btn-info mt-2">
+                        &#x1f440; View invoice
+                    </a>
+                    {% endif %}
                 </p>
             </div>
             <div class="col-12 col-lg-6">
@@ -46,11 +52,11 @@
                 <table class="table table-borderless">
                     <tbody>
                     <tr>
-                        <th scope="row" class="font-weight-normal">{{ charge.ledger_item.descriptor }}</th>
+                        <th scope="row" class="fw-normal">{{ charge.ledger_item.descriptor }}</th>
                         <td>&pound;{{ charge.ledger_item.amount|mul:-1|floatformat:2 }}</td>
                     </tr>
                     <tr>
-                        <th scope="row" class="font-weight-normal">From account balance</th>
+                        <th scope="row" class="fw-normal">From account balance</th>
                         <td>&pound;{{ from_account_balance|floatformat:2 }}</td>
                     </tr>
                     <tr class="border-top">
@@ -69,30 +75,32 @@
                         <tr class="border-top">
                             <th scope="row">
                                 {{ charge.payment_ledger_item.descriptor }}
-                                <a class="btn btn-sm btn-info" href="{% url 'toup_up_details' charge.payment_ledger_item.id %}">&#x1f440; View details</a>
+                                <a class="btn btn-sm btn-info"
+                                   href="{% url 'toup_up_details' charge.payment_ledger_item.id %}">&#x1f440; View
+                                    details</a>
                             </th>
                             <td>&pound;{{ charge.payment_ledger_item.charged_amount|floatformat:2 }}</td>
                         </tr>
                     {% endif %}
                     </tbody>
                 </table>
-            </div>
 
-            {% if billing_country_name %}
-                {% if has_vat %}
-                    <p>We charged you the  taxes applicable in {{ billing_country_name }}.</p>
-                {% else %}
-                    <p>No taxes levied. Reverse charge procedure applies in the EU.</p>
+                {% if charge.payment_ledger_item %}
+                    {% if charge.payment_ledger_item.charged_amount != charge.payment_ledger_item.amount %}
+                        <p>We charged you the taxes applicable in your region.</p>
+                    {% else %}
+                        <p>No taxes levied. Reverse charge procedure applies in the EU.</p>
+                    {% endif %}
                 {% endif %}
-            {% endif %}
 
-            {% if charge.payment_ledger_item and charge.payment_ledger_item.stripe_climate_contribution %}
-                <div class="alert alert-info">
-                    <img src="{% static 'billing/imgs/climate-badge.svg' %}" alt="" style="height: 1.3rem;">
-                    <b>&pound;{{ ledger_item.stripe_climate_contribution|floatformat:2 }}</b> was contributed towards
-                    removing carbon from the atmosphere.
-                </div>
-            {% endif %}
+                {% if charge.payment_ledger_item and charge.payment_ledger_item.stripe_climate_contribution %}
+                    <div class="alert alert-info">
+                        <img src="{% static 'billing/imgs/climate-badge.svg' %}" alt="" style="height: 1.3rem;">
+                        <b>&pound;{{ charge.payment_ledger_item.stripe_climate_contribution|floatformat:2 }}</b>
+                        was contributed towards removing carbon from the atmosphere.
+                    </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 {% endblock %}

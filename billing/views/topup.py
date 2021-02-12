@@ -417,7 +417,8 @@ def handle_payment(
                 country_code=billing_address_country,
                 evidence_billing_address=account.billing_address,
                 charged_amount=charged_amount,
-                eur_exchange_rate=models.ExchangeRate.get_rate("gbp", "eur")
+                eur_exchange_rate=models.ExchangeRate.get_rate("gbp", "eur"),
+                payment_charge_state=charge_state,
             )
             if climate_contribution and settings.STRIPE_CLIMATE:
                 ledger_item.stripe_climate_contribution = charged_amount * decimal.Decimal(settings.STRIPE_CLIMATE_RATE)
@@ -435,14 +436,15 @@ def handle_payment(
                     amount=amount_int,
                     currency=selected_currency,
                     customer=account.get_stripe_id(),
-                    description='Top-up',
+                    description=charge_descriptor if charge_descriptor else "Top-up",
                     receipt_email=request.user.email,
                     statement_descriptor_suffix="Top-up",
                     payment_method=selected_payment_method_id,
                     confirm=True,
                     return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,)))
                 )
-                ledger_item.descriptor = "Top-up by card"
+                ledger_item.descriptor = f"Card payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by card"
                 ledger_item.type = models.LedgerItem.TYPE_CARD
                 ledger_item.type_id = payment_intent['id']
                 ledger_item.save()
@@ -470,7 +472,7 @@ def handle_payment(
                     },
                     return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,))),
                     customer=account.get_stripe_id(),
-                    description='Top-up',
+                    description=charge_descriptor if charge_descriptor else "Top-up",
                     setup_future_usage="off_session",
                     mandate_data={
                         "customer_acceptance": {
@@ -482,7 +484,8 @@ def handle_payment(
                         }
                     }
                 )
-                ledger_item.descriptor = "Top-up by SOFORT"
+                ledger_item.descriptor = f"SOFORT payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by SOFORT"
                 ledger_item.type = models.LedgerItem.TYPE_SOFORT
                 ledger_item.type_id = payment_intent['id']
                 ledger_item.save()
@@ -507,9 +510,10 @@ def handle_payment(
                     },
                     return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,))),
                     customer=account.get_stripe_id(),
-                    description='Top-up',
+                    description=charge_descriptor if charge_descriptor else "Top-up",
                 )
-                ledger_item.descriptor = "Top-up by GIROPAY"
+                ledger_item.descriptor = f"GIROPAY payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by GIROPAY"
                 ledger_item.type = models.LedgerItem.TYPE_GIROPAY
                 ledger_item.type_id = payment_intent['id']
                 ledger_item.save()
@@ -534,7 +538,7 @@ def handle_payment(
                     },
                     return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,))),
                     customer=account.get_stripe_id(),
-                    description='Top-up',
+                    description=charge_descriptor if charge_descriptor else "Top-up",
                     setup_future_usage="off_session",
                     mandate_data={
                         "customer_acceptance": {
@@ -546,7 +550,8 @@ def handle_payment(
                         }
                     }
                 )
-                ledger_item.descriptor = "Top-up by Bancontact"
+                ledger_item.descriptor = f"Bancontact payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by Bancontact"
                 ledger_item.type = models.LedgerItem.TYPE_BANCONTACT
                 ledger_item.type_id = payment_intent['id']
                 ledger_item.save()
@@ -571,9 +576,10 @@ def handle_payment(
                     },
                     return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,))),
                     customer=account.get_stripe_id(),
-                    description='Top-up',
+                    description=charge_descriptor if charge_descriptor else "Top-up",
                 )
-                ledger_item.descriptor = "Top-up by EPS"
+                ledger_item.descriptor = f"EPS payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by EPS"
                 ledger_item.type = models.LedgerItem.TYPE_EPS
                 ledger_item.type_id = payment_intent['id']
                 ledger_item.save()
@@ -598,7 +604,7 @@ def handle_payment(
                     },
                     return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,))),
                     customer=account.get_stripe_id(),
-                    description='Top-up',
+                    description=charge_descriptor if charge_descriptor else "Top-up",
                     setup_future_usage="off_session",
                     mandate_data={
                         "customer_acceptance": {
@@ -610,7 +616,8 @@ def handle_payment(
                         }
                     }
                 )
-                ledger_item.descriptor = "Top-up by iDEAL"
+                ledger_item.descriptor = f"iDEAL payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by iDEAL"
                 ledger_item.type = models.LedgerItem.TYPE_IDEAL
                 ledger_item.type_id = payment_intent['id']
                 ledger_item.save()
@@ -635,9 +642,10 @@ def handle_payment(
                     },
                     return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,))),
                     customer=account.get_stripe_id(),
-                    description='Top-up',
+                    description=charge_descriptor if charge_descriptor else "Top-up",
                 )
-                ledger_item.descriptor = "Top-up by Przelewy24"
+                ledger_item.descriptor = f"Przelewy24 payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by Prezelewy24"
                 ledger_item.type = models.LedgerItem.TYPE_P24
                 ledger_item.type_id = payment_intent['id']
                 ledger_item.save()
@@ -657,12 +665,14 @@ def handle_payment(
                         "name": f"{request.user.first_name} {request.user.last_name}"
                     },
                     redirect={
-                        "return_url": request.build_absolute_uri(reverse('complete_top_up_sources', args=(ledger_item.id,)))
+                        "return_url": request.build_absolute_uri(
+                            reverse('complete_top_up_sources', args=(ledger_item.id,)))
                     },
                     statement_descriptor="AS207960 Top-up"
                 )
 
-                ledger_item.descriptor = "Top-up by Multibanco"
+                ledger_item.descriptor = f"Multibanco payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by Multibanco"
                 ledger_item.type = models.LedgerItem.TYPE_SOURCES
                 ledger_item.type_id = source['id']
                 ledger_item.save()
@@ -675,7 +685,7 @@ def handle_payment(
                         amount=amount_int,
                         currency=selected_currency,
                         customer=account.get_stripe_id(),
-                        description='Top-up',
+                        description=charge_descriptor if charge_descriptor else "Top-up",
                         receipt_email=request.user.email,
                         payment_method_types=["customer_balance"],
                         payment_method_data={
@@ -691,7 +701,8 @@ def handle_payment(
                         },
                         confirm=True,
                     )
-                    ledger_item.descriptor = "Top-up by bank transfer"
+                    ledger_item.descriptor = f"Bank transfer for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by bank transfer"
                     ledger_item.type = models.LedgerItem.TYPE_STRIPE_BACS
                     ledger_item.state = models.LedgerItem.STATE_PENDING
                     ledger_item.type_id = payment_intent['id']
@@ -708,14 +719,15 @@ def handle_payment(
                     amount=amount_int,
                     currency=selected_currency,
                     customer=account.get_stripe_id(),
-                    description='Top-up',
+                    description=charge_descriptor if charge_descriptor else "Top-up",
                     receipt_email=request.user.email,
                     statement_descriptor_suffix="Top-up",
                     payment_method=m.payment_method,
                     payment_method_types=["bacs_debit"],
                     confirm=True,
                 )
-                ledger_item.descriptor = "Top-up by BACS Direct Debit"
+                ledger_item.descriptor = f"BACS Diect Debit payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by BACS Direct Debit"
                 ledger_item.type = models.LedgerItem.TYPE_CARD
                 ledger_item.state = models.LedgerItem.STATE_PROCESSING
                 ledger_item.type_id = payment_intent['id']
@@ -727,14 +739,15 @@ def handle_payment(
                     amount=amount_int,
                     currency=selected_currency,
                     customer=account.get_stripe_id(),
-                    description='Top-up',
+                    description=charge_descriptor if charge_descriptor else "Top-up",
                     receipt_email=request.user.email,
                     statement_descriptor_suffix="Top-up",
                     payment_method=m.payment_method,
                     payment_method_types=["sepa_debit"],
                     confirm=True,
                 )
-                ledger_item.descriptor = "Top-up by SEPA Direct Debit"
+                ledger_item.descriptor = f"SEPA Direct Debit payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by SEPA Direct Debit"
                 ledger_item.type = models.LedgerItem.TYPE_SEPA
                 ledger_item.state = models.LedgerItem.STATE_PROCESSING
                 ledger_item.type_id = payment_intent['id']
@@ -745,14 +758,15 @@ def handle_payment(
                 payment = gocardless_client.payments.create(params={
                     "amount": amount_int,
                     "currency": "USD",
-                    "description": "Top up",
+                    "description": charge_descriptor if charge_descriptor else "Top-up",
                     "retry_if_possible": False,
                     "links": {
                         "mandate": m.mandate_id
                     }
                 })
 
-                ledger_item.descriptor = "Top-up by ACH Direct Debit"
+                ledger_item.descriptor = f"ACH Direct Debit payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by ACH Direct Debit"
                 ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
                 ledger_item.type_id = payment.id
                 ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
@@ -764,14 +778,15 @@ def handle_payment(
                 payment = gocardless_client.payments.create(params={
                     "amount": amount_int,
                     "currency": "SEK",
-                    "description": "Top up",
+                    "description": charge_descriptor if charge_descriptor else "Top-up",
                     "retry_if_possible": False,
                     "links": {
                         "mandate": m.mandate_id
                     }
                 })
 
-                ledger_item.descriptor = "Top-up by Autogiro"
+                ledger_item.descriptor = f"Autogiro payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by Autogiro"
                 ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
                 ledger_item.type_id = payment.id
                 ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
@@ -783,14 +798,15 @@ def handle_payment(
                 payment = gocardless_client.payments.create(params={
                     "amount": amount_int,
                     "currency": "GBP",
-                    "description": "Top up",
+                    "description": charge_descriptor if charge_descriptor else "Top-up",
                     "retry_if_possible": False,
                     "links": {
                         "mandate": m.mandate_id
                     }
                 })
 
-                ledger_item.descriptor = "Top-up by BACS Direct Debit"
+                ledger_item.descriptor = f"BACS Direct Debit payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by BACS Direct Debit"
                 ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
                 ledger_item.type_id = payment.id
                 ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
@@ -802,14 +818,15 @@ def handle_payment(
                 payment = gocardless_client.payments.create(params={
                     "amount": amount_int,
                     "currency": "AUD",
-                    "description": "Top up",
+                    "description": charge_descriptor if charge_descriptor else "Top-up",
                     "retry_if_possible": False,
                     "links": {
                         "mandate": m.mandate_id
                     }
                 })
 
-                ledger_item.descriptor = "Top-up by BECS Direct Debit"
+                ledger_item.descriptor = f"BECS Direct Debit payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by BECS Direct Debit"
                 ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
                 ledger_item.type_id = payment.id
                 ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
@@ -821,14 +838,14 @@ def handle_payment(
                 payment = gocardless_client.payments.create(params={
                     "amount": amount_int,
                     "currency": "NZD",
-                    "description": "Top up",
+                    "description": charge_descriptor if charge_descriptor else "Top-up",
                     "retry_if_possible": False,
                     "links": {
                         "mandate": m.mandate_id
                     }
                 })
 
-                ledger_item.descriptor = "Top-up by BECS Direct Debit"
+                ledger_item.descriptor = f"BECS NZ Direct Debit payment for {charge_descriptor}"
                 ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
                 ledger_item.type_id = payment.id
                 ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
@@ -840,14 +857,15 @@ def handle_payment(
                 payment = gocardless_client.payments.create(params={
                     "amount": amount_int,
                     "currency": "DKK",
-                    "description": "Top up",
+                    "description": charge_descriptor if charge_descriptor else "Top-up",
                     "retry_if_possible": False,
                     "links": {
                         "mandate": m.mandate_id
                     }
                 })
 
-                ledger_item.descriptor = "Top-up by Betalingsservice"
+                ledger_item.descriptor = f"Betalingsservice payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by Betalingsservice"
                 ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
                 ledger_item.type_id = payment.id
                 ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
@@ -859,14 +877,15 @@ def handle_payment(
                 payment = gocardless_client.payments.create(params={
                     "amount": amount_int,
                     "currency": "CAD",
-                    "description": "Top up",
+                    "description": charge_descriptor if charge_descriptor else "Top-up",
                     "retry_if_possible": False,
                     "links": {
                         "mandate": m.mandate_id
                     }
                 })
 
-                ledger_item.descriptor = "Top-up by PAD Direct Debit"
+                ledger_item.descriptor = f"PAD Direct Debit payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by PAD Direct Debit"
                 ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
                 ledger_item.type_id = payment.id
                 ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
@@ -878,14 +897,15 @@ def handle_payment(
                 payment = gocardless_client.payments.create(params={
                     "amount": amount_int,
                     "currency": "EUR",
-                    "description": "Top up",
+                    "description": charge_descriptor if charge_descriptor else "Top-up",
                     "retry_if_possible": False,
                     "links": {
                         "mandate": m.mandate_id
                     }
                 })
 
-                ledger_item.descriptor = "Top-up by SEPA Direct Debit"
+                ledger_item.descriptor = f"SEPA Direct Debit payment for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by SEPA Direct Debit"
                 ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
                 ledger_item.type_id = payment.id
                 ledger_item.state = models.LedgerItem.STATE_PROCESSING_CANCELLABLE
@@ -894,7 +914,8 @@ def handle_payment(
 
             elif selected_payment_method_type == "bank_transfer":
                 ref = secrets.token_hex(6).upper()
-                ledger_item.descriptor = "Top-up by bank transfer"
+                ledger_item.descriptor = f"Bank transfer for {charge_descriptor}" \
+                    if charge_descriptor else "Top-up by bank transfer"
                 ledger_item.type = models.LedgerItem.TYPE_BACS
                 ledger_item.type_id = ref
                 ledger_item.state = models.LedgerItem.STATE_PENDING
@@ -1153,13 +1174,13 @@ def complete_top_up_card(request, item_id):
 @login_required
 def top_up_bank_transfer(request):
     account = request.user.account  # type: models.Account
-    
+
     referer = request.META.get("HTTP_REFERER")
     if referer:
         redirect_uri = referer
     else:
         redirect_uri = reverse('top_up')
-        
+
     request.session["bank_transfer_redirect_uri"] = redirect_uri
     redirect_uri = urllib.parse.quote_plus(redirect_uri)
 
@@ -1312,7 +1333,7 @@ def top_up_bank_transfer_local(request, country):
         form_c = forms.USBankAccountForm
     else:
         raise Http404()
-    
+
     redirect_uri = request.session.get("bank_transfer_redirect_uri", reverse("top_up"))
 
     if request.method == "POST":
@@ -1418,7 +1439,7 @@ def top_up_bank_details(request, currency):
         request.session["selected_payment_method"] = f"bank_transfer_stripe;gbp"
     else:
         request.session["selected_payment_method"] = f"bank_transfer;{currency}"
-        
+
     return redirect(request.session.get("bank_transfer_redirect_uri", reverse("top_up")))
 
 
@@ -1584,6 +1605,3 @@ def complete_top_up_sources(request, item_id):
         return redirect('dashboard')
 
     return redirect(source["redirect"]["url"])
-
-
-

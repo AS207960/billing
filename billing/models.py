@@ -5,6 +5,7 @@ import urllib.parse
 import inflect
 import stripe
 import threading
+import requests
 import as207960_utils.models
 import django.core.exceptions
 from dateutil import relativedelta
@@ -24,10 +25,67 @@ from . import utils, vat, apps
 p = inflect.engine()
 
 
+class BillingConfig(models.Model):
+    freeagent_access_token = models.TextField(blank=True, null=True)
+    freeagent_refresh_token = models.TextField(blank=True, null=True)
+    freeagent_access_token_expires_at = models.DateTimeField(blank=True, null=True)
+    freeagent_refresh_token_expires_at = models.DateTimeField(blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        self.__class__.objects.exclude(id=self.id).delete()
+        super().save(*args, **kwargs)
+
+    def delete(self, *_args, **_kwargs):
+        pass
+
+    @classmethod
+    def load(cls):
+        try:
+            return cls.objects.get()
+        except cls.DoesNotExist:
+            return cls()
+
+    def update_from_freeagent_resp(self, data):
+        now = timezone.now()
+        self.freeagent_access_token = data.get("access_token")
+        self.freeagent_refresh_token = data.get("refresh_token")
+        access_token_expires_in = data.get("expires_in")
+        refresh_token_expires_in = data.get("refresh_token_expires_in")
+        if access_token_expires_in:
+            self.freeagent_access_token_expires_at = now + datetime.timedelta(seconds=access_token_expires_in)
+        if refresh_token_expires_in:
+            self.freeagent_refresh_token_expires_at = now + datetime.timedelta(seconds=refresh_token_expires_in)
+        self.save()
+
+    def get_freeagent_token(self):
+        now = timezone.now()
+        if self.freeagent_access_token:
+            if (not self.freeagent_access_token_expires_at) or self.freeagent_access_token_expires_at > now:
+                return self.freeagent_access_token
+
+        if self.freeagent_refresh_token:
+            if (not self.freeagent_refresh_token_expires_at) or self.freeagent_refresh_token_expires_at > now:
+                r = requests.post(f"{settings.FREEAGENT_BASE_URL}/v2/token_endpoint", data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": self.freeagent_refresh_token,
+                    "client_id": settings.FREEAGENT_CLIENT_ID,
+                    "client_secret": settings.FREEAGENT_CLIENT_SECRET,
+                })
+                if r.status_code >= 400:
+                    return None
+                r.raise_for_status()
+                data = r.json()
+                self.update_from_freeagent_resp(data)
+                return self.freeagent_access_token
+
+        return None
+
+
 class Account(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     exclude_from_accounting = models.BooleanField(blank=True, default=False)
     stripe_customer_id = models.CharField(max_length=255, blank=True, null=True)
+    freeagent_contact_id = models.CharField(max_length=255, blank=True, null=True)
     default_stripe_payment_method_id = models.CharField(max_length=255, blank=True, null=True)
     default_ach_mandate = models.ForeignKey(
         'ACHMandate', on_delete=models.PROTECT, blank=True, null=True, related_name='default_accounts')
@@ -139,6 +197,34 @@ class Account(models.Model):
             t.start()
 
         super().save(*args, **kwargs)
+
+    def merge_account(
+            self,
+            old_account  # type: Account
+    ):
+        for s in (
+                old_account.ledgeritem_set, old_account.accountbillingaddress_set, old_account.achmandate_set,
+                old_account.autogiromandate_set, old_account.bacsmandate_set, old_account.becsmandate_set,
+                old_account.becsnzmandate_set, old_account.betalingsservicemandate_set, old_account.gcbacsmandate_set,
+                old_account.gcsepamandate_set, old_account.padmandate_set, old_account.sepamandate_set,
+                old_account.chargestate_set, old_account.freeagentinvoice_set, old_account.knownbankaccount_set,
+                old_account.knownstripepaymentmethod_set, old_account.notificationsubscription_set,
+                old_account.subscription_set
+        ):
+            for item in s.all():
+                item.account = self
+                item.save()
+        if not self.stripe_customer_id:
+            self.stripe_customer_id = old_account.stripe_customer_id
+            self.save()
+        if not self.freeagent_contact_id:
+            self.freeagent_contact_id = old_account.freeagent_contact_id
+            self.save()
+        if not self.billing_address:
+            self.billing_address = old_account.billing_address
+            self.save()
+        old_account.user.delete()
+        return self
 
     @property
     def taxable(self):
@@ -488,6 +574,8 @@ class LedgerItem(models.Model):
     eur_exchange_rate = models.DecimalField(decimal_places=7, max_digits=20, blank=True, null=True)
     subscription_charge = models.ForeignKey('SubscriptionCharge', on_delete=models.PROTECT, blank=True, null=True,
                                             related_name='ledger_items')
+    payment_charge_state = models.ForeignKey(
+        'ChargeState', on_delete=models.SET_NULL, blank=True, null=True, related_name='payment_items')
 
     class Meta:
         ordering = ['-timestamp']
@@ -618,6 +706,12 @@ class ChargeState(models.Model):
                 return True
 
         return False
+
+    def freeagent_invoice(self):
+        try:
+            return self.freeagentinvoice
+        except django.core.exceptions.ObjectDoesNotExist:
+            return None
 
 
 class ExchangeRate(models.Model):
@@ -908,3 +1002,11 @@ class InvoiceDiscount(models.Model):
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE)
     descriptor = models.CharField(max_length=255)
     amount = models.DecimalField(decimal_places=2, max_digits=9)
+
+
+class FreeagentInvoice(models.Model):
+    id = as207960_utils.models.TypedUUIDField('billing_freeagentinvoice', primary_key=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, blank=True, null=True)
+    temp_account = models.BooleanField(blank=True)
+    charge_state = models.OneToOneField(ChargeState, on_delete=models.PROTECT, blank=True, null=True)
+    freeagent_id = models.CharField(max_length=255)

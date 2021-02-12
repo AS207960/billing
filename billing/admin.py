@@ -19,6 +19,7 @@ admin.site.register(models.PADMandate)
 admin.site.register(models.ChargeState)
 admin.site.register(models.KnownBankAccount)
 admin.site.register(models.KnownStripePaymentMethod)
+admin.site.register(models.AccountStripeVirtualUKBank)
 
 
 class RecurringPlanTierInline(admin.TabularInline):

@@ -1,0 +1,50 @@
+{% extends 'billing/base.html' %}
+{% load mathfilters %}
+{% block content %}
+    <div class="container my-3">
+        <h1>FreeAgent Invoices</h1>
+        {% if message %}
+            <div class="alert alert-info">{{ message }}</div>
+        {% endif %}
+        <div class="table-responsive ">
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
+                <tr>
+                    <th>Date</th>
+                    <th>Due date</th>
+                    <th>Reference</th>
+                    <th>Contact</th>
+                    <th>Net value</th>
+                    <th>Total value</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                {% if invoices %}
+                    {% for invoice in invoices %}
+                        <tr>
+                            <td>{{ invoice.dated_on }}</td>
+                            <td>{{ invoice.due_on }}</td>
+                            <td>{{ invoice.reference }}</td>
+                            <td>{{ invoice.contact_name }}</td>
+                            <td>{{ invoice.net_value|floatformat:2 }} {{ invoice.currency }}</td>
+                            <td>{{ invoice.total_value|floatformat:2 }} {{ invoice.currency }}</td>
+                            <td>
+                                <form action="" method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="invoice_url" value="{{ invoice.url }}">
+                                    <button type="submit" class="btn btn-success btn-sm">Send invoice</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6">No unsent invoices</td>
+                    </tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

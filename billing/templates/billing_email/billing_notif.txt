@@ -4,7 +4,7 @@ Just to let you know your {{ item.type_name }} has been updated.
 
 {% include "billing_email/item_card.txt" with item=item %}
 
-{% if charge_state_error %}Last error: {{ charge_state_error }}
+{% if charge_state_error and item.state != "C" %}Last error: {{ charge_state_error }}
 {% endif %}{% if charge_state_url %}Continue with your order at: {{ charge_state_url }}
 
 {% endif%}You can always keep an eye on your account at https://billing.as207960.net

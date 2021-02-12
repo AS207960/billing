@@ -37,12 +37,12 @@
                 <table class="table table-borderless">
                     <tbody>
                     <tr>
-                        <th scope="row" class="font-weight-normal">{{ ledger_item.descriptor }}</th>
+                        <th scope="row" class="fw-normal">{{ ledger_item.descriptor }} (ex. VAT)</th>
                         <td>&pound;{{ ledger_item.amount|floatformat:2 }}</td>
                     </tr>
                     {% if has_vat %}
                         <tr>
-                            <th scope="row" class="font-weight-normal">VAT
+                            <th scope="row" class="fw-normal">VAT
                                 @ {{ ledger_item.vat_rate|mul:100|floatformat:2 }}%
                             </th>
                             <td>&pound;{{ vat_charged|floatformat:2 }}</td>
@@ -57,12 +57,10 @@
                     </tbody>
                 </table>
 
-                {% if billing_country_name %}
-                    {% if has_vat %}
-                        <p>We charged you the taxes applicable in {{ billing_country_name }}.</p>
-                    {% else %}
-                        <p>No taxes levied. Reverse charge procedure applies in the EU.</p>
-                    {% endif %}
+                {% if ledger_item.charged_amount != ledger_item.amount %}
+                    <p>We charged you the taxes applicable in your region.</p>
+                {% else %}
+                    <p>No taxes levied. Reverse charge procedure applies in the EU.</p>
                 {% endif %}
 
                 {% if ledger_item.stripe_climate_contribution %}
