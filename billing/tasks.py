@@ -886,6 +886,8 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
         else:
             ledger_item.state = models.LedgerItem.STATE_COMPLETED
             ledger_item.save(mail=mail, force_mail=force_mail)
+            charge_state.save()
+            try_update_charge_state(ledger_item, mail=mail, force_mail=force_mail)
             return charge_state
 
 
