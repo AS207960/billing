@@ -69,16 +69,18 @@ def mail_notif(ledger_item: models.LedgerItem):
 
     state_name, _ = get_state_name_and_emoji(ledger_item.state)
 
+    subject = f"{ledger_item.descriptor}: {state_name}"
     context = {
         "name": ledger_item.account.user.first_name,
         "item": ledger_item,
         "charge_state_url": charge_state_url,
         "charge_state_error": charge_error,
+        "subject": subject
     }
+
     html_content = render_to_string("billing_email/billing_notif.html", context)
     txt_content = render_to_string("billing_email/billing_notif.txt", context)
 
-    subject = f"{ledger_item.descriptor}: {state_name}"
     email_msg = EmailMultiAlternatives(
         subject=subject,
         body=txt_content,
@@ -101,7 +103,8 @@ def mail_subscription_success(subscription: models.Subscription, item: models.Le
         "name": subscription.account.user.first_name,
         "plan_name": subscription.plan.name,
         "item": item,
-        "charge_state": charge_state
+        "charge_state": charge_state,
+        "subject": 'Subscription payment successful',
     }
     html_content = render_to_string("billing_email/billing_success.html", context)
     txt_content = render_to_string("billing_email/billing_success.txt", context)
@@ -128,7 +131,8 @@ def mail_subscription_past_due(subscription: models.Subscription, item: models.L
         "name": subscription.account.user.first_name,
         "plan_name": subscription.plan.name,
         "item": item,
-        "charge_state": charge_state
+        "charge_state": charge_state,
+        "subject": 'Subscription payment failed',
     }
     html_content = render_to_string("billing_email/billing_past_due.html", context)
     txt_content = render_to_string("billing_email/billing_past_due.txt", context)
@@ -155,7 +159,8 @@ def mail_subscription_cancelled(subscription: models.Subscription, item: models.
         "name": subscription.account.user.first_name,
         "plan_name": subscription.plan.name,
         "item": item,
-        "charge_state": charge_state
+        "charge_state": charge_state,
+        "subject": 'Subscription cancelled',
     }
     html_content = render_to_string("billing_email/billing_cancelled.html", context)
     txt_content = render_to_string("billing_email/billing_cancelled.txt", context)

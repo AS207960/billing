@@ -246,7 +246,6 @@ def subscribe_user(request, user_id):
             subscription=subscription,
             timestamp=now,
             last_bill_attempted=now,
-            failed_bill_attempts=0,
             amount=initial_charge,
             is_setup_charge=True
         )
