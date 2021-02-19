@@ -36,6 +36,14 @@ message ChargeUserRequest {
   google.protobuf.StringValue notif_queue = 8;
 }
 
+enum ChargeState {
+  UNKNOWN = 0;
+  PENDING = 1;
+  PROCESSING = 2;
+  FAILED = 3;
+  COMPLETED = 4;
+}
+
 message ChargeUserResponse {
   enum ChargeResult {
     SUCCESS = 0;
@@ -48,18 +56,11 @@ message ChargeUserResponse {
   oneof data {
       string message = 3;
       string redirect_uri = 4;
+      ChargeState state = 5;
   }
 }
 
 message ChargeStateNotification {
-  enum ChargeState {
-    UNKNOWN = 0;
-    PENDING = 1;
-    PROCESSING = 2;
-    FAILED = 3;
-    COMPLETED = 4;
-  }
-
   string charge_id = 1;
   string account = 2;
   ChargeState state = 3;

@@ -366,20 +366,24 @@ def try_update_charge_state(instance: models.LedgerItem, mail=True, force_mail=F
             alert_account(instance.account, instance, mail=not subscription_mail_sent)
 
 
+def charge_state_to_proto_enum(status):
+    if status == models.LedgerItem.STATE_PENDING:
+        status = billing_pb2.PENDING
+    elif status in (models.LedgerItem.STATE_PROCESSING, models.LedgerItem.STATE_PROCESSING_CANCELLABLE):
+        status = billing_pb2.PROCESSING
+    elif status == models.LedgerItem.STATE_FAILED:
+        status = billing_pb2.FAILED
+    elif status == models.LedgerItem.STATE_COMPLETED:
+        status = billing_pb2.COMPLETED
+    else:
+        status = billing_pb2.UNKNOWN
+
+    return status
+
+
 def send_charge_state_notif(instance: models.ChargeState):
     if instance.notif_queue:
-        status = instance.ledger_item.state
-
-        if status == models.LedgerItem.STATE_PENDING:
-            status = billing_pb2.ChargeStateNotification.PENDING
-        elif status in (models.LedgerItem.STATE_PROCESSING, models.LedgerItem.STATE_PROCESSING_CANCELLABLE):
-            status = billing_pb2.ChargeStateNotification.PROCESSING
-        elif status == models.LedgerItem.STATE_FAILED:
-            status = billing_pb2.ChargeStateNotification.FAILED
-        elif status == models.LedgerItem.STATE_COMPLETED:
-            status = billing_pb2.ChargeStateNotification.COMPLETED
-        else:
-            status = billing_pb2.ChargeStateNotification.UNKNOWN
+        status = charge_state_to_proto_enum(instance.ledger_item.state)
 
         msg = billing_pb2.ChargeStateNotification(
             charge_id=instance.id,

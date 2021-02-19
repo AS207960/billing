@@ -138,4 +138,5 @@ class Command(BaseCommand):
             return billing.proto.billing_pb2.ChargeUserResponse(
                 charge_state_id=str(charge_state.id),
                 result=billing.proto.billing_pb2.ChargeUserResponse.SUCCESS,
+                state=tasks.charge_state_to_proto_enum(charge_state.ledger_item.state)
             )
