@@ -209,7 +209,7 @@ def complete_order(request, charge_id):
         charge_state, charge_state.ledger_item.descriptor
     )
     if result == topup.HandlePaymentOutcome.CANCEL:
-        charge_state.last_error = "Oder cancelled"
+        charge_state.last_error = "Order cancelled"
         charge_state.save()
         if charge_state.ledger_item and charge_state.ledger_item.state != models.LedgerItem.STATE_COMPLETED:
             charge_state.ledger_item.state = models.LedgerItem.STATE_FAILED

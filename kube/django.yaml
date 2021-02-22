@@ -312,74 +312,74 @@ spec:
                 - secretRef:
                     name: billing-rpc
           restartPolicy: OnFailure
----
-apiVersion: batch/v1beta1
-kind: CronJob
-metadata:
-  name: billing-attempt-reconcile
-spec:
-  schedule: "00 4 * * *"
-  jobTemplate:
-    spec:
-      template:
-        metadata:
-          annotations:
-            cni.projectcalico.org/ipv6pools: "[\"default-ipv6-ippool\"]"
-        spec:
-          volumes:
-            - name: static
-              persistentVolumeClaim:
-                claimName: billing-django-static
-            - name: media
-              persistentVolumeClaim:
-                claimName: billing-django-media
-          containers:
-            - name: django
-              image: as207960/billing-django:(version)
-              imagePullPolicy: IfNotPresent
-              command: ["sh", "-c", "python3 manage.py attempt-reconcile"]
-              volumeMounts:
-                - mountPath: "/app/static/"
-                  name: static
-                - mountPath: "/app/media/"
-                  name: media
-              envFrom:
-                - configMapRef:
-                    name: billing-django-conf
-                - secretRef:
-                    name: billing-db-creds
-                  prefix: "DB_"
-                - secretRef:
-                    name: billing-django-secret
-                - secretRef:
-                    name: billing-keycloak
-                  prefix: "KEYCLOAK_"
-                - secretRef:
-                    name: billing-stripe-secret
-                - secretRef:
-                    name: billing-monzo-secret
-                - secretRef:
-                    name: billing-open-exchange-secret
-                - secretRef:
-                    name: billing-webpush
-                - secretRef:
-                    name: billing-flux
-                  prefix: "FLUX_"
-                - secretRef:
-                    name: billing-hmrc
-                  prefix: "HMRC_"
-                - secretRef:
-                    name: billing-gc
-                  prefix: "GOCARDLESS_"
-                - secretRef:
-                    name: billing-xfw
-                  prefix: "TRANSFERWISE_"
-                - secretRef:
-                    name: billing-email
-                  prefix: "EMAIL_"
-                - secretRef:
-                    name: billing-rpc
-          restartPolicy: OnFailure
+#---
+#apiVersion: batch/v1beta1
+#kind: CronJob
+#metadata:
+#  name: billing-attempt-reconcile
+#spec:
+#  schedule: "00 4 * * *"
+#  jobTemplate:
+#    spec:
+#      template:
+#        metadata:
+#          annotations:
+#            cni.projectcalico.org/ipv6pools: "[\"default-ipv6-ippool\"]"
+#        spec:
+#          volumes:
+#            - name: static
+#              persistentVolumeClaim:
+#                claimName: billing-django-static
+#            - name: media
+#              persistentVolumeClaim:
+#                claimName: billing-django-media
+#          containers:
+#            - name: django
+#              image: as207960/billing-django:(version)
+#              imagePullPolicy: IfNotPresent
+#              command: ["sh", "-c", "python3 manage.py attempt-reconcile"]
+#              volumeMounts:
+#                - mountPath: "/app/static/"
+#                  name: static
+#                - mountPath: "/app/media/"
+#                  name: media
+#              envFrom:
+#                - configMapRef:
+#                    name: billing-django-conf
+#                - secretRef:
+#                    name: billing-db-creds
+#                  prefix: "DB_"
+#                - secretRef:
+#                    name: billing-django-secret
+#                - secretRef:
+#                    name: billing-keycloak
+#                  prefix: "KEYCLOAK_"
+#                - secretRef:
+#                    name: billing-stripe-secret
+#                - secretRef:
+#                    name: billing-monzo-secret
+#                - secretRef:
+#                    name: billing-open-exchange-secret
+#                - secretRef:
+#                    name: billing-webpush
+#                - secretRef:
+#                    name: billing-flux
+#                  prefix: "FLUX_"
+#                - secretRef:
+#                    name: billing-hmrc
+#                  prefix: "HMRC_"
+#                - secretRef:
+#                    name: billing-gc
+#                  prefix: "GOCARDLESS_"
+#                - secretRef:
+#                    name: billing-xfw
+#                  prefix: "TRANSFERWISE_"
+#                - secretRef:
+#                    name: billing-email
+#                  prefix: "EMAIL_"
+#                - secretRef:
+#                    name: billing-rpc
+#          restartPolicy: OnFailure
 ---
 apiVersion: batch/v1beta1
 kind: CronJob

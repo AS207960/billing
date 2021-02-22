@@ -67,15 +67,38 @@ message ChargeStateNotification {
   google.protobuf.StringValue last_error = 4;
 }
 
-message SubscriptionNotification {
-  enum SubscriptionState {
-    UNKNOWN = 0;
-    PENDING = 1;
-    PAST_DUE = 2;
-    ACTIVE = 3;
-    CANCELLED = 4;
+enum SubscriptionState {
+  SUB_UNKNOWN = 0;
+  SUB_PENDING = 1;
+  SUB_PAST_DUE = 2;
+  SUB_ACTIVE = 3;
+  SUB_CANCELLED = 4;
+}
+
+message SubscribeUserRequest {
+  int64 initial_usage = 1;
+  string plan_id = 2;
+  bool can_reject = 3;
+  bool off_session = 4;
+  string user_id = 5;
+  google.protobuf.StringValue return_uri = 6;
+}
+
+message SubscribeUserResponse {
+  enum SubscriptionResult {
+    SUCCESS = 0;
+    REDIRECT = 1;
   }
 
+  string subscription_id = 1;
+  SubscriptionResult result = 2;
+  oneof data {
+      string redirect_uri = 3;
+      SubscriptionState state = 4;
+  }
+}
+
+message SubscriptionNotification {
   string subscription_id = 1;
   SubscriptionState state = 2;
 }
