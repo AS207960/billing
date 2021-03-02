@@ -4,9 +4,16 @@
 {% block content %}
     <div class="container my-3">
         <h1>Top-up account</h1>
-
-        <p class="lead">We don't have a billing address for your account. Please set one up.</p>
-        <a href="{% url 'add_billing_address' %}" class="btn btn-success btn-block">&#x1f195; Setup billing address
-            &#x1f195;</a>
-    </div>
+        <div class="row d-flex flex-column align-items-center my-3">
+            <div class="col-12 col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <p class="lead">We don't have a billing address for your account. Please set one up.</p>
+                        <a href="{% url 'add_billing_address' %}" class="btn btn-success btn-block w-100 btn-lg">
+                            &#x1f195; Setup billing address &#x1f195;
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
 {% endblock %}

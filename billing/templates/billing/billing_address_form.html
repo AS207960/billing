@@ -4,6 +4,14 @@
     <div class="container my-3">
         <h1>{{ title }}</h1>
 
-        {% crispy form form.helper %}
+        <div class="row d-flex flex-column align-items-center my-3">
+            <div class="col-12 col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        {% crispy form form.helper %}
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 {% endblock %}
