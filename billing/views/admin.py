@@ -355,8 +355,8 @@ def view_vat_moss(request):
                                 "gbp": decimal.Decimal(0),
                                 "eur": decimal.Decimal(0),
                             }
-                            vat_rates[vat_rate_per]["gbp"] += vat_rate["total_sales_gbp"]
-                            vat_rates[vat_rate_per]["eur"] += vat_rate["total_sales_eur"]
+                        vat_rates[vat_rate_per]["gbp"] += vat_rate["total_sales_gbp"]
+                        vat_rates[vat_rate_per]["eur"] += vat_rate["total_sales_eur"]
 
                 return {
                     "country_code": c[0],
