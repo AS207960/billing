@@ -95,6 +95,7 @@ spec:
       containers:
         - name: nginx
           image: nginx
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
           volumeMounts:
@@ -108,6 +109,29 @@ spec:
             - mountPath: "/data/static/apple-developer-merchantid-domain-association"
               name: conf
               subPath: "apple-pay"
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: billing-nginx
+spec:
+  podSelector:
+    matchLabels:
+      app: billing
+      part: nginx
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 80
 ---
 apiVersion: v1
 kind: Service
@@ -125,7 +149,7 @@ spec:
       targetPort: 80
       name: nginx
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: billing-ingress
@@ -142,6 +166,9 @@ spec:
     http:
       paths:
       - path: /
+        pathType: Prefix
         backend:
-          serviceName: billing-nginx
-          servicePort: 80
+          service:
+            name: billing-nginx
+            port:
+              number: 80

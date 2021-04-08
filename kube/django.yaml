@@ -168,6 +168,27 @@ spec:
             - secretRef:
                 name: billing-rpc
 ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: billing-django
+spec:
+  podSelector:
+    matchLabels:
+      app: billing
+      part: django
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: billing
+          part: nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -201,8 +222,6 @@ spec:
           image: as207960/billing-django:(version)
           imagePullPolicy: IfNotPresent
           command: ["sh", "-c", "python3 manage.py run-rpc"]
-          ports:
-            - containerPort: 8000
           volumeMounts:
             - mountPath: "/app/static/"
               name: static
@@ -245,6 +264,18 @@ spec:
             - secretRef:
                 name: billing-rpc
 ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: billing-rpc
+spec:
+  podSelector:
+    matchLabels:
+      app: billing
+      part: rpc
+  policyTypes:
+  - Ingress
+---
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
@@ -255,6 +286,10 @@ spec:
     spec:
       template:
         metadata:
+          labels:
+            app: billing
+            part: get-exchange
+            part-type: cronjob
           annotations:
             cni.projectcalico.org/ipv6pools: "[\"default-ipv6-ippool\"]"
         spec:
@@ -391,6 +426,10 @@ spec:
     spec:
       template:
         metadata:
+          labels:
+            app: billing
+            part: run-billing
+            part-type: cronjob
           annotations:
             cni.projectcalico.org/ipv6pools: "[\"default-ipv6-ippool\"]"
         spec:
@@ -459,6 +498,10 @@ spec:
     spec:
       template:
         metadata:
+          labels:
+            app: billing
+            part: update-pending
+            part-type: cronjob
           annotations:
             cni.projectcalico.org/ipv6pools: "[\"default-ipv6-ippool\"]"
         spec:
@@ -527,6 +570,10 @@ spec:
     spec:
       template:
         metadata:
+          labels:
+            app: billing
+            part: fail-old
+            part-type: cronjob
           annotations:
             cni.projectcalico.org/ipv6pools: "[\"default-ipv6-ippool\"]"
         spec:
@@ -584,6 +631,18 @@ spec:
                 - secretRef:
                     name: billing-rpc
           restartPolicy: OnFailure
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: billing-cronjob
+spec:
+  podSelector:
+    matchLabels:
+      app: billing
+      part-type: cronjob
+  policyTypes:
+  - Ingress
 ---
 apiVersion: v1
 kind: Service
