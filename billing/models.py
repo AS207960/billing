@@ -1,3 +1,4 @@
+import abc
 import datetime
 import decimal
 import secrets
@@ -348,22 +349,37 @@ class NotificationSubscription(models.Model):
     key_p256dh = models.TextField()
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
 
+class AbstractMandate(models.Model):
+    account_mandate_attr = None
+    account_mandate_attrs = (
+        'default_stripe_payment_method_id', 'default_ach_mandate', 'default_autogiro_mandate',
+        'default_bacs_mandate', 'default_gc_bacs_mandate', 'default_becs_mandate',
+        'default_becs_nz_mandate', 'default_betalingsservice_mandate',
+        'default_pad_mandate', 'default_sepa_mandate', 'default_gc_sepa_mandate'
+    )
 
-class StripeMandate(models.Model):
     id = as207960_utils.models.TypedUUIDField('billing_mandate', primary_key=True)
     account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
+    active = models.BooleanField(default=False)
+
+    class Meta:
+        abstract = True
+
+    @classmethod
+    def has_active_mandate(cls, account):
+        return any(bool(getattr(account, a, None)) for a in cls.account_mandate_attrs)
+
+
+class StripeMandate(AbstractMandate):
     mandate_id = models.CharField(max_length=255)
     payment_method = models.CharField(max_length=255)
-    active = models.BooleanField(default=False)
 
     @classmethod
     def sync_mandate(cls, mandate_id, account):
         mandate_obj = cls.objects.filter(mandate_id=mandate_id).first()
         mandate = stripe.Mandate.retrieve(mandate_id)
         is_active = mandate["status"] == "active"
-        if is_active and not (account.default_stripe_payment_method_id or account.default_gc_mandate_id):
-            account.default_stripe_payment_method_id = mandate["payment_method"]
-            account.save()
+
         if not mandate_obj:
             if account:
                 mandate_obj = cls(
@@ -389,15 +405,19 @@ class StripeMandate(models.Model):
                 }
             )
 
+        if is_active and account and not cls.has_active_mandate(account):
+            if cls.account_mandate_attr:
+                setattr(account, cls.account_mandate_attr, mandate_obj)
+                account.save()
+
+        return mandate_obj
+
     class Meta:
         abstract = True
 
 
-class GCMandate(models.Model):
-    id = as207960_utils.models.TypedUUIDField('billing_mandate', primary_key=True)
-    account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
+class GCMandate(AbstractMandate):
     mandate_id = models.CharField(max_length=255)
-    active = models.BooleanField(default=False)
 
     @classmethod
     def sync_mandate(cls, mandate_id, account):
@@ -406,9 +426,6 @@ class GCMandate(models.Model):
         is_active = mandate.status in (
             "pending_customer_approval", "pending_submission", "submitted", "active"
         )
-        if is_active and not (account.default_stripe_payment_method_id or account.default_gc_mandate_id):
-            account.default_gc_mandate_id = mandate.id
-            account.save()
         if not mandate_obj:
             if account:
                 mandate_obj = cls(
@@ -423,6 +440,12 @@ class GCMandate(models.Model):
                 mandate_obj.account.default_gc_mandate_id = None
                 mandate_obj.account.save()
             mandate_obj.save()
+
+        if is_active and account and not cls.has_active_mandate(account):
+            if cls.account_mandate_attr:
+                setattr(account, cls.account_mandate_attr, mandate_obj)
+                account.save()
+
         return mandate_obj
 
     class Meta:
@@ -430,60 +453,80 @@ class GCMandate(models.Model):
 
 
 class ACHMandate(GCMandate):
+    account_mandate_attr = "default_ach_mandate"
+
     class Meta:
         verbose_name = "ACH Mandate"
         verbose_name_plural = "ACH Mandates"
 
 
 class AutogiroMandate(GCMandate):
+    account_mandate_attr = "default_autogiro_mandate"
+
     class Meta:
         verbose_name = "Autogiro Mandate"
         verbose_name_plural = "Autogiro Mandates"
 
 
 class BACSMandate(StripeMandate):
+    account_mandate_attr = "default_bacs_mandate"
+
     class Meta:
         verbose_name = "Stripe BACS Mandate"
         verbose_name_plural = "Stripe BACS Mandates"
 
 
 class GCBACSMandate(GCMandate):
+    account_mandate_attr = "default_gc_bacs_mandate"
+
     class Meta:
         verbose_name = "GoCardless BACS Mandate"
         verbose_name_plural = "GoCardless BACS Mandates"
 
 
 class BECSMandate(GCMandate):
+    account_mandate_attr = "default_becs_mandate"
+
     class Meta:
         verbose_name = "BECS Mandate"
         verbose_name_plural = "BECS Mandates"
 
 
 class BECSNZMandate(GCMandate):
+    account_mandate_attr = "default_becs_nz_mandate"
+
     class Meta:
         verbose_name = "BECS NZ Mandate"
         verbose_name_plural = "BECS NZ Mandates"
 
 
 class BetalingsserviceMandate(GCMandate):
+    account_mandate_attr = "default_betalingsservice_mandate"
+
     class Meta:
         verbose_name = "Betalingsservice Mandate"
         verbose_name_plural = "Betalingsservice Mandates"
 
 
 class PADMandate(GCMandate):
+    account_mandate_attr = "default_pad_mandate"
+
     class Meta:
         verbose_name = "PAD Mandate"
         verbose_name_plural = "PAD Mandates"
 
 
 class SEPAMandate(StripeMandate):
+    account_mandate_attr = "default_sepa_mandate"
+
     class Meta:
         verbose_name = "Stripe SEPA Mandate"
         verbose_name_plural = "Stripe SEPA Mandates"
 
 
 class GCSEPAMandate(GCMandate):
+    account_mandate_attr = "default_gc_sepa_mandate"
+
     class Meta:
         verbose_name = "GoCardless SEPA Mandate"
         verbose_name_plural = "GoCardless SEPA Mandates"

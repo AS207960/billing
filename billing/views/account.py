@@ -81,7 +81,7 @@ def account_details(request):
     ))
     bacs_mandates = list(map(map_bacs_mandate, models.BACSMandate.objects.filter(account=account, active=True)))
     bacs_mandates += list(map(
-        lambda m: map_gc_mandate(m, 'view_bacs_mandate', account.default_bacs_mandate),
+        lambda m: map_gc_mandate(m, 'view_bacs_mandate', account.default_gc_bacs_mandate),
         models.GCBACSMandate.objects.filter(account=account, active=True))
     )
     becs_mandates = list(map(
@@ -102,7 +102,7 @@ def account_details(request):
     ))
     sepa_mandates = list(map(map_sepa_mandate, models.SEPAMandate.objects.filter(account=account, active=True)))
     sepa_mandates += list(map(
-        lambda m: map_gc_mandate(m, 'view_sepa_mandate', account.default_sepa_mandate),
+        lambda m: map_gc_mandate(m, 'view_sepa_mandate', account.default_gc_sepa_mandate),
         models.GCSEPAMandate.objects.filter(account=account, active=True)
     ))
 
