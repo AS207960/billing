@@ -94,8 +94,11 @@ def top_up_details(request, item_id):
         if ledger_item.country_code else None
     has_vat = ledger_item.vat_rate != 0
     vat_charged = ledger_item.amount * ledger_item.vat_rate
-    if ledger_item.country_code and vat.get_vies_country_code(ledger_item.country_code.upper()) is not None:
-        vat_number = f"{settings.OWN_EU_VAT_COUNTRY} {settings.OWN_EU_VAT_ID}"
+    if ledger_item.country_code:
+        if ledger_item.country_code.upper() == "GB" and settings.OWN_UK_VAT_ID:
+            vat_number = f"GB {settings.OWN_UK_VAT_ID}"
+        elif vat.get_vies_country_code(ledger_item.country_code.upper()) is not None and settings.OWN_EU_VAT_ID:
+            vat_number = f"{settings.OWN_EU_VAT_COUNTRY} {settings.OWN_EU_VAT_ID}"
     else:
         vat_number = None
 

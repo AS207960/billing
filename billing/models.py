@@ -232,7 +232,13 @@ class Account(models.Model):
         if not self.billing_address:
             return True
         else:
-            return not self.billing_address.vat_id
+            if bool(self.billing_address.vat_id):
+                if self.billing_address.country_code.code.lower() in vat.VAT_MOSS_COUNTRIES:
+                    return False
+                else:
+                    return True
+            else:
+                return True
 
     @property
     def virtual_uk_bank(self):

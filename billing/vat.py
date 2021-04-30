@@ -97,6 +97,38 @@ VAT_RATES_FROM_2021 = {
     "sk": decimal.Decimal("0.20"),
 }
 
+VAT_RATES_PRE_UK_REG_DATE = datetime.datetime(2021, 3, 28, 23, 00, 00, tzinfo=pytz.utc)
+VAT_RATES_FROM_UK_REG = {
+    "at": decimal.Decimal("0.20"),
+    "be": decimal.Decimal("0.21"),
+    "bg": decimal.Decimal("0.20"),
+    "cy": decimal.Decimal("0.19"),
+    "cz": decimal.Decimal("0.21"),
+    "de": decimal.Decimal("0.19"),
+    "dk": decimal.Decimal("0.25"),
+    "ee": decimal.Decimal("0.20"),
+    "gr": decimal.Decimal("0.24"),
+    "es": decimal.Decimal("0.21"),
+    "fi": decimal.Decimal("0.24"),
+    "fr": decimal.Decimal("0.20"),
+    "hr": decimal.Decimal("0.25"),
+    "hu": decimal.Decimal("0.27"),
+    "ie": decimal.Decimal("0.23"),
+    "it": decimal.Decimal("0.22"),
+    "lt": decimal.Decimal("0.21"),
+    "lu": decimal.Decimal("0.17"),
+    "lv": decimal.Decimal("0.21"),
+    "mt": decimal.Decimal("0.18"),
+    "nl": decimal.Decimal("0.21"),
+    "pl": decimal.Decimal("0.23"),
+    "pt": decimal.Decimal("0.23"),
+    "ro": decimal.Decimal("0.19"),
+    "se": decimal.Decimal("0.25"),
+    "sl": decimal.Decimal("0.22"),
+    "sk": decimal.Decimal("0.20"),
+    "gb": decimal.Decimal("0.20"),
+}
+
 VAT_MOSS_COUNTRIES = (
     "at", "be", "bg", "cy", "cz", "de", "dk", "ee", "gr", "es", "fi", "fr", "xi", "hu", "ie", "it", "lt", "lu", "lv",
     "mt", "nl", "pl", "pt", "ro", "se", "sk"
@@ -106,8 +138,10 @@ VAT_MOSS_COUNTRIES = (
 def get_vat_rate(country, postal_code: typing.Optional[str]):
     if timezone.now() < VAT_RATES_PRE_2021_DATE:
         vat_rates = VAT_RATES_PRE_2021
-    else:
+    elif timezone.now() < VAT_RATES_PRE_UK_REG_DATE:
         vat_rates = VAT_RATES_FROM_2021
+    else:
+        vat_rates = VAT_RATES_FROM_UK_REG
 
     if country == "es" and postal_code:
         postal_code_match = utils.spain_postcode_re.fullmatch(postal_code)

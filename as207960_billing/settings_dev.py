@@ -204,7 +204,7 @@ IS_TEST = True
 
 OWN_EU_VAT_COUNTRY = "EU"
 OWN_EU_VAT_ID = "372013983"
-OWN_UK_VAT_ID = None
+OWN_UK_VAT_ID = "553557881"
 
 RABBITMQ_RPC_URL = "amqp://guest:guest@localhost:5672/rpc"
 
