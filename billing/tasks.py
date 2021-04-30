@@ -985,12 +985,12 @@ def update_from_payment_intent(payment_intent, ledger_item: models.LedgerItem = 
         if payment_intent["next_action"]["type"] == "display_bank_transfer_instructions" and \
                 "display_bank_transfer_instructions" in payment_intent["next_action"]:
             bank_instructions = payment_intent["next_action"]["display_bank_transfer_instructions"]
-            if bank_instructions["type"] == "sort_code":
+            if bank_instructions["type"] == "gb_bank_account":
                 models.AccountStripeVirtualUKBank.objects.update_or_create(
-                    sort_code=bank_instructions["sort_code"]["sort_code"],
-                    account_number=bank_instructions["sort_code"]["account_number"],
+                    account=ledger_item.account,
                     defaults={
-                        "account": ledger_item.account
+                        "sort_code": bank_instructions["sort_code"]["sort_code"],
+                        "account_number": bank_instructions["sort_code"]["account_number"],
                     }
                 )
     elif (payment_intent["status"] == "requires_payment_method" and payment_intent["last_payment_error"]) \

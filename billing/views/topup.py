@@ -755,7 +755,7 @@ def handle_payment(
                                 "customer_balance": {
                                     "funding_type": "bank_transfer",
                                     "bank_transfer": {
-                                        "types": ["sort_code"]
+                                        "type": "gb_bank_account"
                                     }
                                 }
                             },
@@ -1557,7 +1557,6 @@ def complete_top_up_bank_transfer_stripe(request, item_id):
 
     payment_intent = stripe.PaymentIntent.retrieve(ledger_item.type_id)
     tasks.update_from_payment_intent(payment_intent, ledger_item)
-
     if ledger_item.state != ledger_item.STATE_PENDING:
         if charge_state:
             return redirect('complete_order', charge_state.id)
@@ -1569,14 +1568,25 @@ def complete_top_up_bank_transfer_stripe(request, item_id):
 
     bank_instructions = payment_intent["next_action"]["display_bank_transfer_instructions"]
     amount_remaining = decimal.Decimal(bank_instructions["amount_remaining"]) / decimal.Decimal(100)
-    account_info = None
-    if bank_instructions["type"] == "sort_code":
+    if bank_instructions["type"] == "gb_bank_account":
+        address = bank_instructions["financial_addresses"][0]
+        sort_code = address["sort_code"]
+        account_info = {
+            "sort_code": f"{sort_code[0:2]}-{sort_code[2:4]}-{sort_code[4:6]}",
+            "account_number": address["account_number"],
+            "type": "gb"
+        }
+    elif bank_instructions["type"] == "sort_code":
         sort_code = bank_instructions["sort_code"]["sort_code"]
         account_info = {
             "sort_code": f"{sort_code[0:2]}-{sort_code[2:4]}-{sort_code[4:6]}",
             "account_number": bank_instructions["sort_code"]["account_number"],
             "type": "gb"
         }
+    else:
+        return render(request, "billing/error.html", {
+            "error": "Looks like something we didn't expect to happen, happened. Please contact us."
+        })
 
     return render(request, "billing/top_up_bank_gbp_stripe.html", {
         "ledger_item": ledger_item,
