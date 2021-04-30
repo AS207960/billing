@@ -994,13 +994,17 @@ class Subscription(models.Model):
     def last_bill_attempted(self):
         if charge := self.last_non_setup_bill_subscription_charge:
             return charge.last_bill_attempted
-        return self.last_bill_subscription_charge.last_bill_attempted
+        if self.last_bill_subscription_charge:
+            return self.last_bill_subscription_charge.last_bill_attempted
+        return None
 
     @property
     def failed_bill_attempts(self):
         if charge := self.last_non_setup_bill_subscription_charge:
             return charge.failed_bill_attempts
-        return self.last_bill_subscription_charge.failed_bill_attempts
+        if self.last_bill_subscription_charge:
+            return self.last_bill_subscription_charge.failed_bill_attempts
+        return None
 
     @property
     def usage_in_period_label(self):
