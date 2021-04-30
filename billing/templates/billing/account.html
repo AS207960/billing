@@ -28,6 +28,13 @@
                         Account number: <b>{{ account.virtual_uk_bank.account_number }}</b>
                     </p>
                 {% endif %}
+                {% if account.virtual_us_bank %}
+                    <p>
+                        Bank name: <b>{{ account.virtual_us_bank.bank_name }}</b><br/>
+                        Routing number: <b>{{ account.virtual_us_bank.routing_number }}</b><br/>
+                        Account number: <b>{{ account.virtual_us_bank.account_number }}</b>
+                    </p>
+                {% endif %}
             </div>
             <div class="col">
                 {% if perms.billing.add_ledgeritem %}

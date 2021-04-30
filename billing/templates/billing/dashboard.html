@@ -67,7 +67,6 @@
                     </div>
                 </div>
                 {% if account.virtual_uk_bank %}
-                    {% if account.country == "gb" or not account.taxable %}
                         <div class="card mt-3">
                             <div class="card-body">
                                 <h5 class="card-title">Virtual account number</h5>
@@ -83,7 +82,24 @@
                                 </p>
                             </div>
                         </div>
-                    {% endif %}
+                {% endif %}
+                {% if account.virtual_us_bank %}
+                        <div class="card mt-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Virtual account number</h5>
+                                <p class="card-text">
+                                    Bank name: <br/><b>{{ account.virtual_us_bank.bank_name }}</b><br/>
+                                    Routing number: <br/><b>{{ account.virtual_us_bank.routing_number }}</b><br/>
+                                    Account number: <br/><b>{{ account.virtual_us_bank.account_number }}</b>
+                                </p>
+                                <p class="card-text">
+                                    <small>
+                                        If we receive any payment to these details, from any payer, with any reference,
+                                        we'll automatically credit it to your billing account.
+                                    </small>
+                                </p>
+                            </div>
+                        </div>
                 {% endif %}
             </div>
             <div class="col-md-9">

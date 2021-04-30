@@ -1,7 +1,9 @@
 import abc
+import dataclasses
 import datetime
 import decimal
 import secrets
+import typing
 import urllib.parse
 import inflect
 import stripe
@@ -111,6 +113,11 @@ class Account(models.Model):
     billing_address = models.ForeignKey(
         'billing.AccountBillingAddress', on_delete=models.PROTECT, blank=True, null=True, related_name='account_current'
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._virtual_uk_bank = None
+        self._virtual_us_bank = None
 
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name} {self.user.email} ({self.user.username})"
@@ -242,10 +249,60 @@ class Account(models.Model):
 
     @property
     def virtual_uk_bank(self):
-        try:
-            return self.accountstripevirtualukbank
-        except django.core.exceptions.ObjectDoesNotExist:
-            return None
+        if self.billing_address:
+            if self.billing_address.country_code.code.lower() == "gb" or not self.taxable:
+                if self._virtual_uk_bank:
+                    return self._virtual_uk_bank
+                else:
+                    cust_id = self.get_stripe_id()
+                    addresses = stripe.stripe_object.StripeObject().request(
+                        "post", f"/v1/customers/{cust_id}/funding_instructions", {
+                            "currency": "gbp",
+                            "funding_type": "bank_transfer",
+                            "bank_transfer": {
+                                "type": "gb_bank_account"
+                            }
+                        }
+                    )["bank_transfer"]["financial_addresses"]
+                    uk_address = next(filter(lambda a: a["type"] == "sort_code", addresses), None)
+                    if uk_address:
+                        address = UKBankAddress(
+                            sort_code=uk_address["sort_code"]["sort_code"],
+                            account_number=uk_address["sort_code"]["account_number"],
+                        )
+                        self._virtual_uk_bank = address
+                        return address
+
+        return None
+
+    @property
+    def virtual_us_bank(self):
+        if self.billing_address:
+            if self.billing_address.country_code.code.lower() == "us" or not self.taxable:
+                if self._virtual_us_bank:
+                    return self._virtual_us_bank
+                else:
+                    cust_id = self.get_stripe_id()
+                    addresses = stripe.stripe_object.StripeObject().request(
+                        "post", f"/v1/customers/{cust_id}/funding_instructions", {
+                            "currency": "usd",
+                            "funding_type": "bank_transfer",
+                            "bank_transfer": {
+                                "type": "us_bank_account"
+                            }
+                        }
+                    )["bank_transfer"]["financial_addresses"]
+                    us_address = next(filter(lambda a: a["type"] == "aba", addresses), None)
+                    if us_address:
+                        address = USBankAddress(
+                            account_number=us_address["aba"]["account_number"],
+                            routing_number=us_address["aba"]["routing_number"],
+                            bank_name=us_address["aba"]["bank_name"],
+                        )
+                        self._virtual_us_bank = address
+                        return address
+
+        return None
 
     @property
     def country(self):
@@ -289,6 +346,23 @@ class AccountStripeVirtualUKBank(models.Model):
     @property
     def formatted_sort_code(self):
         return f"{self.sort_code[0:2]}-{self.sort_code[2:4]}-{self.sort_code[4:6]}"
+
+
+@dataclasses.dataclass
+class UKBankAddress:
+    sort_code: str
+    account_number: str
+
+    @property
+    def formatted_sort_code(self):
+        return f"{self.sort_code[0:2]}-{self.sort_code[2:4]}-{self.sort_code[4:6]}"
+
+
+@dataclasses.dataclass
+class USBankAddress:
+    routing_number: str
+    account_number: str
+    bank_name: str
 
 
 class AccountBillingAddress(models.Model):
@@ -354,6 +428,7 @@ class NotificationSubscription(models.Model):
     key_auth = models.TextField()
     key_p256dh = models.TextField()
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
+
 
 class AbstractMandate(models.Model):
     account_mandate_attr = None
