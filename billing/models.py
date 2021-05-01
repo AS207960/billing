@@ -980,7 +980,11 @@ class Subscription(models.Model):
     @property
     def next_bill_attempt(self):
         from . import tasks
-        return self.last_bill_attempted + tasks.SUBSCRIPTION_RETRY_INTERVAL
+        attempted = self.last_bill_attempted
+        if attempted is not None:
+            return self.attempted + tasks.SUBSCRIPTION_RETRY_INTERVAL
+        else:
+            return None
 
     @property
     def last_bill_subscription_charge(self):
