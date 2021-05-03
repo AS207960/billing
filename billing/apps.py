@@ -13,6 +13,7 @@ import as207960_utils.rpc
 # )
 gocardless_client = gocardless_pro.Client(access_token=settings.GOCARDLESS_TOKEN, environment=settings.GOCARDLESS_ENV)
 vies_client = zeep.Client("https://ec.europa.eu/taxation_customs/vies/checkVatService.wsdl")
+ch_uid_client = zeep.Client("https://www.uid-wse.admin.ch/V5.0/PublicServices.svc?wsdl")
 rpc_client = as207960_utils.rpc.RpcClient()
 
 

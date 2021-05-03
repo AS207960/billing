@@ -198,6 +198,28 @@ class BillingAddressForm(forms.ModelForm):
                     if vat_lookup_data.post_code:
                         self.cleaned_data['postal_code'] = vat_lookup_data.post_code
                     self.instance.vat_id_verification_request = vat_lookup_data.consultation_number
+            elif country_code == "CH":
+                try:
+                    vat_resp = apps.ch_uid_client.service.ValidateVatNumber(
+                        vatNumber=self.cleaned_data['vat_id'],
+                    )
+                except zeep.exceptions.Fault as e:
+                    if e.message in ("Data_validation_failed"):
+                        raise django.core.exceptions.ValidationError({
+                            'vat_id': ["Invalid VAT ID"]
+                        })
+                    elif e.message in ("Request_limit_exceeded"):
+                        raise django.core.exceptions.ValidationError({
+                            django.core.exceptions.NON_FIELD_ERRORS: [
+                                "VAT check service currently unavailable, please try again later"
+                            ]
+                        })
+                    else:
+                        raise django.core.exceptions.ValidationError({
+                            django.core.exceptions.NON_FIELD_ERRORS: [
+                                "An unexpected error occurred"
+                            ]
+                        })
             else:
                 vies_country = vat.get_vies_country_code(country_code)
                 if vies_country:
