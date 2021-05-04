@@ -231,7 +231,7 @@ def view_account_deferrals(request):
     ledger_items = models.LedgerItem.objects.filter(
         state=models.LedgerItem.STATE_COMPLETED,
         account__exclude_from_accounting=False
-    ).yilter(
+    ).filter(
         ~Q(type=models.LedgerItem.TYPE_MANUAL)
     )
 
