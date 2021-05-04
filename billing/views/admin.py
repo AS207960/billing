@@ -8,6 +8,7 @@ import calendar
 import stripe
 import stripe.error
 import schwifty
+from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import DecimalField, OuterRef, Sum, Subquery
@@ -230,6 +231,8 @@ def view_account_deferrals(request):
     ledger_items = models.LedgerItem.objects.filter(
         state=models.LedgerItem.STATE_COMPLETED,
         account__exclude_from_accounting=False
+    ).yilter(
+        ~Q(type=models.LedgerItem.TYPE_MANUAL)
     )
 
     reporting_periods = []
