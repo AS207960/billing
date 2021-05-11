@@ -5,6 +5,7 @@
         <h1>Accounts</h1>
         <div class="btn-group my-3">
             <a href="{% url 'view_account_deferrals' %}" class="btn btn-primary">View deferrals</a>
+            <a href="{% url 'view_vat_gb' %}" class="btn btn-primary">View VAT GB</a>
             <a href="{% url 'view_vat_moss' %}" class="btn btn-primary">View VAT MOSS</a>
             {% if not has_freeagent_auth and perms.billing.change_billingconfig %}
                 <a href="{% url 'link_freeagent' %}" class="btn btn-primary">Link to FreeAgent</a>

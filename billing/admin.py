@@ -1,11 +1,9 @@
 from django.contrib import admin
-from django.db.models import F
 from . import models
 
 
 admin.site.register(models.Account)
 admin.site.register(models.AccountBillingAddress)
-admin.site.register(models.LedgerItem)
 admin.site.register(models.ExchangeRate)
 admin.site.register(models.SEPAMandate)
 admin.site.register(models.GCSEPAMandate)
@@ -20,6 +18,18 @@ admin.site.register(models.PADMandate)
 admin.site.register(models.KnownBankAccount)
 admin.site.register(models.KnownStripePaymentMethod)
 admin.site.register(models.AccountStripeVirtualUKBank)
+
+
+class LedgerItemAdmin(admin.ModelAdmin):
+    readonly_fields = ('id',)
+    ordering = ('-timestamp',)
+    list_display = (
+        'id', 'amount', 'descriptor', 'vat_rate', 'account'
+    )
+    list_filter = ('state',)
+
+
+admin.site.register(models.LedgerItem, LedgerItemAdmin)
 
 
 class ChargeStateAdmin(admin.ModelAdmin):

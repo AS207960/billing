@@ -269,6 +269,83 @@ def view_account_deferrals(request):
 
 @login_required
 @permission_required('billing.view_ledgeritem', raise_exception=True)
+def view_vat_gb(request):
+    quarters = (
+        ((1, 1), (3, 31)),
+        ((4, 1), (6, 30)),
+        ((7, 1), (9, 30)),
+        ((10, 1), (12, 31)),
+    )
+
+    if request.method == "POST":
+        form = forms.VATMOSSForm(request.POST)
+
+        if form.is_valid():
+            quarter_dates = quarters[form.cleaned_data['quarter'] - 1]
+            quarter_start_date = datetime.date(
+                year=form.cleaned_data['year'], month=quarter_dates[0][0], day=quarter_dates[0][1])
+            quarter_end_date = datetime.date(
+                year=form.cleaned_data['year'], month=quarter_dates[1][0], day=quarter_dates[1][1])
+            quarter_start_datetime = datetime.datetime(
+                year=quarter_start_date.year, month=quarter_start_date.month, day=quarter_start_date.day,
+                hour=0, minute=0, second=0, microsecond=0, tzinfo=datetime.timezone.utc
+            )
+            quarter_end_datetime = datetime.datetime(
+                year=quarter_end_date.year, month=quarter_end_date.month, day=quarter_end_date.day,
+                hour=23, minute=59, second=59, microsecond=999999, tzinfo=datetime.timezone.utc
+            )
+            items = models.LedgerItem.objects.filter(
+                timestamp__gte=quarter_start_datetime,
+                timestamp__lte=quarter_end_datetime,
+                state=models.LedgerItem.STATE_COMPLETED,
+                type=models.LedgerItem.TYPE_CHARGE,
+                country_code="gb"
+            )
+            months = {}
+            for item in items:
+                if item.timestamp.month not in months:
+                    months[item.timestamp.month] = {}
+                vat_rate = str(item.vat_rate)
+                if vat_rate not in months[item.timestamp.month]:
+                    months[item.timestamp.month][vat_rate] = decimal.Decimal(0)
+                months[item.timestamp.month][vat_rate] += -item.amount
+
+            def map_vat_rate(v):
+                rate = decimal.Decimal(v[0])
+                return {
+                    "vat_rate": rate * decimal.Decimal(100),
+                    "total_sales_gbp": v[1],
+                    "vat_due_gbp": v[1] * rate,
+                }
+
+            def map_vat_month(m):
+                vat_rates = list(map(map_vat_rate, m[1].items()))
+                month_vat_gbp = sum(map(lambda v: v["vat_due_gbp"], vat_rates))
+                return {
+                    "vat_rates": vat_rates,
+                    "vat_due_gbp": month_vat_gbp,
+                    "month_name": calendar.month_name[m[0]]
+                }
+
+            vat_months = list(map(map_vat_month, months.items()))
+            total_vat_gbp = sum(map(lambda c: c["vat_due_gbp"], vat_months))
+            return render(request, "billing/vat_gb_export.html", {
+                "export_year": form.cleaned_data['year'],
+                "export_quarter": form.cleaned_data['quarter'],
+                "vat_months": vat_months,
+                "total_vat_gbp": total_vat_gbp,
+            })
+    else:
+        form = forms.VATMOSSForm()
+
+    return render(request, "billing/vat_gb_select.html", {
+        "form": form
+    })
+
+
+
+@login_required
+@permission_required('billing.view_ledgeritem', raise_exception=True)
 def view_vat_moss(request):
     quarters = (
         ((1, 1), (3, 31)),

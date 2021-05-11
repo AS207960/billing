@@ -82,6 +82,7 @@ urlpatterns = [
     path('sw.js', views.sw),
     path('accounts/', views.admin.view_accounts, name='view_accounts'),
     path('accounts/deferrals/', views.admin.view_account_deferrals, name='view_account_deferrals'),
+    path('accounts/vat_gb/', views.admin.view_vat_gb, name='view_vat_gb'),
     path('accounts/vat_moss/', views.admin.view_vat_moss, name='view_vat_moss'),
     path('accounts/freeagent/link/', views.freeagent.link_freeagent, name='link_freeagent'),
     path('accounts/freeagent/link_callback/', views.freeagent.link_freeagent_callback, name='link_freeagent_callback'),

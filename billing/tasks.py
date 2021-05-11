@@ -878,6 +878,30 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
             ledger_item.save(mail=mail, force_mail=force_mail)
             raise e
     else:
+        if not account.billing_address:
+            ledger_item.save(mail=False)
+            charge_state.save()
+            try_update_charge_state(ledger_item, mail=mail, force_mail=force_mail)
+            raise ChargeStateRequiresActionError(
+                charge_state, settings.EXTERNAL_URL_BASE + reverse('complete_order', args=(charge_state.id,))
+            )
+
+        can_sell, can_sell_reason = account.can_sell
+        if not can_sell:
+            ledger_item.save(mail=False)
+            charge_state.save()
+            try_update_charge_state(ledger_item, mail=mail, force_mail=force_mail)
+            raise ChargeError(charge_state, can_sell_reason, must_reject=True)
+
+        billing_address_country = account.billing_address.country_code.code.lower() if account.billing_address else None
+
+        if account.taxable:
+            country_vat_rate = vat.get_vat_rate(billing_address_country, account.billing_address.postal_code)
+            if country_vat_rate is not None:
+                vat_charged = (charge_state.amount * country_vat_rate)
+                ledger_item.amount = vat_charged + charge_state.amount
+                ledger_item.vat_rate = country_vat_rate
+
         from_account_balance = min(account.balance, -ledger_item.amount)
         left_to_be_paid = -(ledger_item.amount + from_account_balance)
         needs_payment = left_to_be_paid > 0
