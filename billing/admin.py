@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import F
 from . import models
 
 
@@ -16,10 +17,28 @@ admin.site.register(models.BECSMandate)
 admin.site.register(models.BECSNZMandate)
 admin.site.register(models.BetalingsserviceMandate)
 admin.site.register(models.PADMandate)
-admin.site.register(models.ChargeState)
 admin.site.register(models.KnownBankAccount)
 admin.site.register(models.KnownStripePaymentMethod)
 admin.site.register(models.AccountStripeVirtualUKBank)
+
+
+class ChargeStateAdmin(admin.ModelAdmin):
+    readonly_fields = ('id',)
+    ordering = ('-ledger_item__timestamp',)
+    list_display = (
+        'id', 'amount', 'get_ledger_item_timestamp', 'get_ledger_item_state', 'account', 'ready_to_complete',
+        'can_reject'
+    )
+    list_filter = ('ledger_item__state',)
+
+    def get_ledger_item_timestamp(self, obj: models.ChargeState):
+        return obj.ledger_item.timestamp
+
+    def get_ledger_item_state(self, obj: models.ChargeState):
+        return obj.ledger_item.get_state_display()
+
+
+admin.site.register(models.ChargeState, ChargeStateAdmin)
 
 
 class RecurringPlanTierInline(admin.TabularInline):
