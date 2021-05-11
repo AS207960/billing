@@ -778,9 +778,9 @@ class LedgerItem(models.Model):
             )
 
             payment_amount = decimal.Decimal(payment_intent["amount"]) / decimal.Decimal(100)
-            exchange_rate = payment_amount / self.charged_amount
+            exchange_rate = payment_amount / self.amount
             total_refunded = (total_refunded_local / exchange_rate).quantize(decimal.Decimal("1.00"))
-            return min(self.charged_amount - total_refunded, account_refundable)
+            return min(self.amount - total_refunded, account_refundable)
         else:
             return decimal.Decimal(0)
 
@@ -806,6 +806,7 @@ class ChargeState(models.Model):
     last_error = models.TextField(blank=True, null=True)
     ready_to_complete = models.BooleanField(default=False, blank=True, null=True)
     can_reject = models.BooleanField(default=True, blank=True, null=True)
+    amount = models.DecimalField(decimal_places=2, max_digits=9, default=0)
 
     def full_redirect_uri(self):
         if self.return_uri:

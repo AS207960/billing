@@ -473,13 +473,13 @@ def attempt_charge_off_session(charge_state):
     selected_payment_method_id = None
     climate_contribution = False
 
-    charged_amount = charge_state.ledger_item.charged_amount
+    charged_amount = charge_state.amount
 
     if account.taxable:
         country_vat_rate = vat.get_vat_rate(billing_address_country, account.billing_address.postal_code)
         if country_vat_rate is not None:
             vat_rate = country_vat_rate
-            vat_charged = (charge_state.ledger_item.charged_amount * country_vat_rate)
+            vat_charged = (charge_state.amount * country_vat_rate)
             charged_amount += vat_charged
 
     from_account_balance = min(charge_state.account.balance, charged_amount)
@@ -830,7 +830,6 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
         account=account,
         descriptor=descriptor,
         amount=-amount,
-        charged_amount=amount,
         type=models.LedgerItem.TYPE_CHARGE,
         type_id=type_id,
         timestamp=timezone.now(),
@@ -840,7 +839,8 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
         ledger_item=ledger_item,
         return_uri=return_uri,
         notif_queue=notif_queue,
-        can_reject=can_reject
+        can_reject=can_reject,
+        amount=amount,
     )
 
     if not account:
@@ -901,7 +901,7 @@ def process_ledger_item_refund(ledger_item: models.LedgerItem, amount: decimal.D
     if ledger_item.type == ledger_item.TYPE_GIROPAY:
         payment_intent = stripe.PaymentIntent.retrieve(ledger_item.type_id)
         payment_amount = decimal.Decimal(payment_intent["amount"]) / decimal.Decimal(100)
-        exchange_rate = payment_amount / ledger_item.charged_amount
+        exchange_rate = payment_amount / ledger_item.amount
         int_refund = int(round(amount * exchange_rate * decimal.Decimal(100)))
         refund = stripe.Refund.create(
             payment_intent=payment_intent["id"],
@@ -913,7 +913,6 @@ def process_ledger_item_refund(ledger_item: models.LedgerItem, amount: decimal.D
             type=ledger_item.TYPE_STRIPE_REFUND,
             type_id=refund['id'],
             amount=-amount,
-            charged_amount=-amount,
             descriptor=f"Refund: {ledger_item.descriptor}",
             is_reversal=True,
             reversal_for=ledger_item,
@@ -1115,7 +1114,7 @@ def update_from_stripe_refund(refund, ledger_item=None):
             amount_refunded_local = decimal.Decimal(refund["amount"]) / decimal.Decimal(100)
             payment_intent = stripe.PaymentIntent.retrieve(payment_ledger_item.type_id)
             payment_amount = decimal.Decimal(payment_intent["amount"]) / decimal.Decimal(100)
-            exchange_rate = payment_amount / payment_ledger_item.charged_amount
+            exchange_rate = payment_amount / payment_ledger_item.amount
             amount_refunded = (amount_refunded_local / exchange_rate).quantize(decimal.Decimal("1.00"))
 
             ledger_item = models.LedgerItem(

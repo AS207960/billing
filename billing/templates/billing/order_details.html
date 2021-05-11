@@ -75,7 +75,7 @@
                     <tbody>
                     <tr>
                         <th scope="row" class="fw-normal">{{ charge.ledger_item.descriptor }}</th>
-                        <td>&pound;{{ charge.ledger_item.charged_amount|floatformat:2 }}</td>
+                        <td>&pound;{{ charge.amount|floatformat:2 }}</td>
                     </tr>
                     {% if has_vat %}
                         <tr>
@@ -107,12 +107,10 @@
                     </tbody>
                 </table>
 
-                {% if charge.payment_ledger_item %}
-                    {% if charge.payment_ledger_item.charged_amount != charge.payment_ledger_item.amount %}
-                        <p>We charged you the taxes applicable in your region.</p>
-                    {% else %}
-                        <p>No taxes levied. Reverse charge procedure applies in the EU.</p>
-                    {% endif %}
+                {% if has_vat %}
+                    <p>We charged you the taxes applicable in your region.</p>
+                {% else %}
+                    <p>No taxes levied. Reverse charge procedure applies in the EU.</p>
                 {% endif %}
 
                 {% if charge.payment_ledger_item and charge.payment_ledger_item.stripe_climate_contribution %}

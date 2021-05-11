@@ -57,7 +57,7 @@ def order_details(request, charge_id):
     billing_country_name = dict(django_countries.countries)[charge_state.ledger_item.country_code.upper()] \
         if charge_state.ledger_item.country_code else None
     has_vat = charge_state.ledger_item.vat_rate != 0
-    vat_charged = charge_state.ledger_item.charged_amount * charge_state.ledger_item.vat_rate
+    vat_charged = charge_state.amount * charge_state.ledger_item.vat_rate
     if charge_state.payment_ledger_item:
         from_account_balance = -(charge_state.ledger_item.amount + charge_state.payment_ledger_item.amount)
     else:

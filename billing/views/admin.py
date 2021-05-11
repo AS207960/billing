@@ -319,9 +319,9 @@ def view_vat_moss(request):
                     exchange_rate = item.reversal_for.eur_exchange_rate
                 else:
                     exchange_rate = models.ExchangeRate.get_rate("gbp", "eur")
-                countries[item.country_code][item.timestamp.month][vat_rate]["gbp"] += item.charged_amount
+                countries[item.country_code][item.timestamp.month][vat_rate]["gbp"] += -item.amount
                 countries[item.country_code][item.timestamp.month][vat_rate]["eur"]\
-                    += item.charged_amount * exchange_rate
+                    += -item.amount * exchange_rate
 
             def map_vat_rate(v):
                 rate = decimal.Decimal(v[0])

@@ -57,7 +57,7 @@ def handle_payment(
             else decimal.Decimal(0)
     else:
         is_top_up = False
-        charged_amount = charge_state.ledger_item.charged_amount
+        charged_amount = charge_state.amount
         charge_descriptor = charge_state.ledger_item.descriptor
     charged_amount_ext_vat = charged_amount
 
@@ -1547,7 +1547,7 @@ def complete_top_up_bank_details(request, item_id, currency):
     if currency == "gbp_stripe":
         raise NotImplemented()
 
-    return show_bank_details(request, ledger_item.charged_amount, ledger_item.type_id, currency)
+    return show_bank_details(request, ledger_item.amount, ledger_item.type_id, currency)
 
 
 @login_required
