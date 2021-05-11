@@ -3,6 +3,30 @@
 {% load crispy_forms_tags %}
 {% load static %}
 {% block content %}
+    <style>
+        @media print {
+            #navbarNav, .navbar-toggler {
+                display: none !important;
+            }
+
+            body {
+                padding: 25px !important;
+                margin: 0 !important;
+            }
+
+            .container {
+                max-width: none;
+            }
+
+            .footer > .container > p:first-of-type {
+                display: none;
+            }
+
+            .btn {
+                display: none;
+            }
+        }
+    </style>
     <div class="container my-3">
         <h1>Your order</h1>
         {% if reversal %}
@@ -38,10 +62,8 @@
             <div class="col-12 col-lg-6">
                 {% if charge.payment_ledger_item and charge.payment_ledger_item.evidence_billing_address %}
                     Billed to:
-                    <b>
-                        {{ user.first_name }} {{ user.last_name }}<br/>
-                        {{ charge.payment_ledger_item.evidence_billing_address.formatted|linebreaksbr }}
-                    </b>
+                    <b>{{ user.first_name }} {{ user.last_name }}</b><br/>
+                    {{ charge.payment_ledger_item.evidence_billing_address.formatted|linebreaksbr }}
                 {% endif %}
             </div>
         </div>
@@ -53,24 +75,24 @@
                     <tbody>
                     <tr>
                         <th scope="row" class="fw-normal">{{ charge.ledger_item.descriptor }}</th>
+                        <td>&pound;{{ charge.ledger_item.charged_amount|floatformat:2 }}</td>
+                    </tr>
+                    {% if has_vat %}
+                        <tr>
+                            <th scope="row" class="fw-normal">VAT
+                                @ {{ charge.ledger_item.vat_rate|mul:100|floatformat:2 }}%
+                            </th>
+                            <td>&pound;{{ vat_charged|floatformat:2 }}</td>
+                        </tr>
+                    {% endif %}
+                    <tr>
+                        <th scope="row">Total</th>
                         <td>&pound;{{ charge.ledger_item.amount|mul:-1|floatformat:2 }}</td>
                     </tr>
                     <tr>
                         <th scope="row" class="fw-normal">From account balance</th>
                         <td>&pound;{{ from_account_balance|floatformat:2 }}</td>
                     </tr>
-                    <tr class="border-top">
-                        <th scope="row">Left to be paid</th>
-                        <td>&pound;{{ left_to_be_paid|floatformat:2 }}</td>
-                    </tr>
-                    {% if has_vat %}
-                        <tr>
-                            <th scope="row" class="font-weight-normal">VAT
-                                @ {{ charge.payment_ledger_item.vat_rate|mul:100|floatformat:2 }}%
-                            </th>
-                            <td>&pound;{{ vat_charged|floatformat:2 }}</td>
-                        </tr>
-                    {% endif %}
                     {% if charge.payment_ledger_item %}
                         <tr class="border-top">
                             <th scope="row">
@@ -79,7 +101,7 @@
                                    href="{% url 'toup_up_details' charge.payment_ledger_item.id %}">&#x1f440; View
                                     details</a>
                             </th>
-                            <td>&pound;{{ charge.payment_ledger_item.charged_amount|floatformat:2 }}</td>
+                            <td>&pound;{{ charge.payment_ledger_item.amount|floatformat:2 }}</td>
                         </tr>
                     {% endif %}
                     </tbody>

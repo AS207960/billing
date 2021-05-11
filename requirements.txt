@@ -23,3 +23,6 @@ cryptography
 protobuf
 zeep
 pika
+django-stubs
+mypy
+

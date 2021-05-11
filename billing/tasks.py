@@ -459,14 +459,12 @@ class ChargeStateRequiresActionError(Exception):
 def attempt_charge_off_session(charge_state):
     account = charge_state.account  # type: models.Account
 
-    from_account_balance = min(charge_state.account.balance, -charge_state.ledger_item.amount)
-    left_to_be_paid = -(charge_state.ledger_item.amount + from_account_balance)
-    needs_payment = left_to_be_paid > 0
+    if not account.billing_address:
+        raise ChargeError(None, "No default billing address", must_reject=True)
 
-    if left_to_be_paid < decimal.Decimal(1):
-        left_to_be_paid = decimal.Decimal(1)
-
-    charged_amount = left_to_be_paid
+    can_sell, can_sell_reason = account.can_sell
+    if not can_sell:
+        raise ChargeError(None, can_sell_reason, must_reject=True)
 
     vat_rate = decimal.Decimal(0)
     selected_currency = "gbp"
@@ -475,21 +473,23 @@ def attempt_charge_off_session(charge_state):
     selected_payment_method_id = None
     climate_contribution = False
 
+    charged_amount = charge_state.ledger_item.charged_amount
+
+    if account.taxable:
+        country_vat_rate = vat.get_vat_rate(billing_address_country, account.billing_address.postal_code)
+        if country_vat_rate is not None:
+            vat_rate = country_vat_rate
+            vat_charged = (charge_state.ledger_item.charged_amount * country_vat_rate)
+            charged_amount += vat_charged
+
+    from_account_balance = min(charge_state.account.balance, charged_amount)
+    left_to_be_paid = charged_amount - from_account_balance
+    needs_payment = left_to_be_paid > 0
+
+    if left_to_be_paid < decimal.Decimal(1):
+        left_to_be_paid = decimal.Decimal(1)
+
     if needs_payment:
-        if not account.billing_address:
-            raise ChargeError(None, "No default billing address", must_reject=True)
-
-        if account.taxable:
-            country_vat_rate = vat.get_vat_rate(billing_address_country, account.billing_address.postal_code)
-            if country_vat_rate is not None:
-                vat_rate = country_vat_rate
-                vat_charged = (left_to_be_paid * country_vat_rate)
-                charged_amount += vat_charged
-
-        can_sell, can_sell_reason = account.can_sell
-        if not can_sell:
-            raise ChargeError(None, can_sell_reason, must_reject=True)
-
         if charge_state.account.default_stripe_payment_method_id:
             payment_method = stripe.PaymentMethod.retrieve(charge_state.account.default_stripe_payment_method_id)
             method_country = utils.country_from_stripe_payment_method(payment_method)
@@ -584,6 +584,10 @@ def attempt_charge_off_session(charge_state):
             raise ChargeError(None, "No payment method on file", must_reject=False)
 
     charge_state.ready_to_complete = True
+    charge_state.ledger_item.amount = -charged_amount
+    charge_state.ledger_item.vat_rate = vat_rate
+    charge_state.ledger_item.country_code = billing_address_country
+    charge_state.ledger_item.eur_exchange_rate = models.ExchangeRate.get_rate("gbp", "eur")
     charge_state.save()
 
     if not selected_currency:
@@ -593,17 +597,14 @@ def attempt_charge_off_session(charge_state):
         ledger_item = models.LedgerItem(
             account=account,
             amount=left_to_be_paid,
-            vat_rate=vat_rate,
             country_code=billing_address_country,
             evidence_billing_address=account.billing_address,
-            charged_amount=charged_amount,
-            eur_exchange_rate=models.ExchangeRate.get_rate("gbp", "eur"),
             payment_charge_state=charge_state,
         )
         if climate_contribution and settings.STRIPE_CLIMATE:
-            ledger_item.stripe_climate_contribution = charged_amount * decimal.Decimal(settings.STRIPE_CLIMATE_RATE)
+            ledger_item.stripe_climate_contribution = left_to_be_paid * decimal.Decimal(settings.STRIPE_CLIMATE_RATE)
 
-        amount = models.ExchangeRate.get_rate("gbp", selected_currency) * charged_amount
+        amount = models.ExchangeRate.get_rate("gbp", selected_currency) * left_to_be_paid
         amount_int = int(round(amount * decimal.Decimal(100)))
 
         if selected_payment_method_type == "stripe_pm":
@@ -829,6 +830,7 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
         account=account,
         descriptor=descriptor,
         amount=-amount,
+        charged_amount=amount,
         type=models.LedgerItem.TYPE_CHARGE,
         type_id=type_id,
         timestamp=timezone.now(),
@@ -910,7 +912,7 @@ def process_ledger_item_refund(ledger_item: models.LedgerItem, amount: decimal.D
             account=ledger_item.account,
             type=ledger_item.TYPE_STRIPE_REFUND,
             type_id=refund['id'],
-            amount=-amount / (1 + ledger_item.vat_rate),
+            amount=-amount,
             charged_amount=-amount,
             descriptor=f"Refund: {ledger_item.descriptor}",
             is_reversal=True,
@@ -1120,8 +1122,7 @@ def update_from_stripe_refund(refund, ledger_item=None):
                 account=payment_ledger_item.account,
                 type=models.LedgerItem.TYPE_STRIPE_REFUND,
                 type_id=refund['id'],
-                amount=-amount_refunded / (1 + payment_ledger_item.vat_rate),
-                charged_amount=-amount_refunded,
+                amount=-amount_refunded,
                 descriptor=f"Refund: {payment_ledger_item.descriptor}",
                 is_reversal=True,
                 reversal_for=payment_ledger_item,

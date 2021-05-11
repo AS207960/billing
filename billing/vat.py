@@ -67,7 +67,7 @@ DO_NOT_SELL = [
 VAT_RATES_PRE_2021 = {}
 VAT_RATES_PRE_2021_DATE = datetime.datetime(2020, 12, 31, 23, 00, 00, tzinfo=pytz.utc)
 
-VAT_RATES_FROM_2021 = {
+VAT_RATES_FROM_2021: typing.Dict[str, decimal.Decimal] = {
     "at": decimal.Decimal("0.20"),
     "be": decimal.Decimal("0.21"),
     "bg": decimal.Decimal("0.20"),
@@ -98,7 +98,7 @@ VAT_RATES_FROM_2021 = {
 }
 
 VAT_RATES_PRE_UK_REG_DATE = datetime.datetime(2021, 3, 28, 23, 00, 00, tzinfo=pytz.utc)
-VAT_RATES_FROM_UK_REG = {
+VAT_RATES_FROM_UK_REG: typing.Dict[str, decimal.Decimal] = {
     "at": decimal.Decimal("0.20"),
     "be": decimal.Decimal("0.21"),
     "bg": decimal.Decimal("0.20"),

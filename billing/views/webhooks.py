@@ -177,8 +177,7 @@ def attempt_complete_bank_transfer(
                     ledger_item.evidence_billing_address.country_code.code.lower() == known_account.country_code.lower()
                     or not ledger_item.account.taxable
             ):
-                ledger_item.charged_amount = amount
-                ledger_item.amount = amount / (1 + ledger_item.vat_rate)
+                ledger_item.amount = amount
                 ledger_item.state = models.LedgerItem.STATE_COMPLETED
                 ledger_item.evidence_bank_account = known_account
                 ledger_item.save()
@@ -197,20 +196,10 @@ def attempt_complete_bank_transfer(
         ):
             can_sell, can_sell_reason = known_account.account.can_sell
             if can_sell:
-                vat_rate = decimal.Decimal(0)
-                if known_account.account.taxable:
-                    country_vat_rate = vat.get_vat_rate(
-                        known_account.account.billing_address.country_code.code.upper(),
-                        known_account.account.billing_address.postal_code
-                    )
-                    if country_vat_rate is not None:
-                        vat_rate = country_vat_rate
-
                 new_ledger_item = models.LedgerItem(
                     account=known_account.account,
                     descriptor=f"Top-up by bank transfer: {ref}" if ref else "Top-up by bank transfer",
-                    amount=amount / (1 + vat_rate),
-                    vat_rate=vat_rate,
+                    amount=amount,
                     charged_amount=amount,
                     country_code=known_account.account.billing_address.country_code.code.lower(),
                     type=models.LedgerItem.TYPE_BACS,
@@ -218,8 +207,7 @@ def attempt_complete_bank_transfer(
                     timestamp=timezone.now(),
                     state=models.LedgerItem.STATE_COMPLETED,
                     evidence_bank_account=known_account,
-                    evidence_billing_address=known_account.account.billing_address,
-                    eur_exchange_rate=models.ExchangeRate.get_rate("gbp", "eur")
+                    evidence_billing_address=known_account.account.billing_address
                 )
                 new_ledger_item.save()
                 found = True

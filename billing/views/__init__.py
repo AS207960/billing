@@ -54,22 +54,19 @@ def order_details(request, charge_id):
         return HttpResponseForbidden()
 
     vat_number = None
+    billing_country_name = dict(django_countries.countries)[charge_state.ledger_item.country_code.upper()] \
+        if charge_state.ledger_item.country_code else None
+    has_vat = charge_state.ledger_item.vat_rate != 0
+    vat_charged = charge_state.ledger_item.charged_amount * charge_state.ledger_item.vat_rate
     if charge_state.payment_ledger_item:
-        billing_country_name = dict(django_countries.countries)[charge_state.payment_ledger_item.country_code.upper()] \
-            if charge_state.payment_ledger_item.country_code else None
-        has_vat = charge_state.payment_ledger_item.vat_rate != 0
-        vat_charged = charge_state.payment_ledger_item.amount * charge_state.payment_ledger_item.vat_rate
         from_account_balance = -(charge_state.ledger_item.amount + charge_state.payment_ledger_item.amount)
-        left_to_be_paid = charge_state.payment_ledger_item.amount
-        if charge_state.payment_ledger_item.country_code and \
-                vat.get_vies_country_code(charge_state.payment_ledger_item.country_code.upper()) is not None:
-            vat_number = f"{settings.OWN_EU_VAT_COUNTRY} {settings.OWN_EU_VAT_ID}"
     else:
-        has_vat = False
-        vat_charged = 0
-        billing_country_name = None
         from_account_balance = -charge_state.ledger_item.amount
-        left_to_be_paid = 0
+    if charge_state.ledger_item.country_code:
+        if charge_state.ledger_item.country_code.upper() == "GB" and settings.OWN_UK_VAT_ID:
+            vat_number = f"GB {settings.OWN_UK_VAT_ID}"
+        if vat.get_vies_country_code(charge_state.ledger_item.country_code.upper()) is not None:
+            vat_number = f"{settings.OWN_EU_VAT_COUNTRY} {settings.OWN_EU_VAT_ID}"
 
     return render(request, "billing/order_details.html", {
         "charge": charge_state,
@@ -77,7 +74,6 @@ def order_details(request, charge_id):
         "has_vat": has_vat,
         "vat_charged": vat_charged,
         "from_account_balance": from_account_balance,
-        "left_to_be_paid": left_to_be_paid,
         "reversal": charge_state.ledger_item.reversal,
         "vat_number": vat_number,
     })
@@ -90,24 +86,25 @@ def top_up_details(request, item_id):
     if ledger_item.account != request.user.account:
         return HttpResponseForbidden()
 
-    billing_country_name = dict(django_countries.countries)[ledger_item.country_code.upper()] \
-        if ledger_item.country_code else None
-    has_vat = ledger_item.vat_rate != 0
-    vat_charged = ledger_item.amount * ledger_item.vat_rate
-    if ledger_item.country_code:
-        if ledger_item.country_code.upper() == "GB" and settings.OWN_UK_VAT_ID:
-            vat_number = f"GB {settings.OWN_UK_VAT_ID}"
-        elif vat.get_vies_country_code(ledger_item.country_code.upper()) is not None and settings.OWN_EU_VAT_ID:
-            vat_number = f"{settings.OWN_EU_VAT_COUNTRY} {settings.OWN_EU_VAT_ID}"
+    if ledger_item.type in (
+            models.LedgerItem.TYPE_CARD, models.LedgerItem.TYPE_SEPA, models.LedgerItem.TYPE_SOFORT,
+            models.LedgerItem.TYPE_GIROPAY, models.LedgerItem.TYPE_BANCONTACT, models.LedgerItem.TYPE_EPS,
+            models.LedgerItem.TYPE_IDEAL, models.LedgerItem.TYPE_STRIPE_BACS,
+    ):
+        pi = stripe.PaymentIntent.retrieve(ledger_item.type_id, expand=["payment_method"])
+
+        charge_descriptor = f"Charged to your {utils.descriptor_from_stripe_payment_method(pi['payment_method'])}"
+    elif ledger_item.type == ledger_item.TYPE_BACS:
+        if ledger_item.evidence_bank_account:
+            charge_descriptor = f"Paid by bank transfer from a/n {ledger_item.evidence_bank_account.account_code}"
+        else:
+            charge_descriptor = "Paid by bank transfer"
     else:
-        vat_number = None
+        charge_descriptor = "Charged to your payment method"
 
     return render(request, "billing/top_up_details.html", {
         "ledger_item": ledger_item,
-        "billing_country_name": billing_country_name,
-        "has_vat": has_vat,
-        "vat_charged": vat_charged,
-        "vat_number": vat_number,
+        "charge_descriptor": charge_descriptor
     })
 
 
@@ -204,12 +201,8 @@ def complete_order(request, charge_id):
             "return_uri": charge_state.full_redirect_uri(),
         })
 
-    from_account_balance = min(charge_state.account.balance, -charge_state.ledger_item.amount)
-    left_to_be_paid = -(charge_state.ledger_item.amount + from_account_balance)
-
     result, extra = topup.handle_payment(
-        request, charge_state.account, left_to_be_paid, from_account_balance, -charge_state.ledger_item.amount,
-        charge_state, charge_state.ledger_item.descriptor
+        request, charge_state.account, charge_state
     )
     if result == topup.HandlePaymentOutcome.CANCEL:
         charge_state.last_error = "Order cancelled"

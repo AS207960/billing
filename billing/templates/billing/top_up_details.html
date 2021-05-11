@@ -3,6 +3,31 @@
 {% load crispy_forms_tags %}
 {% load static %}
 {% block content %}
+    <style>
+
+        @media print {
+            #navbarNav, .navbar-toggler {
+                display: none !important;
+            }
+
+            body {
+                padding: 25px !important;
+                margin: 0 !important;
+            }
+
+            .container {
+                max-width: none;
+            }
+
+            .footer > .container > p:first-of-type {
+                display: none;
+            }
+
+            .refund {
+                display: none;
+            }
+        }
+    </style>
     <div class="container my-3">
         <h1>Your top-up</h1>
         <div class="row">
@@ -14,21 +39,13 @@
                     {% if ledger_item.completed_timestamp %}
                         <br/>Paid on: <b>{{ ledger_item.completed_timestamp }}</b>
                     {% endif %}
-                    {% if ledger_item.evidence_billing_address and ledger_item.evidence_billing_address.formatted_vat_id %}
-                        <br/>Your VAT ID: <b>{{ ledger_item.evidence_billing_address.formatted_vat_id }}</b>
-                    {% endif %}
-                    {% if vat_number %}
-                        <br/>Our VAT ID: <b>{{ vat_number }}</b>
-                    {% endif %}
                 </p>
             </div>
             <div class="col-12 col-lg-6">
                 {% if ledger_item.evidence_billing_address %}
                     Billed to:
-                    <b>
-                        {{ user.first_name }} {{ user.last_name }}<br/>
-                        {{ ledger_item.evidence_billing_address.formatted|linebreaksbr }}
-                    </b>
+                    <b>{{ user.first_name }} {{ user.last_name }}</b><br/>
+                    {{ ledger_item.evidence_billing_address.formatted|linebreaksbr }}
                 {% endif %}
             </div>
         </div>
@@ -37,46 +54,35 @@
                 <table class="table table-borderless">
                     <tbody>
                     <tr>
-                        <th scope="row" class="fw-normal">{{ ledger_item.descriptor }} (ex. VAT)</th>
+                        <th scope="row" class="fw-normal">{{ ledger_item.descriptor }}</th>
                         <td>&pound;{{ ledger_item.amount|floatformat:2 }}</td>
                     </tr>
-                    {% if has_vat %}
-                        <tr>
-                            <th scope="row" class="fw-normal">VAT
-                                @ {{ ledger_item.vat_rate|mul:100|floatformat:2 }}%
-                            </th>
-                            <td>&pound;{{ vat_charged|floatformat:2 }}</td>
-                        </tr>
-                    {% endif %}
                     <tr class="border-top">
                         <th scope="row">
-                            Charged to your payment method
+                            {{ charge_descriptor }}
                         </th>
-                        <td>&pound;{{ ledger_item.charged_amount|floatformat:2 }}</td>
+                        <td>&pound;{{ ledger_item.amount|floatformat:2 }}</td>
                     </tr>
                     </tbody>
                 </table>
 
-                {% if ledger_item.charged_amount != ledger_item.amount %}
-                    <p>We charged you the taxes applicable in your region.</p>
-                {% else %}
-                    <p>No taxes levied. Reverse charge procedure applies in the EU.</p>
-                {% endif %}
-
                 {% if ledger_item.stripe_climate_contribution %}
                     <div class="alert alert-info">
                         <img src="{% static 'billing/imgs/climate-badge.svg' %}" alt="" style="height: 1.3rem;">
-                        <b>&pound;{{ ledger_item.stripe_climate_contribution|floatformat:2 }}</b> was contributed towards
+                        <b>&pound;{{ ledger_item.stripe_climate_contribution|floatformat:2 }}</b> was contributed
+                        towards
                         removing carbon from the atmosphere.
                     </div>
                 {% endif %}
 
-                {% if ledger_item.amount_refundable > 0 %}
-                    <a href="{% url 'toup_up_refund' ledger_item.id %}" class="btn w-100 btn-secondary">Request
-                        refund</a>
-                {% else %}
-                    <p>This top-up cannot be refunded. Please contact us for details.</p>
-                {% endif %}
+                <div class="refund">
+                    {% if ledger_item.amount_refundable > 0 %}
+                        <a href="{% url 'toup_up_refund' ledger_item.id %}" class="btn w-100 btn-secondary">Request
+                            refund</a>
+                    {% else %}
+                        <p>This top-up cannot be refunded. Please contact us for details.</p>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>

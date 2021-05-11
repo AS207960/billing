@@ -298,6 +298,7 @@ def view_vat_moss(request):
                 timestamp__gte=quarter_start_datetime,
                 timestamp__lte=quarter_end_datetime,
                 state=models.LedgerItem.STATE_COMPLETED,
+                type=models.LedgerItem.TYPE_CHARGE,
                 country_code__in=vat.VAT_MOSS_COUNTRIES,
             )
             countries = {}

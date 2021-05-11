@@ -14,7 +14,7 @@ class Command(BaseCommand):
             if ledger_item.type in (
                     models.LedgerItem.TYPE_CARD, models.LedgerItem.TYPE_SEPA, models.LedgerItem.TYPE_SOFORT,
                     models.LedgerItem.TYPE_GIROPAY, models.LedgerItem.TYPE_BANCONTACT, models.LedgerItem.TYPE_EPS,
-                    models.LedgerItem.TYPE_IDEAL
+                    models.LedgerItem.TYPE_IDEAL, models.LedgerItem.TYPE_STRIPE_BACS,
             ):
                 payment_intent = stripe.PaymentIntent.retrieve(ledger_item.type_id)
                 tasks.update_from_payment_intent(payment_intent, ledger_item)

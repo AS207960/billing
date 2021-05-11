@@ -29,11 +29,7 @@ class HandlePaymentOutcome(enum.Enum):
 
 def handle_payment(
         request, account: models.Account,
-        charged_amount: typing.Optional[decimal.Decimal] = None,
-        from_account_balance: typing.Optional[decimal.Decimal] = None,
-        original_charge: typing.Optional[decimal.Decimal] = None,
         charge_state: typing.Optional[models.ChargeState] = None,
-        charge_descriptor: typing.Optional[str] = None
 ):
     if request.method == "POST":
         if request.POST.get("action") == "cancel":
@@ -54,12 +50,15 @@ def handle_payment(
         elif request.POST.get("action") == "set_currency":
             request.session["selected_currency"] = request.POST.get("currency")
 
-    if charged_amount is None:
+    if charge_state is None:
+        charge_descriptor = None
         is_top_up = True
         charged_amount = decimal.Decimal(request.session["top_up_amount"]) if "top_up_amount" in request.session \
             else decimal.Decimal(0)
     else:
         is_top_up = False
+        charged_amount = charge_state.ledger_item.charged_amount
+        charge_descriptor = charge_state.ledger_item.descriptor
     charged_amount_ext_vat = charged_amount
 
     has_vat = False
@@ -85,7 +84,7 @@ def handle_payment(
     billing_address_country = account.billing_address.country_code.code.lower()
     billing_country_name = dict(django_countries.countries)[billing_address_country.upper()]
 
-    if account.taxable:
+    if account.taxable and not is_top_up:
         country_vat_rate = vat.get_vat_rate(billing_address_country, account.billing_address.postal_code)
         if country_vat_rate is not None:
             has_vat = True
@@ -93,9 +92,13 @@ def handle_payment(
             vat_charged = (charged_amount * country_vat_rate)
             charged_amount += vat_charged
 
-    if charge_state:
-        needs_payment = charged_amount > 0
+    if not is_top_up:
+        from_account_balance = min(charge_state.account.balance, charged_amount)
+        to_be_paid = charged_amount - from_account_balance
+        needs_payment = to_be_paid > 0
     else:
+        from_account_balance = None
+        to_be_paid = charged_amount
         needs_payment = True
 
     cards = []
@@ -400,7 +403,7 @@ def handle_payment(
                     request.session["selected_currency"] = None
 
         if selected_currency:
-            to_be_charged = models.ExchangeRate.get_rate('gbp', selected_currency) * charged_amount
+            to_be_charged = models.ExchangeRate.get_rate('gbp', selected_currency) * to_be_paid
         else:
             to_be_charged = None
 
@@ -428,14 +431,20 @@ def handle_payment(
                     }
                 )
                 if method_country == billing_address_country or not account.taxable:
+                    if charge_state:
+                        charge_state.ready_to_complete = True
+                        charge_state.ledger_item.amount = -charged_amount
+                        charge_state.ledger_item.vat_rate = vat_rate
+                        charge_state.ledger_item.country_code = billing_address_country
+                        charge_state.ledger_item.eur_exchange_rate = models.ExchangeRate.get_rate("gbp", "eur")
+                        charge_state.save()
+
                     ledger_item = models.LedgerItem(
                         account=account,
-                        amount=charged_amount_ext_vat,
-                        vat_rate=vat_rate,
+                        amount=to_be_paid,
                         country_code=billing_address_country,
                         evidence_billing_address=account.billing_address,
                         charged_amount=charged_amount,
-                        eur_exchange_rate=models.ExchangeRate.get_rate("gbp", "eur"),
                         payment_charge_state=charge_state,
                         descriptor=f"Card payment for {charge_descriptor}" if charge_descriptor else "Top-up by card",
                         type=models.LedgerItem.TYPE_CARD,
@@ -467,16 +476,17 @@ def handle_payment(
             if request.POST.get("action") == "pay" and selected_payment_method_type:
                 if charge_state:
                     charge_state.ready_to_complete = True
+                    charge_state.ledger_item.amount = -charged_amount
+                    charge_state.ledger_item.vat_rate = vat_rate
+                    charge_state.ledger_item.country_code = billing_address_country
+                    charge_state.ledger_item.eur_exchange_rate = models.ExchangeRate.get_rate("gbp", "eur")
                     charge_state.save()
 
                 ledger_item = models.LedgerItem(
                     account=account,
-                    amount=charged_amount_ext_vat,
-                    vat_rate=vat_rate,
+                    amount=to_be_paid,
                     country_code=billing_address_country,
                     evidence_billing_address=account.billing_address,
-                    charged_amount=charged_amount,
-                    eur_exchange_rate=models.ExchangeRate.get_rate("gbp", "eur"),
                     payment_charge_state=charge_state,
                 )
                 if climate_contribution and settings.STRIPE_CLIMATE:
@@ -1143,12 +1153,12 @@ def handle_payment(
             "betalingsservice_mandates": betalingsservice_mandates,
             "pad_mandates": pad_mandates,
             "sepa_mandates": sepa_mandates,
-            "charge_amount": original_charge if original_charge else charged_amount_ext_vat,
+            "charge_amount": charged_amount_ext_vat,
             "charge_descriptor": charge_descriptor if charge_descriptor else "Top-up",
-            "charged_amount": charged_amount,
+            "charged_amount": to_be_paid,
             "top_up": is_top_up,
             "from_account_balance": from_account_balance,
-            "left_to_be_paid": charged_amount_ext_vat if original_charge else None,
+            "to_be_paid": charged_amount,
             "has_vat": has_vat,
             "vat_rate": vat_rate,
             "vat_charged": vat_charged,
@@ -1182,7 +1192,7 @@ def top_up(request):
             "account": account,
         })
 
-    result, extra = handle_payment(request, account, None, None, None)
+    result, extra = handle_payment(request, account, None)
     if result == HandlePaymentOutcome.CANCEL:
         return redirect('dashboard')
     elif result == HandlePaymentOutcome.FORBIDDEN:

@@ -39,9 +39,9 @@ def send_charge_state_notif(charge_state: models.ChargeState):
         payment_methods = []
         items = []
 
-        vat_charged = charge_state.payment_ledger_item.amount * charge_state.payment_ledger_item.vat_rate
+        vat_charged = charge_state.ledger_item.amount * charge_state.ledger_item.vat_rate
         from_account_balance = charge_state.ledger_item.amount + charge_state.payment_ledger_item.amount
-        charged_amount = charge_state.payment_ledger_item.amount + vat_charged
+        charged_amount = charge_state.payment_ledger_item.amount
 
         if charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_CARD:
             stripe_payment_intent = stripe.PaymentIntent.retrieve(charge_state.payment_ledger_item.type_id)

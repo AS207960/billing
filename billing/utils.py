@@ -47,3 +47,25 @@ def country_from_stripe_payment_method(payment_method):
         return payment_method["sofort"]["country"].lower()
     elif payment_method["type"] == "customer_balance":
         return "gb"
+
+
+def descriptor_from_stripe_payment_method(payment_method):
+    if payment_method["type"] == "card":
+        return f'{payment_method["card"]["brand"].upper()} ending {payment_method["card"]["last4"]}'
+    elif payment_method["type"] == "giropay":
+        return "account with GIROPAY"
+    elif payment_method["type"] == "sofort":
+        return "account with Sofort"
+    elif payment_method["type"] == "ideal":
+        return "account with iDEAL"
+    elif payment_method["type"] == "customer_balance":
+        return "bank account"
+    elif payment_method["type"] == "p24":
+        if payment_method["p24"].get("bank"):
+            return f'account with {payment_method["bank"]}'
+        else:
+            return "account"
+    elif payment_method["type"] == "sepa_debit":
+        return f'accounting ending {payment_method["sepa_debit"]["last4"]}'
+    else:
+        return "payment method"
