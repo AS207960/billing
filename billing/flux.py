@@ -68,12 +68,13 @@ def send_charge_state_notif(charge_state: models.ChargeState):
                         "method": charge_state.payment_ledger_item.descriptor
                     })
         else:
-            payment_methods.append({
-                "type": "CHEQUE",
-                "timestamp": charge_state.payment_ledger_item.completed_timestamp.isoformat("T"),
-                "amount": int(round(charged_amount * decimal.Decimal(100))),
-                "method": charge_state.payment_ledger_item.descriptor
-            })
+            if completed_timestamp:
+                payment_methods.append({
+                    "type": "CHEQUE",
+                    "timestamp": charge_state.payment_ledger_item.completed_timestamp.isoformat("T"),
+                    "amount": int(round(charged_amount * decimal.Decimal(100))),
+                    "method": charge_state.payment_ledger_item.descriptor
+                })
 
         items.append({
             "sku": str(charge_state.ledger_item.id),
