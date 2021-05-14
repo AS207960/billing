@@ -899,7 +899,7 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
             country_vat_rate = vat.get_vat_rate(billing_address_country, account.billing_address.postal_code)
             if country_vat_rate is not None:
                 vat_charged = (charge_state.amount * country_vat_rate)
-                ledger_item.amount = vat_charged + charge_state.amount
+                ledger_item.amount = -(vat_charged + charge_state.amount)
                 ledger_item.vat_rate = country_vat_rate
 
         from_account_balance = min(account.balance, -ledger_item.amount)

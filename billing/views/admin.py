@@ -299,7 +299,8 @@ def view_vat_gb(request):
                 timestamp__lte=quarter_end_datetime,
                 state=models.LedgerItem.STATE_COMPLETED,
                 type=models.LedgerItem.TYPE_CHARGE,
-                country_code="gb"
+                country_code="gb",
+                account__exclude_from_accounting=False
             )
             months = {}
             for item in items:
@@ -377,6 +378,7 @@ def view_vat_moss(request):
                 state=models.LedgerItem.STATE_COMPLETED,
                 type=models.LedgerItem.TYPE_CHARGE,
                 country_code__in=vat.VAT_MOSS_COUNTRIES,
+                account__exclude_from_accounting=False
             )
             countries = {}
             for item in items:
