@@ -463,7 +463,7 @@ def handle_payment(
                     if settings.STRIPE_CLIMATE:
                         ledger_item.stripe_climate_contribution = charged_amount * decimal.Decimal(
                             settings.STRIPE_CLIMATE_RATE)
-                    ledger_item.type_id = payment_intent['id'],
+                    ledger_item.type_id = payment_intent['id']
                     ledger_item.save()
                     tasks.update_from_payment_intent(payment_intent, ledger_item)
 
