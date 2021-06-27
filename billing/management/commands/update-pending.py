@@ -32,3 +32,5 @@ class Command(BaseCommand):
                 tasks.update_from_stripe_refund(refund, ledger_item)
             elif ledger_item.type == models.LedgerItem.TYPE_GOCARDLESS:
                 tasks.update_from_gc_payment(ledger_item.type_id, ledger_item)
+            elif ledger_item.type == models.LedgerItem.TYPE_GOCARDLESS_PR:
+                tasks.update_from_gc_billing_request(ledger_item.type_id, ledger_item)

@@ -244,7 +244,7 @@ def fail_payment(ledger_item):
             ledger_item.TYPE_CARD, ledger_item.TYPE_BACS, ledger_item.TYPE_SOURCES, ledger_item.TYPE_CHECKOUT,
             ledger_item.TYPE_SEPA, ledger_item.TYPE_SOFORT, ledger_item.TYPE_GIROPAY, ledger_item.TYPE_BANCONTACT,
             ledger_item.TYPE_EPS, ledger_item.TYPE_IDEAL, ledger_item.TYPE_P24, ledger_item.TYPE_GOCARDLESS,
-            ledger_item.TYPE_STRIPE_BACS
+            ledger_item.TYPE_STRIPE_BACS, ledger_item.TYPE_GOCARDLESS_PR,
     ):
         return
 
@@ -264,6 +264,8 @@ def fail_payment(ledger_item):
         stripe.PaymentIntent.cancel(session["payment_intent"])
     elif ledger_item.type == ledger_item.TYPE_GOCARDLESS:
         apps.gocardless_client.payments.cancel(ledger_item.type_id)
+    elif ledger_item.type == ledger_item.TYPE_GOCARDLESS_PR:
+        apps.gocardless_client.billing_requests.cancel(ledger_item.type_id)
 
     ledger_item.delete()
 
@@ -1225,6 +1227,46 @@ def update_from_gc_payment(payment_id, ledger_item=None):
     elif payment.status in ("failed", "cancelled", "customer_approval_denied", "charged_back"):
         ledger_item.state = models.LedgerItem.STATE_FAILED
         ledger_item.save()
+
+
+def update_from_gc_billing_request(request_id, ledger_item=None):
+    ledger_item = models.LedgerItem.objects.filter(
+        type=models.LedgerItem.TYPE_GOCARDLESS, type_id=request_id
+    ).first() if not ledger_item else ledger_item
+
+    if not ledger_item:
+        return
+
+    request = apps.gocardless_client.billing_requests.get(request_id)
+    if request.status == "cancelled":
+        ledger_item.state = models.LedgerItem.STATE_FAILED
+        ledger_item.save()
+    elif request.status == "fulfilled":
+        if request.attributes.get("payment_request"):
+            ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+            ledger_item.type_id = request.payment_request.links["payment"]
+            ledger_item.state = models.LedgerItem.STATE_PROCESSING
+            ledger_item.save()
+            update_from_gc_payment(ledger_item.type_id, ledger_item)
+
+        if request.attributes.get("mandate_request"):
+            mandate_id = request.mandate_request.links["mandate"]
+            if request.mandate_request.scheme == "ach":
+                models.ACHMandate.sync_mandate(mandate_id, ledger_item.account)
+            elif request.mandate_request.scheme == "autogiro":
+                models.AutogiroMandate.sync_mandate(mandate_id, ledger_item.account)
+            elif request.mandate_request.scheme == "bacs":
+                models.GCBACSMandate.sync_mandate(mandate_id, ledger_item.account)
+            elif request.mandate_request.scheme == "becs":
+                models.BECSMandate.sync_mandate(mandate_id, ledger_item.account)
+            elif request.mandate_request.scheme == "becs_nz":
+                models.BECSNZMandate.sync_mandate(mandate_id, ledger_item.account)
+            elif request.mandate_request.scheme == "betalingsservice":
+                models.BetalingsserviceMandate.sync_mandate(mandate_id, ledger_item.account)
+            elif request.mandate_request.scheme == "pad":
+                models.PADMandate.sync_mandate(mandate_id, ledger_item.account)
+            elif request.mandate_request.scheme == "sepa_core":
+                models.GCSEPAMandate.sync_mandate(mandate_id, ledger_item.account)
 
 
 def setup_intent_succeeded(setup_intent):

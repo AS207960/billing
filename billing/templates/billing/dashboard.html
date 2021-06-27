@@ -221,6 +221,11 @@
                                                 <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1;
                                                     Cancel</a>
                                             </div>
+                                        {% elif item.type == "L" %}
+                                            <div class="btn-group">
+                                                <a href="{% url 'complete_top_up_uk_instant_bank_transfer' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
+                                                <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
+                                            </div>
                                         {% elif item.type == "B" and item.charge_state %}
                                             <div class="btn-group">
                                                 <a href="{% url 'complete_order' item.charge_state.id %}"

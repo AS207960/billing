@@ -88,6 +88,7 @@ class Account(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     exclude_from_accounting = models.BooleanField(blank=True, default=False)
     stripe_customer_id = models.CharField(max_length=255, blank=True, null=True)
+    gocardless_customer_id = models.CharField(max_length=255, blank=True, null=True)
     freeagent_contact_id = models.CharField(max_length=255, blank=True, null=True)
     default_stripe_payment_method_id = models.CharField(max_length=255, blank=True, null=True)
     default_ach_mandate = models.ForeignKey(
@@ -194,13 +195,75 @@ class Account(models.Model):
         self.save()
         return customer_id
 
+    def get_gocardless_id(self):
+        if self.gocardless_customer_id:
+            return self.gocardless_customer_id
+
+        mandate_id = None
+
+        if ach_mandate := self.achmandate_set.first():
+            mandate_id = ach_mandate.mandate_id
+        elif autogiro_mandate := self.autogiromandate_set.first():
+            mandate_id = autogiro_mandate.mandate_id
+        elif bacs_mandate := self.gcbacsmandate_set.first():
+            mandate_id = bacs_mandate.mandate_id
+        elif becs_mandate := self.becsmandate_set.first():
+            mandate_id = becs_mandate.mandate_id
+        elif becs_nz_mandate := self.becsnzmandate_set.first():
+            mandate_id = becs_nz_mandate.mandate_id
+        elif betalingsservice_mandate := self.betalingsservicemandate_set.first():
+            mandate_id = betalingsservice_mandate.mandate_id
+        elif pad_mandate := self.padmandate_set.first():
+            mandate_id = pad_mandate.mandate_id
+        elif sepa_mandate := self.gcsepamandate_set.first():
+            mandate_id = sepa_mandate.mandate_id
+
+        if mandate_id:
+            mandate = apps.gocardless_client.mandates.get(mandate_id)
+            customer_id = mandate.links.customer
+
+            self.gocardless_customer_id = customer_id
+            self.save()
+            return customer_id
+
+        return None
+
     def save(self, *args, **kwargs):
         if self.stripe_customer_id:
             t = threading.Thread(target=stripe.Customer.modify, args=(self.stripe_customer_id,), kwargs={
                 "email": self.user.email,
                 "name": f"{self.user.first_name} {self.user.last_name}",
+                "address": {
+                    "line1": self.billing_address.street_1,
+                    "line2": self.billing_address.street_2,
+                    "city": self.billing_address.city,
+                    "state": self.billing_address.province,
+                    "postal_code": self.billing_address.postal_code,
+                    "country": self.billing_address.country_code.code,
+                } if self.billing_address else None,
                 "balance_version": "v2"
             })
+            t.setDaemon(True)
+            t.start()
+
+        if self.gocardless_customer_id:
+            t = threading.Thread(
+                target=apps.gocardless_client.customers.update, args=(self.gocardless_customer_id,), kwargs={
+                    "params": {
+                        "email": self.user.email,
+                        "family_name": self.user.last_name,
+                        "given_name": self.user.first_name,
+                        "company_name": self.billing_address.organisation if self.billing_address else None,
+                        "address_line1": self.billing_address.street_1 if self.billing_address else None,
+                        "address_line2": self.billing_address.street_2 if self.billing_address else None,
+                        "address_line3": self.billing_address.street_3 if self.billing_address else None,
+                        "city": self.billing_address.city if self.billing_address else None,
+                        "region": self.billing_address.province if self.billing_address else None,
+                        "postal_code": self.billing_address.postal_code if self.billing_address else None,
+                        "country_code": self.billing_address.country_code.code if self.billing_address else None
+                    }
+                }
+            )
             t.setDaemon(True)
             t.start()
 
@@ -644,6 +707,7 @@ class LedgerItem(models.Model):
     TYPE_MANUAL = "M"
     TYPE_STRIPE_REFUND = "R"
     TYPE_STRIPE_BACS = "T"
+    TYPE_GOCARDLESS_PR = "L"
     TYPES = (
         (TYPE_CHARGE, "Charge"),
         (TYPE_CARD, "Card"),
@@ -662,6 +726,7 @@ class LedgerItem(models.Model):
         (TYPE_MANUAL, "Manual"),
         (TYPE_STRIPE_REFUND, "Stripe refund"),
         (TYPE_STRIPE_BACS, "Stripe bank transfer"),
+        (TYPE_GOCARDLESS_PR, "GoCardless payment request"),
     )
 
     id = as207960_utils.models.TypedUUIDField('billing_ledgeritem', primary_key=True)

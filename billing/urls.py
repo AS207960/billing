@@ -16,6 +16,8 @@ urlpatterns = [
          name='complete_top_up_bank_details'),
     path('complete_top_up_bank_transfer_virtual/<str:item_id>/', views.topup.complete_top_up_bank_transfer_stripe,
          name='complete_top_up_bank_transfer_stripe'),
+    path('complete_top_up_uk_instant_bank_transfer/<str:item_id>/',
+         views.topup.complete_top_up_uk_instant_bank_transfer, name='complete_top_up_uk_instant_bank_transfer'),
     # path('complete_top_up_sepa_direct_debit/<str:item_id>/', views.topup.complete_top_up_sepa_direct_debit,
     #      name='complete_top_up_sepa_direct_debit'),
     # path('complete_top_up_checkout/<str:item_id>/', views.topup.complete_top_up_checkout, name='complete_top_up_checkout'),

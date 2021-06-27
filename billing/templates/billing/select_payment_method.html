@@ -413,6 +413,33 @@
             {% endif %}
             <h2>Pay with a new method</h2>
             <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
+                {% if country == "gb" or not taxable %}
+                    <div class="col mb-4 d-flex">
+                        <div class="card flex-grow-1{% if selected_payment_method_type == "sofort" %} border-success{% endif %}">
+                            <div class="card-header text-center">
+                                &#x1f1ec;&#x1f1e7; UK <div class="badge bg-success">New</div>
+                            </div>
+                            <div class="card-body d-flex flex-column align-items-center">
+                                <h3 class="display-4">&#x1f3e6;</h3>
+                                <h5 class="card-title" style="flex-grow: 1">Instant Bank transfer</h5>
+                                {% if selected_payment_method_type == "uk_instant_bank_transfer" %}
+                                    <h4 class="mt-0">
+                                        <span class="badge badge-pill bg-success">Selected</span>
+                                    </h4>
+                                {% else %}
+                                    <form action="" method="post" class="align-self-stretch">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="set_payment_method">
+                                        <button type="submit" class="btn btn-primary w-100" name="type"
+                                                value="uk_instant_bank_transfer">
+                                            Select
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
                 <div class="col mb-4 d-flex">
                     <div class="card flex-grow-1{% if selected_payment_method_type == "bank_transfer" %} border-success{% endif %}">
                         <div class="card-header text-center">
@@ -673,17 +700,10 @@
         {% if billing_country_name %}
             {% if has_vat %}
                 <p>We're charging you taxes applicable in {{ billing_country_name }}.</p>
-            {% else %}
-                {% if taxable %}
-                    <p>
-                        We're not charging you taxes as this is not applicable to our customers
-                        in your region.
-                    </p>
-                {% else %}
-                    <p>
-                        We're not charging you tax as you've provided information to prove you're not taxable.
-                    </p>
-                {% endif %}
+            {% elif not taxable %}
+                <p><
+                    We're not charging you tax as you've provided information to prove you're not taxable.
+                </p>>
             {% endif %}
         {% endif %}
 
@@ -768,7 +788,7 @@
     {% if mandate_acceptance %}
         <p class="small mt-3 text-muted">
             By providing your payment information and confirming this payment, you authorise AS207960 Cyfyngedig,
-            trading as Glauca Digital, and Stripe, our payment service provider, to send instructions to your bank
+            trading as Glauca Digital, and Stripe and GoCardless, our payment service providers, to send instructions to your bank
             to debit your account and your bank to debit your account in accordance with those instructions. As part
             of your rights, you are entitled to a refund from your bank under the terms and conditions of
             your agreement with your bank. A refund must be claimed within 8 weeks starting from the date on

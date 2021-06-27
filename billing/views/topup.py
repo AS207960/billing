@@ -222,10 +222,18 @@ def handle_payment(
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
-            elif selected_payment_method_type == "bank_transfer_stripe":
-                if selected_payment_method_id == "gbp" and (billing_address_country == "gb" or not account.taxable):
-                    available_currencies = ['gbp']
+            elif selected_payment_method_type == "sofort":
+                if billing_address_country in ("at", "be", "de", "it", "nl", "es") or not account.taxable:
+                    available_currencies = ['eur']
+                    mandate_acceptance = True
                     climate_contribution = True
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "uk_instant_bank_transfer":
+                if billing_address_country == "gb" or not account.taxable:
+                    available_currencies = ['gbp']
+                    mandate_acceptance = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
@@ -996,6 +1004,44 @@ def handle_payment(
                         reverse('complete_top_up_bank_details', args=(ledger_item.id, selected_payment_method_id))
                     )
 
+                elif selected_payment_method_type == "uk_instant_bank_transfer":
+                    billing_request = gocardless_client.billing_requests.create(params={
+                        "mandate_request": {
+                            "currency": "GBP",
+                        },
+                        "payment_request": {
+                            "amount": amount_int,
+                            "currency": "GBP",
+                            "description": charge_descriptor if charge_descriptor else "Top-up",
+                        },
+                        "links": {
+                            "customer": account.get_gocardless_id()
+                        }
+                    })
+                    if not account.gocardless_customer_id:
+                        account.gocardless_customer_id = billing_request.links.customer
+                        account.save()
+
+                    ledger_item.descriptor = f"Instant bank transfer for {charge_descriptor}" \
+                        if charge_descriptor else "Top-up by instant bank transfer"
+                    ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS_PR
+                    ledger_item.type_id = billing_request.id
+                    ledger_item.state = models.LedgerItem.STATE_PENDING
+                    ledger_item.save()
+                        
+                    flow = gocardless_client.billing_request_flows.create(params={
+                        "auto_fulfil": True,
+                        "lock_customer_details": False,
+                        "redirect_uri": request.build_absolute_uri(
+                                reverse('complete_top_up_uk_instant_bank_transfer', args=(ledger_item.id,))
+                        ),
+                        "links": {
+                            "billing_request": billing_request.id
+                        }
+                    })
+
+                    return HandlePaymentOutcome.REDIRECT, (ledger_item, flow.authorisation_url)
+
                 return HandlePaymentOutcome.DONE, ledger_item
 
         if account.stripe_customer_id:
@@ -1667,9 +1713,6 @@ def complete_top_up_sources(request, item_id):
     except django.core.exceptions.ObjectDoesNotExist:
         charge_state = None
 
-    source = stripe.Source.retrieve(ledger_item.type_id)
-    tasks.update_from_source(source, ledger_item)
-
     if ledger_item.state != ledger_item.STATE_PENDING:
         if charge_state:
             return redirect('complete_order', charge_state.id)
@@ -1679,6 +1722,9 @@ def complete_top_up_sources(request, item_id):
     if ledger_item.type != ledger_item.TYPE_SOURCES:
         return HttpResponseBadRequest
 
+    source = stripe.Source.retrieve(ledger_item.type_id)
+    tasks.update_from_source(source, ledger_item)
+
     if source["status"] != "pending":
         if charge_state:
             return redirect('complete_order', charge_state.id)
@@ -1686,3 +1732,46 @@ def complete_top_up_sources(request, item_id):
         return redirect('dashboard')
 
     return redirect(source["redirect"]["url"])
+
+
+@login_required
+def complete_top_up_uk_instant_bank_transfer(request, item_id):
+    ledger_item = get_object_or_404(models.LedgerItem, id=item_id)
+
+    if ledger_item.account != request.user.account:
+        return HttpResponseForbidden
+
+    try:
+        charge_state = ledger_item.charge_state_payment
+    except django.core.exceptions.ObjectDoesNotExist:
+        charge_state = None
+
+    if ledger_item.state != ledger_item.STATE_PENDING:
+        if charge_state:
+            return redirect('complete_order', charge_state.id)
+
+        return redirect('dashboard')
+
+    if ledger_item.type != ledger_item.TYPE_GOCARDLESS_PR:
+        return HttpResponseBadRequest
+
+    tasks.update_from_gc_billing_request(ledger_item.type_id, ledger_item)
+
+    if ledger_item.state != ledger_item.STATE_PENDING:
+        if charge_state:
+            return redirect('complete_order', charge_state.id)
+
+        return redirect('dashboard')
+
+    flow = gocardless_client.billing_request_flows.create(params={
+        "auto_fulfil": True,
+        "lock_customer_details": False,
+        "redirect_uri": request.build_absolute_uri(
+            reverse('complete_top_up_uk_instant_bank_transfer', args=(ledger_item.id,))
+        ),
+        "links": {
+            "billing_request": ledger_item.type_id
+        }
+    })
+
+    return redirect(flow.authorisation_url)

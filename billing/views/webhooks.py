@@ -126,6 +126,8 @@ def gc_webhook(request):
         with transaction.atomic():
             if event["resource_type"] == "payments":
                 tasks.update_from_gc_payment(event["links"]["payment"], None)
+            if event["resource_type"] == "billing_requests":
+                tasks.update_from_gc_billing_request(event["links"]["billing_request"], None)
             elif event["resource_type"] == "mandates":
                 scheme = event["details"].get("scheme")
                 if scheme == "ach":
