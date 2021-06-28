@@ -60,10 +60,10 @@
                 </p>
             </div>
             <div class="col-12 col-lg-6">
-                {% if charge.payment_ledger_item and charge.payment_ledger_item.evidence_billing_address %}
+                {% if charge.ledger_item and charge.ledger_item.evidence_billing_address %}
                     Billed to:
                     <b>{{ user.first_name }} {{ user.last_name }}</b><br/>
-                    {{ charge.payment_ledger_item.evidence_billing_address.formatted|linebreaksbr }}
+                    {{ charge.ledger_item.evidence_billing_address.formatted|linebreaksbr }}
                 {% endif %}
             </div>
         </div>

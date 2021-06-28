@@ -147,7 +147,7 @@ class BillingAddressForm(forms.ModelForm):
                 raise django.core.exceptions.ValidationError({
                     'postal_code': ["Invalid postal code format for Canada"]
                 })
-        if country_code == "GB":
+        if country_code in ("GB", "IM"):
             postal_code_match = utils.uk_postcode_re.fullmatch(self.cleaned_data['postal_code'])
             if not postal_code_match:
                 raise django.core.exceptions.ValidationError({
@@ -172,7 +172,7 @@ class BillingAddressForm(forms.ModelForm):
                     'postal_code': ["Invalid postal code format for France"]
                 })
         if self.cleaned_data['vat_id']:
-            if country_code == "GB":
+            if country_code in ("GB", "IM"):
                 vat_lookup_state, vat_lookup_data = vat.verify_vat_hmrc(self.cleaned_data['vat_id'])
                 if vat_lookup_state == vat.VerifyVATStatus.ERROR:
                     raise django.core.exceptions.ValidationError({
@@ -220,6 +220,15 @@ class BillingAddressForm(forms.ModelForm):
                                 "An unexpected error occurred"
                             ]
                         })
+                if not vat_resp:
+                    raise django.core.exceptions.ValidationError({
+                        'vat_id': ["Invalid VAT ID"]
+                    })
+            elif country_code == "TR":
+                if not vat.verify_vat_tr(self.cleaned_data['vat_id']):
+                    raise django.core.exceptions.ValidationError({
+                        'vat_id': ["Invalid VAT ID"]
+                    })
             else:
                 vies_country = vat.get_vies_country_code(country_code)
                 if vies_country:

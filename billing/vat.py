@@ -56,7 +56,6 @@ DO_NOT_SELL = [
     "sa",  # Saudi Arabia
     "rs",  # Serbia
     "kr",  # South Korea
-    "tr",  # Turkey
     "ug",  # Uganda
     "ua",  # Ukraine
     "ae",  # UAE
@@ -127,6 +126,40 @@ VAT_RATES_FROM_UK_REG: typing.Dict[str, decimal.Decimal] = {
     "sl": decimal.Decimal("0.22"),
     "sk": decimal.Decimal("0.20"),
     "gb": decimal.Decimal("0.20"),
+    "im": decimal.Decimal("0.20"),
+}
+
+VAT_RATES_PRE_TR_REG_DATE = datetime.datetime(2021, 6, 28, 00, 00, 00, tzinfo=pytz.utc)
+VAT_RATES_FROM_TR_REG: typing.Dict[str, decimal.Decimal] = {
+    "at": decimal.Decimal("0.20"),
+    "be": decimal.Decimal("0.21"),
+    "bg": decimal.Decimal("0.20"),
+    "cy": decimal.Decimal("0.19"),
+    "cz": decimal.Decimal("0.21"),
+    "de": decimal.Decimal("0.19"),
+    "dk": decimal.Decimal("0.25"),
+    "ee": decimal.Decimal("0.20"),
+    "gr": decimal.Decimal("0.24"),
+    "es": decimal.Decimal("0.21"),
+    "fi": decimal.Decimal("0.24"),
+    "fr": decimal.Decimal("0.20"),
+    "hr": decimal.Decimal("0.25"),
+    "hu": decimal.Decimal("0.27"),
+    "ie": decimal.Decimal("0.23"),
+    "it": decimal.Decimal("0.22"),
+    "lt": decimal.Decimal("0.21"),
+    "lu": decimal.Decimal("0.17"),
+    "lv": decimal.Decimal("0.21"),
+    "mt": decimal.Decimal("0.18"),
+    "nl": decimal.Decimal("0.21"),
+    "pl": decimal.Decimal("0.23"),
+    "pt": decimal.Decimal("0.23"),
+    "ro": decimal.Decimal("0.19"),
+    "se": decimal.Decimal("0.25"),
+    "sl": decimal.Decimal("0.22"),
+    "sk": decimal.Decimal("0.20"),
+    "gb": decimal.Decimal("0.20"),
+    "tr": decimal.Decimal("0.18"),
 }
 
 VAT_MOSS_COUNTRIES = (
@@ -140,8 +173,10 @@ def get_vat_rate(country, postal_code: typing.Optional[str]):
         vat_rates = VAT_RATES_PRE_2021
     elif timezone.now() < VAT_RATES_PRE_UK_REG_DATE:
         vat_rates = VAT_RATES_FROM_2021
-    else:
+    elif timezone.now() < VAT_RATES_PRE_TR_REG_DATE:
         vat_rates = VAT_RATES_FROM_UK_REG
+    else:
+        vat_rates = VAT_RATES_FROM_TR_REG
 
     if country == "es" and postal_code:
         postal_code_match = utils.spain_postcode_re.fullmatch(postal_code)
@@ -242,3 +277,23 @@ def verify_vat_hmrc(number: str):
         return VerifyVATStatus.OK, HMRCVATInfo.from_api_resp(resp_data)
     else:
         return VerifyVATStatus.OK, None
+
+
+def verify_vat_tr(number: str):
+    if len(number) != 10:
+        return False
+
+    if not number.isdigit():
+        return False
+
+    s = 0
+    for i, n in enumerate(reversed(number[:9]), 1):
+        c1 = (int(n) + i) % 10
+        if c1:
+            c2 = (c1 * (2 ** i)) % 9 or 9
+            s += c2
+
+    check_digit = (10 - s) % 10
+    last_digit = int(number[9])
+
+    return check_digit == last_digit

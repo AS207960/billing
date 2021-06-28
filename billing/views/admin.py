@@ -299,7 +299,7 @@ def view_vat_gb(request):
                 timestamp__lte=quarter_end_datetime,
                 state=models.LedgerItem.STATE_COMPLETED,
                 type=models.LedgerItem.TYPE_CHARGE,
-                country_code="gb",
+                country_code__in=("gb", "im"),
                 account__exclude_from_accounting=False
             )
             months = {}

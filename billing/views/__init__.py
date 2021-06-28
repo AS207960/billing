@@ -63,9 +63,11 @@ def order_details(request, charge_id):
     else:
         from_account_balance = -charge_state.ledger_item.amount
     if charge_state.ledger_item.country_code:
-        if charge_state.ledger_item.country_code.upper() == "GB" and settings.OWN_UK_VAT_ID:
+        if charge_state.ledger_item.country_code.upper() in ("GB", "IM") and settings.OWN_UK_VAT_ID:
             vat_number = f"GB {settings.OWN_UK_VAT_ID}"
-        if vat.get_vies_country_code(charge_state.ledger_item.country_code.upper()) is not None:
+        elif charge_state.ledger_item.country_code.upper() == "TR" and settings.OWN_TR_VAT_ID:
+            vat_number = f"TR {settings.OWN_TR_VAT_ID}"
+        elif vat.get_vies_country_code(charge_state.ledger_item.country_code.upper()) is not None:
             vat_number = f"{settings.OWN_EU_VAT_COUNTRY} {settings.OWN_EU_VAT_ID}"
 
     return render(request, "billing/order_details.html", {

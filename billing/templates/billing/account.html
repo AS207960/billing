@@ -20,6 +20,15 @@
                         </a>
                     {% else %}
                         <b>N/A</b>
+                    {% endif %}<br/>
+                    GoCardless customer ID:
+                    {% if account.gocardless_customer_id %}
+                        <a href="https://manage.gocardless.com/customers/{{ account.gocardless_customer_id }}"
+                           target="_blank">
+                            <b>{{ account.gocardless_customer_id }}</b>
+                        </a>
+                    {% else %}
+                        <b>N/A</b>
                     {% endif %}
                 </p>
                 {% if account.virtual_uk_bank %}
