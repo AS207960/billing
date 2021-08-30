@@ -537,8 +537,8 @@ class StripeMandate(AbstractMandate):
                 mandate_obj.save()
         else:
             mandate_obj.active = is_active
-            if not is_active and mandate_obj.payment_method == mandate_obj.account.default_stripe_payment_method_id:
-                mandate_obj.account.default_stripe_payment_method_id = None
+            if not is_active and mandate == getattr(mandate_obj.account, cls.account_mandate_attr, None):
+                setattr(mandate_obj.account, cls.account_mandate_attr, None)
                 mandate_obj.account.save()
             mandate_obj.save()
 
@@ -582,9 +582,10 @@ class GCMandate(AbstractMandate):
                 mandate_obj.save()
         else:
             mandate_obj.active = is_active
-            if not is_active and mandate.id == mandate_obj.account.default_gc_mandate_id:
-                mandate_obj.account.default_gc_mandate_id = None
-                mandate_obj.account.save()
+            if cls.account_mandate_attr:
+                if not is_active and mandate == getattr(mandate_obj.account, cls.account_mandate_attr, None):
+                    setattr(mandate_obj.account, cls.account_mandate_attr, None)
+                    mandate_obj.account.save()
             mandate_obj.save()
 
         if is_active and account and not cls.has_active_mandate(account):
