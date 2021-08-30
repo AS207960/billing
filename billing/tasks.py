@@ -459,6 +459,10 @@ class ChargeStateRequiresActionError(Exception):
 
 
 def attempt_charge_off_session(charge_state):
+    if charge_state.amount == 0:
+        charge_state.ledger_item.state = models.LedgerItem.STATE_COMPLETED
+        charge_state.ledger_item.save(mail=False)
+
     account = charge_state.account  # type: models.Account
 
     if not account.billing_address:
