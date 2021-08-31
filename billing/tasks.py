@@ -1132,7 +1132,7 @@ def update_from_stripe_refund(refund, ledger_item=None):
         type_id=refund['id']
     ).first() if not ledger_item else ledger_item
 
-    if not ledger_item and refund["pamyent_intent"]:
+    if not ledger_item and refund["payment_intent"]:
         payment_ledger_item = models.LedgerItem.objects.filter(
             Q(type=models.LedgerItem.TYPE_CARD) | Q(type=models.LedgerItem.TYPE_SEPA) |
             Q(type=models.LedgerItem.TYPE_SOFORT) | Q(type=models.LedgerItem.TYPE_GIROPAY) |
