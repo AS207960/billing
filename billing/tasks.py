@@ -462,6 +462,7 @@ def attempt_charge_off_session(charge_state):
     if charge_state.amount == 0:
         charge_state.ledger_item.state = models.LedgerItem.STATE_COMPLETED
         charge_state.ledger_item.save(mail=False)
+        return
 
     account = charge_state.account  # type: models.Account
 
@@ -1318,17 +1319,8 @@ def balance_funded(balance_transaction):
     if balance_transaction["deposit"]["funding"]["type"] == "bank_transfer":
         ref = balance_transaction["deposit"]["funding"]["bank_transfer"]["reference"]
         transfer_type = balance_transaction["deposit"]["funding"]["bank_transfer"]["type"]
-        if (account.billing_address.country_code.code.lower() == "gb" and transfer_type == "sort_code") \
+        if (account.billing_address.country_code.code.lower() == "gb" and transfer_type == "gb_bank_account") \
                 or not account.taxable:
-            vat_rate = decimal.Decimal(0)
-            if account.taxable:
-                country_vat_rate = vat.get_vat_rate(
-                    account.billing_address.country_code.code.upper(),
-                    account.billing_address.postal_code,
-                )
-                if country_vat_rate is not None:
-                    vat_rate = country_vat_rate
-
             payment_intent = stripe.PaymentIntent.create(
                 amount=deposited_amount,
                 currency=balance_transaction["currency"],
@@ -1345,10 +1337,9 @@ def balance_funded(balance_transaction):
             new_ledger_item = models.LedgerItem(
                 account=account,
                 descriptor=f"Top-up by bank transfer: {ref}" if ref else "Top-up by bank transfer",
-                amount=deposited_amount_gbp / (1 + vat_rate),
+                amount=deposited_amount_gbp,
                 charged_amount=deposited_amount_gbp,
                 country_code=account.billing_address.country_code.code.lower(),
-                vat_rate=vat_rate,
                 type=models.LedgerItem.TYPE_STRIPE_BACS,
                 type_id=payment_intent["id"],
                 timestamp=datetime.datetime.utcfromtimestamp(balance_transaction["created"]),
