@@ -597,6 +597,7 @@ def attempt_charge_off_session(charge_state):
     charge_state.ledger_item.eur_exchange_rate = models.ExchangeRate.get_rate("gbp", "eur")
     charge_state.ledger_item.try_exchange_rate = models.ExchangeRate.get_rate("gbp", "try")
     charge_state.ledger_item.evidence_billing_address = account.billing_address
+    charge_state.ledger_item.save()
     charge_state.save()
 
     if not selected_currency:
