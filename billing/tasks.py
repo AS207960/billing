@@ -688,9 +688,9 @@ def attempt_charge_off_session(charge_state):
             ledger_item.type = models.LedgerItem.TYPE_SEPA
             ledger_item.state = models.LedgerItem.STATE_PROCESSING
             ledger_item.type_id = payment_intent['id']
-            ledger_item.save()
+            ledger_item.save(mail=False)
             charge_state.payment_ledger_item = ledger_item
-            charge_state.save(mail=False)
+            charge_state.save()
             update_from_payment_intent(payment_intent, ledger_item)
         elif selected_payment_method_type == "ach_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
