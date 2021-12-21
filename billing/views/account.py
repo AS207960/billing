@@ -1136,6 +1136,8 @@ def edit_sepa_mandate(request, m_id):
             stripe.PaymentMethod.detach(mandate.payment_method)
             mandate.active = False
             mandate.save()
+            mandate.account.default_sepa_mandate = None
+                mandate.account.save()
 
         elif action == "default" and mandate.active:
             stripe_mandate = stripe.Mandate.retrieve(mandate.mandate_id)

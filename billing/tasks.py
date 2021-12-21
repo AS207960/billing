@@ -509,7 +509,7 @@ def attempt_charge_off_session(charge_state):
             climate_contribution = True
             selected_payment_method_type = "stripe_pm"
             selected_payment_method_id = charge_state.account.default_stripe_payment_method_id
-        elif charge_state.account.default_sepa_mandate:
+        elif charge_state.account.default_sepa_mandate and charge_state.account.default_sepa_mandate:
             payment_method = stripe.PaymentMethod.retrieve(charge_state.account.default_sepa_mandate.payment_method)
             method_country = utils.country_from_stripe_payment_method(payment_method)
             if method_country == billing_address_country or not account.taxable:
