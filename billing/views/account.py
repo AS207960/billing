@@ -404,6 +404,9 @@ def edit_ach_mandate(request, m_id):
         gocardless_client.mandates.cancel(mandate.mandate_id)
         mandate.active = False
         mandate.save()
+        if mandate.account.default_ach_mandate == mandate:
+            mandate.account.default_ach_mandate = None
+            mandate.account.save()
 
     elif action == "default" and mandate.active:
         gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
@@ -501,6 +504,9 @@ def edit_autogiro_mandate(request, m_id):
         gocardless_client.mandates.cancel(mandate.mandate_id)
         mandate.active = False
         mandate.save()
+        if mandate.account.default_autogiro_mandate == mandate:
+            mandate.account.default_autogiro_mandate = None
+            mandate.account.save()
 
     elif action == "default" and mandate.active:
         gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
@@ -598,6 +604,9 @@ def edit_bacs_mandate(request, m_id):
             gocardless_client.mandates.cancel(gc_mandate.mandate_id)
             gc_mandate.active = False
             gc_mandate.save()
+            if gc_mandate.account.default_gc_bacs_mandate == gc_mandate:
+                gc_mandate.account.default_gc_bacs_mandate = None
+                gc_mandate.account.save()
 
         elif action == "default" and gc_mandate.active:
             gc_mandate_obj = gocardless_client.mandates.get(gc_mandate.mandate_id)
@@ -610,7 +619,7 @@ def edit_bacs_mandate(request, m_id):
                 gc_mandate.account.default_ach_mandate = None
                 gc_mandate.account.default_autogiro_mandate = None
                 gc_mandate.account.default_bacs_mandate = None
-                gc_mandate.account.default_gc_bacs_mandate = mandate
+                gc_mandate.account.default_gc_bacs_mandate = gc_mandate
                 gc_mandate.account.default_becs_mandate = None
                 gc_mandate.account.default_becs_nz_mandate = None
                 gc_mandate.account.default_betalingsservice_mandate = None
@@ -628,6 +637,9 @@ def edit_bacs_mandate(request, m_id):
             stripe.PaymentMethod.detach(mandate.payment_method)
             mandate.active = False
             mandate.save()
+            if mandate.account.default_bacs_mandate == mandate:
+                mandate.account.default_bacs_mandate = None
+                mandate.account.save()
 
         elif action == "default" and mandate.active:
             if (
@@ -723,6 +735,9 @@ def edit_becs_mandate(request, m_id):
         gocardless_client.mandates.cancel(mandate.mandate_id)
         mandate.active = False
         mandate.save()
+        if mandate.account.default_becs_mandate == mandate:
+            mandate.account.default_becs_mandate = None
+            mandate.account.save()
 
     elif action == "default" and mandate.active:
         gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
@@ -821,6 +836,9 @@ def edit_becs_nz_mandate(request, m_id):
         gocardless_client.mandates.cancel(mandate.mandate_id)
         mandate.active = False
         mandate.save()
+        if mandate.account.default_becs_nz_mandate == mandate:
+            mandate.account.default_becs_nz_mandate = None
+            mandate.account.save()
 
     elif action == "default" and mandate.active:
         gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
@@ -918,6 +936,9 @@ def edit_betalingsservice_mandate(request, m_id):
         gocardless_client.mandates.cancel(mandate.mandate_id)
         mandate.active = False
         mandate.save()
+        if mandate.account.default_betalingsservice_mandate == mandate:
+            mandate.account.default_betalingsservice_mandate = None
+            mandate.account.save()
 
     elif action == "default" and mandate.active:
         gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
@@ -1015,6 +1036,9 @@ def edit_pad_mandate(request, m_id):
         gocardless_client.mandates.cancel(mandate.mandate_id)
         mandate.active = False
         mandate.save()
+        if mandate.account.default_pad_mandate == mandate:
+            mandate.account.default_pad_mandate = None
+            mandate.account.save()
 
     elif action == "default" and mandate.active:
         gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
@@ -1106,6 +1130,9 @@ def edit_sepa_mandate(request, m_id):
             gocardless_client.mandates.cancel(gc_mandate.mandate_id)
             gc_mandate.active = False
             gc_mandate.save()
+            if gc_mandate.account.default_gc_sepa_mandate == gc_mandate:
+                gc_mandate.account.default_gc_sepa_mandate = None
+                gc_mandate.account.save()
 
         elif action == "default" and gc_mandate.active:
             gc_mandate_obj = gocardless_client.mandates.get(gc_mandate.mandate_id)
@@ -1136,7 +1163,8 @@ def edit_sepa_mandate(request, m_id):
             stripe.PaymentMethod.detach(mandate.payment_method)
             mandate.active = False
             mandate.save()
-            mandate.account.default_sepa_mandate = None
+            if mandate.account.default_sepa_mandate == mandate:
+                mandate.account.default_sepa_mandate = None
                 mandate.account.save()
 
         elif action == "default" and mandate.active:
