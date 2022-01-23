@@ -23,6 +23,7 @@ message ConvertCurrencyResponse {
   int64 amount_inc_vat = 1;
   bool taxable = 2;
   string used_country = 4;
+  string currency = 5;
 }
 
 message ChargeUserRequest {

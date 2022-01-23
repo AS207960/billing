@@ -167,6 +167,42 @@ VAT_MOSS_COUNTRIES = (
     "mt", "nl", "pl", "pt", "ro", "se", "sk"
 )
 
+COUNTRY_CURRENCIES = {
+    "at": "EUR",
+    "be": "EUR",
+    "bg": "BGN",
+    "cy": "EUR",
+    "cz": "CZK",
+    "de": "EUR",
+    "dk": "DKK",
+    "ee": "EUR",
+    "gr": "EUR",
+    "es": "EUR",
+    "fi": "EUR",
+    "fr": "EUR",
+    "hr": "HRK",
+    "hu": "HUF",
+    "ie": "EUR",
+    "it": "EUR",
+    "lt": "EUR",
+    "lu": "EUR",
+    "lv": "EUR",
+    "mt": "EUR",
+    "nl": "EUR",
+    "pl": "PLN",
+    "pt": "EUR",
+    "ro": "RON",
+    "se": "SEK",
+    "sl": "EUR",
+    "sk": "EUR",
+    "gb": "GBP",
+    "tr": "TRY",
+    "ch": "CHF",
+    "li": "CHF",
+    "us": "USD",
+    "ca": "CAD"
+}
+
 
 def get_vat_rate(country, postal_code: typing.Optional[str]):
     if timezone.now() < VAT_RATES_PRE_2021_DATE:

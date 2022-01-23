@@ -55,11 +55,6 @@ class Command(BaseCommand):
     def convert_currency(msg: billing.proto.billing_pb2.ConvertCurrencyRequest) \
             -> billing.proto.billing_pb2.ConvertCurrencyResponse:
         amount = decimal.Decimal(msg.amount) / decimal.Decimal(100)
-        try:
-            amount = models.ExchangeRate.get_rate(msg.from_currency, msg.to_currency) * amount
-        except models.ExchangeRate.DoesNotExist:
-            return billing.proto.billing_pb2.ConvertCurrencyResponse()
-        amount_vat = amount
 
         billing_address_country = None
         billing_address_postal_code = None
@@ -96,6 +91,19 @@ class Command(BaseCommand):
         if not billing_address_country:
             billing_address_country = "gb"
 
+        if msg.to_currency != "":
+            to_currency = msg.to_currency
+        else:
+            to_currency = vat.COUNTRY_CURRENCIES.get(billing_address_country, default=None)
+            if to_currency is None:
+                to_currency = "GBP"
+
+        try:
+            amount = models.ExchangeRate.get_rate(msg.from_currency, to_currency) * amount
+        except models.ExchangeRate.DoesNotExist:
+            return billing.proto.billing_pb2.ConvertCurrencyResponse()
+        amount_vat = amount
+
         country_vat_rate = vat.get_vat_rate(billing_address_country, billing_address_postal_code)
         if country_vat_rate is not None:
             amount_vat += (amount * country_vat_rate)
@@ -104,7 +112,8 @@ class Command(BaseCommand):
             amount=int(amount * decimal.Decimal(100)),
             amount_inc_vat=int(amount_vat * decimal.Decimal(100)),
             taxable=account.taxable if account else True,
-            used_country=billing_address_country
+            used_country=billing_address_country,
+            currency=to_currency
         )
 
     def charge_user(self, msg: billing.proto.billing_pb2.ChargeUserRequest) \
