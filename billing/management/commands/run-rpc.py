@@ -94,7 +94,7 @@ class Command(BaseCommand):
         if msg.to_currency != "":
             to_currency = msg.to_currency
         else:
-            to_currency = vat.COUNTRY_CURRENCIES.get(billing_address_country, default=None)
+            to_currency = vat.COUNTRY_CURRENCIES.get(billing_address_country, None)
             if to_currency is None:
                 to_currency = "GBP"
 
