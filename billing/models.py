@@ -162,7 +162,8 @@ class Account(models.Model):
             .aggregate(balance=models.Sum('amount'))
             .get('balance') or decimal.Decimal(0)
         ).quantize(decimal.Decimal('1.00'))
-        return balance if balance != 0 else decimal.Decimal(0)
+        balance = balance if balance != 0 else decimal.Decimal(0)
+        return min(self.balance, balance)
 
     def balance_at(self, timestamp, item_id=None):
         queryset = self.ledgeritem_set \
