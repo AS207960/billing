@@ -1010,20 +1010,21 @@ def handle_payment(
 
                 elif selected_payment_method_type == "uk_instant_bank_transfer":
                     num_bacs_mandates = account.gcbacsmandate_set.count()
+                    account_gc_id = account.get_gocardless_id()
                     billing_params = {
                         "payment_request": {
                             "amount": amount_int,
                             "currency": "GBP",
                             "description": charge_descriptor if charge_descriptor else "Top-up",
                         },
-                        "links": {
-                            "customer": account.get_gocardless_id()
-                        }
+                        "links": {}
                     }
                     if num_bacs_mandates < 1:
                         billing_params["mandate_request"] = {
                             "currency": "GBP",
                         }
+                    if account_gc_id:
+                        billing_params["links"]["customer"] = account_gc_id
                     billing_request = gocardless_client.billing_requests.create(params=billing_params)
                     
                     if not account.gocardless_customer_id:
