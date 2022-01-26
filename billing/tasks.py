@@ -236,7 +236,7 @@ def alert_account(account: models.Account, ledger_item: models.LedgerItem, new=F
     #     instance.last_state_change_timestamp = timezone.now()
     #     alert_account(instance.account, instance)
 
-def fail_payment(ledger_item):
+def fail_payment(ledger_item: models.LedgerItem):
     if ledger_item.state not in (ledger_item.STATE_PENDING, ledger_item.STATE_PROCESSING_CANCELLABLE):
         return
 
@@ -266,6 +266,9 @@ def fail_payment(ledger_item):
         apps.gocardless_client.payments.cancel(ledger_item.type_id)
     elif ledger_item.type == ledger_item.TYPE_GOCARDLESS_PR:
         apps.gocardless_client.billing_requests.cancel(ledger_item.type_id)
+
+    ledger_item.state = ledger_item.STATE_FAILED
+    try_update_charge_state(ledger_item)
 
     ledger_item.delete()
 
