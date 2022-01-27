@@ -69,7 +69,11 @@ def mail_notif(ledger_item: models.LedgerItem):
 
     state_name, _ = get_state_name_and_emoji(ledger_item.state)
 
-    subject = f"{ledger_item.descriptor}: {state_name}"
+    if ledger_item.type == ledger_item.TYPE_CHARGE:
+        subject = f"{ledger_item.descriptor} ({ledger_item.get_invoice_id()}): {state_name}"
+    else:
+        subject = f"{ledger_item.descriptor}: {state_name}"
+
     context = {
         "name": ledger_item.account.user.first_name,
         "item": ledger_item,
