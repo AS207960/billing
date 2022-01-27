@@ -138,27 +138,35 @@
                                 <td>{{ item.timestamp }}</td>
                                 <td>
                                     {{ item.descriptor }}
+                                    {% if item.stripe_climate_contribution %}
+                                        <img src="{% static 'billing/imgs/climate-badge.svg' %}" alt=""
+                                             style="height: 1.3rem;">
+                                    {% endif %}
+                                    {% if item.type == "B" %}
+                                        <br/>
+                                        <span class="text-muted">{{ item.get_invoice_id }}</span>
+                                    {% endif %}
                                     {% if item.is_reversal %}
+                                        <br/>
                                         <span class="badge bg-primary">
                                             &#x21a9;&#xfe0f; Reversal
                                         </span>
                                     {% endif %}
                                     {% if item.state == "P" %}
+                                        <br/>
                                         <span class="badge bg-warning">
                                             &#x23f3; Pending
                                         </span>
                                     {% elif item.state == "S" or item.state == "A" %}
+                                        <br/>
                                         <span class="badge bg-info">
                                             &#x1f4c7; Processing
                                         </span>
                                     {% elif item.state == "F" %}
+                                        <br/>
                                         <span class="badge bg-danger">
                                              &#x1f645; Failed
                                         </span>
-                                    {% endif %}
-                                    {% if item.stripe_climate_contribution %}
-                                        <img src="{% static 'billing/imgs/climate-badge.svg' %}" alt=""
-                                             style="height: 1.3rem;">
                                     {% endif %}
                                 </td>
                                 <td {% if item.amount >= 0 %}class="text-success"{% endif %}>
