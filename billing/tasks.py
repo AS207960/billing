@@ -350,7 +350,8 @@ def try_update_charge_state(instance: models.LedgerItem, mail=True, force_mail=F
         else:
             if instance.state == instance.STATE_COMPLETED:
                 if instance.amount != 0:
-                    mail_subscription_success(subscription_charge.subscription, instance)
+                    if mail:
+                        mail_subscription_success(subscription_charge.subscription, instance)
                     subscription_mail_sent = True
 
                 if subscription_charge.subscription.state == models.Subscription.STATE_PAST_DUE and \
@@ -359,12 +360,14 @@ def try_update_charge_state(instance: models.LedgerItem, mail=True, force_mail=F
                     subscription_charge.subscription.save()
             elif instance.state == instance.STATE_FAILED:
                 if subscription_charge.failed_bill_attempts >= SUBSCRIPTION_RETRY_ATTEMPTS:
-                    mail_subscription_cancelled(subscription_charge.subscription, instance)
+                    if mail:
+                        mail_subscription_cancelled(subscription_charge.subscription, instance)
                     subscription_mail_sent = True
                     subscription_charge.subscription.state = models.Subscription.STATE_CANCELLED
                     subscription_charge.subscription.save()
                 else:
-                    mail_subscription_past_due(subscription_charge.subscription, instance)
+                    if mail:
+                        mail_subscription_past_due(subscription_charge.subscription, instance)
                     subscription_mail_sent = True
                     subscription_charge.subscription.state = models.Subscription.STATE_PAST_DUE
                     subscription_charge.subscription.save()

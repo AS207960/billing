@@ -892,7 +892,7 @@ class LedgerItem(models.Model):
             self.invoice_id = self.account.next_invoice_id
             self.account.next_invoice_id += 1
             self.account.save()
-            self.save()
+            self.save(mail=False)
 
         return f"{invoice_prefix}-{self.invoice_id:04d}"
 
