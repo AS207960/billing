@@ -4,31 +4,45 @@
 {% load static %}
 {% block content %}
     <style>
-        @media print {
-            #navbarNav, .navbar-toggler {
-                display: none !important;
-            }
-
-            body {
-                padding: 25px !important;
-                margin: 0 !important;
-            }
-
-            .container {
-                max-width: none;
-            }
-
-            .footer > .container > p:first-of-type {
-                display: none;
-            }
-
-            .btn {
-                display: none;
-            }
+      @media print {
+        #navbarNav, .navbar-toggler {
+          display: none !important;
         }
+
+        body {
+          padding: 25px !important;
+          margin: 0 !important;
+        }
+
+        .container {
+          max-width: none;
+        }
+
+        .footer > .container > p:first-of-type {
+          display: none;
+        }
+
+        .btn {
+          display: none;
+        }
+
+        .navbar .container > .navbar-brand {
+          content: "";
+          display: block;
+          height: 15px;
+          background: linear-gradient(90deg, #319795, #5a67d8);
+          position: absolute;
+          left: -5vw;
+          bottom: -20%;
+          right: 0;
+        }
+      }
     </style>
     <div class="container my-3">
-        <h1>Your order</h1>
+        <h1>Your order - Sales Invoice</h1>
+        <p class="lead">
+            This invoice details how much you owe us, what you owe us money for, and if/how you have paid us.
+        </p>
         {% if reversal %}
             <h2>Refunded</h2>
         {% endif %}
@@ -37,7 +51,8 @@
 
                 <p>
                     Order ID: <b>{{ charge.id }}</b><br/>
-                    Created on: <b>{{ charge.ledger_item.timestamp }}</b>
+                    Invoice ID: <b>{{ charge.ledger_item.get_invoice_id }}</b><br/>
+                    Created on (tax point): <b>{{ charge.ledger_item.timestamp }}</b>
                     {% if charge.ledger_item.completed_timestamp %}
                         <br/>Paid on: <b>{{ charge.ledger_item.completed_timestamp }}</b>
                     {% endif %}
@@ -59,16 +74,27 @@
                     {% endif %}
                 </p>
             </div>
-            <div class="col-12 col-lg-6">
-                {% if charge.ledger_item and charge.ledger_item.evidence_billing_address %}
-                    Billed to:
-                    <b>{{ user.first_name }} {{ user.last_name }}</b><br/>
-                    {{ charge.ledger_item.evidence_billing_address.formatted|linebreaksbr }}
-                {% endif %}
+            <div class="col-6 col-lg-3">
+                <p>
+                    Bill from: <b>AS207960 Cyfyngedig</b><br>
+                    13 Pen-Y-Lan Terrace<br>
+                    Penylan<br>
+                    Cardiff<br>
+                    CF23 9EU
+                </p>
+            </div>
+            <div class="col-6 col-lg-3">
+                <p>
+                    {% if charge.ledger_item and charge.ledger_item.evidence_billing_address %}
+                        Billed to:
+                        <b>{{ user.first_name }} {{ user.last_name }}</b><br/>
+                        {{ charge.ledger_item.evidence_billing_address.formatted|linebreaksbr }}
+                    {% endif %}
+                </p>
             </div>
         </div>
         <div class="row d-flex flex-column align-items-center">
-            <div class="col-12 col-md-6">
+            <div class="col-12 col-lg-6">
                 <h2>&pound;{{ charge.ledger_item.amount|mul:-1|floatformat:2 }}
                     for {{ charge.ledger_item.descriptor }}</h2>
                 <table class="table table-borderless">

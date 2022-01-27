@@ -3,6 +3,7 @@ import dataclasses
 import datetime
 import decimal
 import secrets
+import string
 import typing
 import urllib.parse
 import inflect
@@ -14,7 +15,7 @@ import django.core.exceptions
 from dateutil import relativedelta
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models import F, Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -114,6 +115,8 @@ class Account(models.Model):
     billing_address = models.ForeignKey(
         'billing.AccountBillingAddress', on_delete=models.PROTECT, blank=True, null=True, related_name='account_current'
     )
+    invoice_prefix = models.CharField(max_length=64, blank=True, null=True, unique=True)
+    next_invoice_id = models.PositiveIntegerField(default=1)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -228,6 +231,26 @@ class Account(models.Model):
             return customer_id
 
         return None
+
+    @staticmethod
+    def _gen_invoice_prefix():
+        alphabet = string.ascii_uppercase + string.digits
+        return ''.join(secrets.choice(alphabet) for _ in range(6))
+
+    def get_invoice_prefix(self):
+        if self.invoice_prefix:
+            return self.invoice_prefix
+
+        while True:
+            poss_prefix = self._gen_invoice_prefix()
+
+            if self.__class__.objects.filter(invoice_prefix=poss_prefix).count() != 0:
+                continue
+
+            self.invoice_prefix = poss_prefix
+            self.save()
+
+            return self.invoice_prefix
 
     def save(self, *args, **kwargs):
         if self.stripe_customer_id:
@@ -735,6 +758,7 @@ class LedgerItem(models.Model):
 
     id = as207960_utils.models.TypedUUIDField('billing_ledgeritem', primary_key=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True)
+    invoice_id = models.PositiveIntegerField(blank=True, null=True)
     descriptor = models.CharField(max_length=255)
     amount = models.DecimalField(decimal_places=2, max_digits=9, default=0)
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -858,6 +882,20 @@ class LedgerItem(models.Model):
     def balance_at(self):
         return self.account.balance_at(self.timestamp, self.id)
 
+    def get_invoice_id(self):
+        invoice_prefix = self.account.get_invoice_prefix()
+
+        if self.invoice_id:
+            return f"{invoice_prefix}-{self.invoice_id:04d}"
+
+        with transaction.atomic():
+            self.invoice_id = self.account.next_invoice_id
+            self.account.next_invoice_id += 1
+            self.account.save()
+            self.save()
+
+        return f"{invoice_prefix}-{self.invoice_id:04d}"
+
     def __str__(self):
         return f"{self.descriptor} ({self.id})"
 
@@ -907,7 +945,6 @@ class ChargeState(models.Model):
             return self.freeagentinvoice
         except django.core.exceptions.ObjectDoesNotExist:
             return None
-
 
 class ExchangeRate(models.Model):
     timestamp = models.DateTimeField()
