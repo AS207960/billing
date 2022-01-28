@@ -424,13 +424,13 @@ def send_charge_state_notif_receiver(sender, instance: models.ChargeState, **kwa
 def send_subscription_notif(sender, instance: models.Subscription, **kwargs):
     if instance.plan.notif_queue:
         if instance.state == models.Subscription.STATE_PENDING:
-            status = billing_pb2.SubscriptionNotification.PENDING
+            status = billing_pb2.SUB_PENDING
         elif instance.state == models.Subscription.STATE_ACTIVE:
-            status = billing_pb2.SubscriptionNotification.ACTIVE
+            status = billing_pb2.SUB_ACTIVE
         elif instance.state == models.Subscription.STATE_PAST_DUE:
-            status = billing_pb2.SubscriptionNotification.PAST_DUE
+            status = billing_pb2.SUB_PAST_DUE
         elif instance.state == models.Subscription.STATE_CANCELLED:
-            status = billing_pb2.SubscriptionNotification.CANCELLED
+            status = billing_pb2.SUB_CANCELLED
         else:
             status = billing_pb2.ChargeStateNotification.UNKNOWN
 
