@@ -94,11 +94,11 @@ def handle_payment(
 
     if not is_top_up:
         from_account_balance = min(charge_state.account.balance, charged_amount)
-        to_be_paid = charged_amount - from_account_balance
+        to_be_paid = round(charged_amount - from_account_balance, 2)
         needs_payment = to_be_paid > 0
     else:
         from_account_balance = None
-        to_be_paid = charged_amount
+        to_be_paid = round(charged_amount, 2)
         needs_payment = True
 
     cards = []
