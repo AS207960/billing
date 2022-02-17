@@ -598,7 +598,118 @@ def attempt_charge_off_session(charge_state):
             selected_payment_method_type = "sepa_mandate_gc"
             selected_payment_method_id = charge_state.account.default_gc_sepa_mandate
         else:
-            raise ChargeError(None, "No payment method on file", must_reject=False)
+            found = False
+            cards = stripe.PaymentMethod.list(
+                customer=account.stripe_customer_id,
+                type="card"
+            ).auto_paging_iter()
+            for card in cards:
+                method_country = utils.country_from_stripe_payment_method(card)
+                if method_country == billing_address_country or not account.taxable:
+                    if selected_currency not in ['gbp', 'eur', 'usd']:
+                        selected_currency = 'gbp'
+                    climate_contribution = True
+                    selected_payment_method_type = "stripe_pm"
+                    selected_payment_method_id = card["id"]
+                    found = True
+                    break
+
+            if not found:
+                sepa_mandates = models.SEPAMandate.objects.filter(account=charge_state.account, active=True)
+                for sepa_mandate in sepa_mandates:
+                    payment_method = stripe.PaymentMethod.retrieve(sepa_mandate.payment_method)
+                    method_country = utils.country_from_stripe_payment_method(payment_method)
+                    if method_country == billing_address_country or not account.taxable:
+                        selected_currency = 'eur'
+                        climate_contribution = True
+                        selected_payment_method_type = "sepa_mandate_stripe"
+                        selected_payment_method_id = sepa_mandate.payment_method
+                        found = True
+                        break
+
+            if not found:
+                bacs_mandates = models.BACSMandate.objects.filter(account=charge_state.account, active=True)
+                for bacs_mandate in bacs_mandates:
+                    payment_method = stripe.PaymentMethod.retrieve(bacs_mandate.payment_method)
+                    method_country = utils.country_from_stripe_payment_method(payment_method)
+                    if method_country == billing_address_country or not account.taxable:
+                        selected_currency = 'gbp'
+                        climate_contribution = True
+                        selected_payment_method_type = "bacs_mandate_stripe"
+                        selected_payment_method_id = bacs_mandate.payment_method
+                        found = True
+                        break
+
+            if not found:
+                ach_mandate = models.ACHMandate.objects.filter(account=account, active=True).first()
+                if (billing_address_country == "us" or not account.taxable) and ach_mandate:
+                    selected_currency = 'usd'
+                    selected_payment_method_type = "ach_mandate_gc"
+                    selected_payment_method_id = ach_mandate
+                    found = True
+
+            if not found:
+                autogiro_mandate = models.AutogiroMandate.objects.filter(account=account, active=True).first()
+                if (billing_address_country == "se" or not account.taxable) and autogiro_mandate:
+                    selected_currency = 'sek'
+                    selected_payment_method_type = "autogiro_mandate_gc"
+                    selected_payment_method_id = autogiro_mandate
+                    found = True
+
+            if not found:
+                bacs_mandate = models.GCBACSMandate.objects.filter(account=account, active=True).first()
+                if (billing_address_country == "gb" or not account.taxable) and bacs_mandate:
+                    selected_currency = 'gbp'
+                    selected_payment_method_type = "bacs_mandate_gc"
+                    selected_payment_method_id = bacs_mandate
+                    found = True
+
+            if not found:
+                becs_mandate = models.BECSMandate.objects.filter(account=account, active=True).first()
+                if (billing_address_country == "au" or not account.taxable) and becs_mandate:
+                    selected_currency = 'aud'
+                    selected_payment_method_type = "becs_mandate_gc"
+                    selected_payment_method_id = becs_mandate
+                    found = True
+
+            if not found:
+                becs_nz_mandate = models.BECSNZMandate.objects.filter(account=account, active=True).first()
+                if (billing_address_country == "nz" or not account.taxable) and becs_nz_mandate:
+                    selected_currency = 'nzd'
+                    selected_payment_method_type = "becs_nz_mandate_gc"
+                    selected_payment_method_id = becs_nz_mandate
+                    found = True
+
+            if not found:
+                betalingsservice_mandate = models.BetalingsserviceMandate.objects.filter(account=account, active=True).first()
+                if (billing_address_country == "dk" or not account.taxable) and betalingsservice_mandate:
+                    selected_currency = 'dkk'
+                    selected_payment_method_type = "betalingsservice_mandate_gc"
+                    selected_payment_method_id = betalingsservice_mandate
+                    found = True
+
+            if not found:
+                pad_mandate = models.PADMandate.objects.filter(account=account, active=True).first()
+                if (billing_address_country == "ca" or not account.taxable) and pad_mandate:
+                    selected_currency = 'cad'
+                    selected_payment_method_type = "pad_mandate_gc"
+                    selected_payment_method_id = pad_mandate
+                    found = True
+
+            if not found:
+                sepa_mandates = models.GCSEPAMandate.objects.filter(account=account, active=True)
+                for sepa_mandate in sepa_mandates:
+                    mandate = apps.gocardless_client.mandates.get(sepa_mandate.mandate_id)
+                    bank_account = apps.gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
+                    if bank_account.country_code.lower() == billing_address_country or not account.taxable:
+                        selected_currency = 'eur'
+                        selected_payment_method_type = "sepa_mandate_gc"
+                        selected_payment_method_id = sepa_mandate
+                        found = True
+                        break
+
+            if not found:
+                raise ChargeError(None, "No usable payment method on file", must_reject=True)
 
     charge_state.ready_to_complete = True
     charge_state.ledger_item.amount = -charged_amount
@@ -889,13 +1000,13 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
             charge_state.save()
             e.charge_state = charge_state
             if supports_delayed:
-                ledger_item.save(mail=mail, force_mail=force_mail)
+                ledger_item.save(mail=mail, force_mail=True)
                 raise ChargeStateRequiresActionError(
                     charge_state, settings.EXTERNAL_URL_BASE + reverse('complete_order', args=(charge_state.id,))
                 )
             else:
                 ledger_item.state = ledger_item.STATE_FAILED
-            ledger_item.save(mail=mail, force_mail=force_mail)
+            ledger_item.save(mail=mail, force_mail=True)
             raise e
     else:
         if not account.billing_address:

@@ -89,8 +89,8 @@ def account_details(request):
         models.BECSMandate.objects.filter(account=account, active=True)
     ))
     becs_nz_mandates = list(map(
-        lambda m: map_gc_mandate(m, 'view_becs_nz_mandate', account.default_becs_nz_mandate)
-        , models.BECSNZMandate.objects.filter(account=account, active=True)
+        lambda m: map_gc_mandate(m, 'view_becs_nz_mandate', account.default_becs_nz_mandate),
+        models.BECSNZMandate.objects.filter(account=account, active=True)
     ))
     betalingsservice_mandates = list(map(
         lambda m: map_gc_mandate(m, 'view_betalingsservice_mandate', account.default_betalingsservice_mandate),
