@@ -4,7 +4,7 @@ from django.utils import timezone
 from billing import models
 import django.core.exceptions
 
-FAIL_TIME = datetime.timedelta(days=30)
+FAIL_TIME = datetime.timedelta(days=7)
 
 
 class Command(BaseCommand):
