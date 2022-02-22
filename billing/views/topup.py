@@ -237,6 +237,13 @@ def handle_payment(
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
+            elif selected_payment_method_type == "bank_transfer_stripe":
+                if selected_payment_method_id == "gbp" and billing_address_country == "gb" or not account.taxable:
+                    available_currencies = ['gbp']
+                    mandate_acceptance = True
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
             elif selected_payment_method_type == "sepa_mandate_stripe":
                 m = get_object_or_404(models.SEPAMandate, id=selected_payment_method_id)
                 payment_method = stripe.PaymentMethod.retrieve(m.payment_method)
