@@ -240,7 +240,6 @@ def handle_payment(
             elif selected_payment_method_type == "bank_transfer_stripe":
                 if selected_payment_method_id == "gbp" and billing_address_country == "gb" or not account.taxable:
                     available_currencies = ['gbp']
-                    mandate_acceptance = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
