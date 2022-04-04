@@ -101,6 +101,9 @@ def handle_payment(
         to_be_paid = round(charged_amount, 2)
         needs_payment = True
 
+    if to_be_paid < decimal.Decimal("0.5"):
+        to_be_paid = decimal.Decimal("0.5")
+
     cards = []
     ach_mandates = []
     autogiro_mandates = []
