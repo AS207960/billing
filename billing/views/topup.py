@@ -101,7 +101,7 @@ def handle_payment(
         to_be_paid = round(charged_amount, 2)
         needs_payment = True
 
-    if to_be_paid < decimal.Decimal("0.5"):
+    if to_be_paid < decimal.Decimal("0.5") and to_be_paid != decimal.Decimal("0"):
         to_be_paid = decimal.Decimal("0.5")
 
     cards = []
