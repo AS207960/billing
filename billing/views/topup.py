@@ -428,7 +428,7 @@ def handle_payment(
 
         if request.method == "POST":
             if request.POST.get("action") == "payment_requests_pay":
-                amount_int = int(round(charged_amount * decimal.Decimal(100)))
+                amount_int = int(round(to_be_charged * decimal.Decimal(100)))
 
                 if "selected_payment_method" in request.session:
                     del request.session["selected_payment_method"]
