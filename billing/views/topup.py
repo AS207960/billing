@@ -1280,7 +1280,7 @@ def complete_top_up_card(request, item_id):
 
     if ledger_item.type not in (
             ledger_item.TYPE_CARD, ledger_item.TYPE_SOFORT, ledger_item.TYPE_GIROPAY, ledger_item.TYPE_BANCONTACT,
-            ledger_item.TYPE_EPS, ledger_item.TYPE_IDEAL
+            ledger_item.TYPE_EPS, ledger_item.TYPE_IDEAL, ledger_item.TYPE_P24
     ):
         return HttpResponseBadRequest()
 
