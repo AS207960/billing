@@ -81,7 +81,7 @@ class Command(BaseCommand):
                     ip_req.ip_lookup.ipv4_addr = int(ip_address)
                 else:
                     ip_req.ip_lookup.ipv6_addr = int(ip_address).to_bytes(16, "big")
-                ip_res.ParseFromString(apps.rpc_client.call("geoip_rpc", ip_req.SerializeToString()))
+                ip_res.ParseFromString(apps.rpc_client.call("geoip_rpc", ip_req.SerializeToString(), timeout=10))
                 if ip_res.status == billing.proto.geoip_pb2.IPLookupResponse.OK:
                     if ip_res.data.HasField("country"):
                         billing_address_country = ip_res.data.country.value.lower()
