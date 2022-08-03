@@ -68,7 +68,7 @@ def send_charge_state_notif(charge_state: models.ChargeState):
                         "method": charge_state.payment_ledger_item.descriptor
                     })
         else:
-            if completed_timestamp:
+            if charge_state.payment_ledger_item.completed_timestamp:
                 payment_methods.append({
                     "type": "CHEQUE",
                     "timestamp": charge_state.payment_ledger_item.completed_timestamp.isoformat("T"),

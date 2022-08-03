@@ -851,7 +851,6 @@ def attempt_charge_off_session(charge_state):
             ledger_item.save(mail=False)
             charge_state.payment_ledger_item = ledger_item
             charge_state.save()
-            update_from_payment_intent(payment_intent, ledger_item)
         elif selected_payment_method_type == "bacs_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
@@ -871,7 +870,6 @@ def attempt_charge_off_session(charge_state):
             ledger_item.save(mail=False)
             charge_state.payment_ledger_item = ledger_item
             charge_state.save()
-            update_from_payment_intent(payment_intent, ledger_item)
         elif selected_payment_method_type == "becs_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
@@ -891,7 +889,6 @@ def attempt_charge_off_session(charge_state):
             ledger_item.save(mail=False)
             charge_state.payment_ledger_item = ledger_item
             charge_state.save()
-            update_from_payment_intent(payment_intent, ledger_item)
         elif selected_payment_method_type == "becs_nz_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
@@ -911,7 +908,6 @@ def attempt_charge_off_session(charge_state):
             ledger_item.save(mail=False)
             charge_state.payment_ledger_item = ledger_item
             charge_state.save()
-            update_from_payment_intent(payment_intent, ledger_item)
         elif selected_payment_method_type == "betalingsservice_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
@@ -931,7 +927,6 @@ def attempt_charge_off_session(charge_state):
             ledger_item.save(mail=False)
             charge_state.payment_ledger_item = ledger_item
             charge_state.save()
-            update_from_payment_intent(payment_intent, ledger_item)
         elif selected_payment_method_type == "pad_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
@@ -951,7 +946,6 @@ def attempt_charge_off_session(charge_state):
             ledger_item.save(mail=False)
             charge_state.payment_ledger_item = ledger_item
             charge_state.save()
-            update_from_payment_intent(payment_intent, ledger_item)
         elif selected_payment_method_type == "sepa_mandate_gc":
             payment = apps.gocardless_client.payments.create(params={
                 "amount": amount_int,
@@ -971,7 +965,6 @@ def attempt_charge_off_session(charge_state):
             ledger_item.save(mail=False)
             charge_state.payment_ledger_item = ledger_item
             charge_state.save()
-            update_from_payment_intent(payment_intent, ledger_item)
     else:
         charge_state.ledger_item.state = models.LedgerItem.STATE_COMPLETED
         charge_state.ledger_item.save(mail=False)
