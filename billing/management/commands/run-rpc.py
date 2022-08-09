@@ -2,54 +2,99 @@ from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.db import transaction
 from django.contrib.auth import get_user_model
-import pika
+import pika.exceptions
 import ipaddress
+import threading
 import decimal
+import time
+import traceback
 from billing import models, views, tasks, vat, apps
 import billing.proto.billing_pb2
 import billing.proto.geoip_pb2
 
 
 class Command(BaseCommand):
+    internal_lock = threading.Lock()
+    queue = {}
     help = 'Runs the RPC server on rabbitmq'
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.parameters = pika.URLParameters(settings.RABBITMQ_RPC_URL)
+        self.connection = None
+        self.channel = None
+
+    def setup_connection(self):
+        self.connection = pika.BlockingConnection(parameters=self.parameters)
+        self.channel = self.connection.channel()
+        self.channel.queue_declare(queue='billing_rpc', durable=True)
+        self.channel.basic_qos(prefetch_count=5, global_qos=True)
+        self.channel.basic_consume(queue='billing_rpc', on_message_callback=self.callback, auto_ack=False)
+
     def handle(self, *args, **options):
-        parameters = pika.URLParameters(settings.RABBITMQ_RPC_URL)
-        connection = pika.BlockingConnection(parameters=parameters)
-        channel = connection.channel()
+        self.setup_connection()
 
-        channel.queue_declare(queue='billing_rpc', durable=True)
+        print("RPC handler now running", flush=True)
 
-        channel.basic_qos(prefetch_count=1)
-        channel.basic_consume(queue='billing_rpc', on_message_callback=self.callback, auto_ack=False)
-
-        print("RPC handler now running")
         try:
-            channel.start_consuming()
+            while True:
+                try:
+                    while True:
+                        with self.internal_lock:
+                            try:
+                                self.connection.process_data_events()
+                            except pika.exceptions.AMQPConnectionError as e:
+                                print(f"Connection dropped: {e}", flush=True)
+                                self.setup_connection()
+                        time.sleep(0.1)
+                except pika.exceptions.AMQPError:
+                    traceback.print_exc()
+                    time.sleep(5)
+                    self.setup_connection()
+
         except (KeyboardInterrupt, SystemExit):
             print("Exiting...")
             return
 
     def callback(self, channel, method, properties, body):
+        thread = threading.Thread(target=self.callback_t, args=(channel, method, properties, body))
+        thread.setDaemon(True)
+        thread.start()
+
+    def callback_t(self, channel, method, properties, body):
         msg = billing.proto.billing_pb2.BillingRequest()
         msg.ParseFromString(body)
 
         msg_type = msg.WhichOneof("message")
         if msg_type == "convert_currency":
-            resp = self.convert_currency(msg.convert_currency)
+            try:
+                resp = self.convert_currency(msg.convert_currency)
+            except:
+                traceback.print_exc()
+                with self.internal_lock:
+                    channel.basic_nack(delivery_tag=method.delivery_tag)
+                return
         elif msg_type == "charge_user":
-            resp = self.charge_user(msg.charge_user)
+            try:
+                resp = self.charge_user(msg.charge_user)
+            except:
+                traceback.print_exc()
+                with self.internal_lock:
+                    channel.basic_nack(delivery_tag=method.delivery_tag)
+                return
         else:
-            channel.basic_ack(delivery_tag=method.delivery_tag)
+            with self.internal_lock:
+                channel.basic_ack(delivery_tag=method.delivery_tag)
             return
 
-        channel.basic_publish(
-            exchange='',
-            routing_key=properties.reply_to,
-            properties=pika.BasicProperties(correlation_id=properties.correlation_id),
-            body=resp.SerializeToString()
-        )
-        channel.basic_ack(delivery_tag=method.delivery_tag)
+        with self.internal_lock:
+            channel.basic_publish(
+                exchange='',
+                routing_key=properties.reply_to,
+                properties=pika.BasicProperties(correlation_id=properties.correlation_id),
+                body=resp.SerializeToString()
+            )
+            channel.basic_ack(delivery_tag=method.delivery_tag)
 
     @staticmethod
     def convert_currency(msg: billing.proto.billing_pb2.ConvertCurrencyRequest) \
