@@ -217,7 +217,8 @@ def subscribe_user(request, user_id):
     plan = get_object_or_404(models.RecurringPlan, id=data["plan_id"])
 
     if account:
-        existing_subscription = models.Subscription.objects.filter(plan=plan, account=account).first()
+        existing_subscription = models.Subscription.objects.filter(plan=plan, account=account)\
+            .exclude(state=models.Subscription.STATE_CANCELLED).first()
         if existing_subscription:
             return HttpResponse(status=409)
 
@@ -259,11 +260,13 @@ def subscribe_user(request, user_id):
             )
         except tasks.ChargeError as e:
             e.charge_state.ledger_item.subscription_charge = subscription_charge
+            e.charge_state.ledger_item.save()
             subscription_charge.last_ledger_item = e.charge_state.ledger_item
             ledger_item = e.charge_state.ledger_item
         except tasks.ChargeStateRequiresActionError as e:
             redirect_url = e.redirect_url
             e.charge_state.ledger_item.subscription_charge = subscription_charge
+            e.charge_state.ledger_item.save()
             subscription_charge.last_ledger_item = e.charge_state.ledger_item
             ledger_item = e.charge_state.ledger_item
         else:
