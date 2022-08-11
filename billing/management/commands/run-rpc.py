@@ -87,6 +87,8 @@ class Command(BaseCommand):
                 channel.basic_ack(delivery_tag=method.delivery_tag)
             return
 
+        apps.rpc_client.close()
+
         with self.internal_lock:
             channel.basic_publish(
                 exchange='',
