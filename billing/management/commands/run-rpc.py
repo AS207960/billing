@@ -44,11 +44,13 @@ class Command(BaseCommand):
                             try:
                                 self.connection.process_data_events()
                             except pika.exceptions.AMQPConnectionError as e:
+                                traceback.print_exc()
                                 print(f"Connection dropped: {e}", flush=True)
                                 self.setup_connection()
                         time.sleep(0.1)
                 except pika.exceptions.AMQPError:
                     traceback.print_exc()
+                    print("", flush=True)
                     time.sleep(5)
                     self.setup_connection()
 
@@ -65,6 +67,7 @@ class Command(BaseCommand):
         msg = billing.proto.billing_pb2.BillingRequest()
         msg.ParseFromString(body)
 
+        print(properties.reply_to, msg, flush=True)
         msg_type = msg.WhichOneof("message")
         if msg_type == "convert_currency":
             try:
@@ -96,6 +99,7 @@ class Command(BaseCommand):
                 properties=pika.BasicProperties(correlation_id=properties.correlation_id),
                 body=resp.SerializeToString()
             )
+            print(properties.reply_to, resp, flush=True)
             channel.basic_ack(delivery_tag=method.delivery_tag)
 
     @staticmethod

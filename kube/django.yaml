@@ -276,7 +276,7 @@ spec:
   policyTypes:
   - Ingress
 ---
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: billing-get-exchange
@@ -416,7 +416,7 @@ spec:
 #                    name: billing-rpc
 #          restartPolicy: OnFailure
 ---
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: billing-run-billing
@@ -488,7 +488,7 @@ spec:
                     name: billing-rpc
           restartPolicy: OnFailure
 ---
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: billing-update-pending
@@ -560,7 +560,7 @@ spec:
                     name: billing-rpc
           restartPolicy: OnFailure
 ---
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: billing-fail-old
