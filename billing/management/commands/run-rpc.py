@@ -14,12 +14,12 @@ import billing.proto.geoip_pb2
 
 
 class Command(BaseCommand):
-    internal_lock = threading.Lock()
-    queue = {}
     help = 'Runs the RPC server on rabbitmq'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.internal_lock = threading.Lock()
+        self.queue = {}
         self.parameters = pika.URLParameters(settings.RABBITMQ_RPC_URL)
         self.connection = None
         self.channel = None
@@ -58,11 +58,6 @@ class Command(BaseCommand):
             return
 
     def callback(self, channel, method, properties, body):
-        thread = threading.Thread(target=self.callback_t, args=(channel, method, properties, body))
-        thread.setDaemon(True)
-        thread.start()
-
-    def callback_t(self, channel, method, properties, body):
         msg = billing.proto.billing_pb2.BillingRequest()
         msg.ParseFromString(body)
 
@@ -87,8 +82,6 @@ class Command(BaseCommand):
             with self.internal_lock:
                 channel.basic_ack(delivery_tag=method.delivery_tag)
             return
-
-        apps.rpc_client.close()
 
         with self.internal_lock:
             channel.basic_publish(
@@ -164,7 +157,8 @@ class Command(BaseCommand):
             currency=to_currency
         )
 
-    def charge_user(self, msg: billing.proto.billing_pb2.ChargeUserRequest) \
+    @staticmethod
+    def charge_user(msg: billing.proto.billing_pb2.ChargeUserRequest) \
             -> billing.proto.billing_pb2.ChargeUserResponse:
         user = get_user_model().objects.filter(username=msg.user_id).first()
         account = user.account if user else None  # type: models.Account
