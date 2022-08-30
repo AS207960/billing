@@ -8,6 +8,7 @@ import threading
 import decimal
 import time
 import traceback
+import sys
 from billing import models, views, tasks, vat, apps
 import billing.proto.billing_pb2
 import billing.proto.geoip_pb2
@@ -45,11 +46,15 @@ class Command(BaseCommand):
                                 self.connection.process_data_events()
                             except pika.exceptions.AMQPConnectionError as e:
                                 traceback.print_exc()
-                                print(f"Connection dropped: {e}", flush=True)
+                                print(f"Connection dropped: {e}")
+                                sys.stdout.flush()
+                                sys.stderr.flush()
                                 self.setup_connection()
                         time.sleep(0.1)
                 except pika.exceptions.AMQPError:
                     traceback.print_exc()
+                    sys.stdout.flush()
+                    sys.stderr.flush()
                     time.sleep(5)
                     self.setup_connection()
 
@@ -67,6 +72,8 @@ class Command(BaseCommand):
                 resp = self.convert_currency(msg.convert_currency)
             except:
                 traceback.print_exc()
+                sys.stdout.flush()
+                sys.stderr.flush()
                 with self.internal_lock:
                     channel.basic_nack(delivery_tag=method.delivery_tag)
                 return
@@ -75,6 +82,8 @@ class Command(BaseCommand):
                 resp = self.charge_user(msg.charge_user)
             except:
                 traceback.print_exc()
+                sys.stdout.flush()
+                sys.stderr.flush()
                 with self.internal_lock:
                     channel.basic_nack(delivery_tag=method.delivery_tag)
                 return
