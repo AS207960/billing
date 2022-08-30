@@ -19,7 +19,6 @@ class Command(BaseCommand):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.internal_lock = threading.Lock()
         self.queue = {}
         self.parameters = pika.URLParameters(settings.RABBITMQ_RPC_URL)
         self.connection = None
@@ -41,15 +40,14 @@ class Command(BaseCommand):
             while True:
                 try:
                     while True:
-                        with self.internal_lock:
-                            try:
-                                self.connection.process_data_events()
-                            except pika.exceptions.AMQPConnectionError as e:
-                                traceback.print_exc()
-                                print(f"Connection dropped: {e}")
-                                sys.stdout.flush()
-                                sys.stderr.flush()
-                                self.setup_connection()
+                        try:
+                            self.connection.process_data_events()
+                        except pika.exceptions.AMQPConnectionError as e:
+                            traceback.print_exc()
+                            print(f"Connection dropped: {e}")
+                            sys.stdout.flush()
+                            sys.stderr.flush()
+                            self.setup_connection()
                         time.sleep(0.1)
                 except pika.exceptions.AMQPError:
                     traceback.print_exc()
@@ -74,8 +72,7 @@ class Command(BaseCommand):
                 traceback.print_exc()
                 sys.stdout.flush()
                 sys.stderr.flush()
-                with self.internal_lock:
-                    channel.basic_nack(delivery_tag=method.delivery_tag)
+                channel.basic_nack(delivery_tag=method.delivery_tag)
                 return
         elif msg_type == "charge_user":
             try:
@@ -84,22 +81,19 @@ class Command(BaseCommand):
                 traceback.print_exc()
                 sys.stdout.flush()
                 sys.stderr.flush()
-                with self.internal_lock:
-                    channel.basic_nack(delivery_tag=method.delivery_tag)
+                channel.basic_nack(delivery_tag=method.delivery_tag)
                 return
         else:
-            with self.internal_lock:
-                channel.basic_ack(delivery_tag=method.delivery_tag)
+            channel.basic_ack(delivery_tag=method.delivery_tag)
             return
 
-        with self.internal_lock:
-            channel.basic_publish(
-                exchange='',
-                routing_key=properties.reply_to,
-                properties=pika.BasicProperties(correlation_id=properties.correlation_id),
-                body=resp.SerializeToString()
-            )
-            channel.basic_ack(delivery_tag=method.delivery_tag)
+        channel.basic_publish(
+            exchange='',
+            routing_key=properties.reply_to,
+            properties=pika.BasicProperties(correlation_id=properties.correlation_id),
+            body=resp.SerializeToString()
+        )
+        channel.basic_ack(delivery_tag=method.delivery_tag)
 
     @staticmethod
     def convert_currency(msg: billing.proto.billing_pb2.ConvertCurrencyRequest) \
