@@ -15,7 +15,7 @@ django_idempotency_key
 plaid-python
 requests-oauthlib
 django-cockroachdb==2.2.*
-git+https://github.com/AS207960/python-utils@70e48cdb3fe597b9730e0e0b6e8c2f119b34402b
+git+https://github.com/AS207960/python-utils@b76589e2472f23cacb83de2621b8f5ac0e37152b
 pylatex
 git+https://github.com/gocardless/gocardless-pro-python@v1.25.0
 schwifty
