@@ -34,6 +34,37 @@ class VATMOSSForm(forms.Form):
         self.helper.add_input(crispy_forms.layout.Submit('submit', 'Export', css_class='w-100'))
 
 
+class VATTRForm(forms.Form):
+    MONTHS = (
+        (1, "01 January"),
+        (2, "02 February"),
+        (3, "03 March"),
+        (4, "04 April"),
+        (5, "05 May"),
+        (6, "06 June"),
+        (7, "07 July"),
+        (8, "08 August"),
+        (9, "09 September"),
+        (10, "10 October"),
+        (11, "11 November"),
+        (12, "12 December"),
+    )
+
+    year = forms.IntegerField(min_value=0)
+    month = forms.TypedChoiceField(choices=MONTHS, widget=forms.RadioSelect(), coerce=int)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.helper = crispy_forms.helper.FormHelper()
+        self.helper.field_class = 'my-2'
+        self.helper.layout = crispy_forms.layout.Layout(
+            'year',
+            'month'
+        )
+        self.helper.add_input(crispy_forms.layout.Submit('submit', 'Export', css_class='w-100'))
+
+
 class TopUpForm(forms.Form):
     METHOD_CARD = 'C'
     METHOD_BACS = 'B'

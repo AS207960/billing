@@ -344,6 +344,82 @@ def view_vat_gb(request):
     })
 
 
+@login_required
+@permission_required('billing.view_ledgeritem', raise_exception=True)
+def view_vat_tr(request):
+
+    if request.method == "POST":
+        form = forms.VATTRForm(request.POST)
+
+        if form.is_valid():
+            month_start_date = datetime.date(
+                year=form.cleaned_data['year'], month=form.cleaned_data['month'], day=1)
+            month_end_date = datetime.date(
+                year=form.cleaned_data['year'] + (1 if form.cleaned_data['month'] == 12 else 0),
+                month=(form.cleaned_data['month'] % 12) + 1, day=1
+            ) - datetime.timedelta(days=1)
+            print(month_start_date, month_end_date)
+            month_start_datetime = datetime.datetime(
+                year=month_start_date.year, month=month_start_date.month, day=month_start_date.day,
+                hour=0, minute=0, second=0, microsecond=0, tzinfo=datetime.timezone.utc
+            )
+            month_end_datetime = datetime.datetime(
+                year=month_end_date.year, month=month_end_date.month, day=month_end_date.day,
+                hour=23, minute=59, second=59, microsecond=999999, tzinfo=datetime.timezone.utc
+            )
+            items = models.LedgerItem.objects.filter(
+                timestamp__gte=month_start_datetime,
+                timestamp__lte=month_end_datetime,
+                state=models.LedgerItem.STATE_COMPLETED,
+                type=models.LedgerItem.TYPE_CHARGE,
+                country_code="tr",
+                account__exclude_from_accounting=False
+            )
+            vat_rates = {}
+            for item in items:
+                vat_rate = str(item.vat_rate)
+                if vat_rate not in vat_rates:
+                    vat_rates[vat_rate] = {
+                        "gbp": decimal.Decimal(0),
+                        "try": decimal.Decimal(0),
+                    }
+
+                if item.try_exchange_rate:
+                    exchange_rate = item.try_exchange_rate
+                elif item.reversal_for and item.reversal_for.try_exchange_rate:
+                    exchange_rate = item.reversal_for.try_exchange_rate
+                else:
+                    exchange_rate = models.ExchangeRate.get_rate("gbp", "try")
+                vat_rates[vat_rate]["gbp"] += -item.amount
+                vat_rates[vat_rate]["try"] += -item.amount * exchange_rate
+
+            def map_vat_rate(v):
+                rate = decimal.Decimal(v[0])
+                return {
+                    "vat_rate": rate * decimal.Decimal(100),
+                    "total_sales_gbp": v[1]["gbp"],
+                    "total_sales_try": v[1]["try"],
+                    "vat_due_gbp": v[1]["gbp"] * rate,
+                    "vat_due_try": v[1]["try"] * rate,
+                }
+
+            vat_rates = list(map(map_vat_rate, vat_rates.items()))
+            month_vat_gbp = sum(map(lambda v: v["vat_due_gbp"], vat_rates))
+            month_vat_try = sum(map(lambda v: v["vat_due_try"], vat_rates))
+            return render(request, "billing/vat_tr_export.html", {
+                "export_year": form.cleaned_data['year'],
+                "export_month": form.cleaned_data['month'],
+                "vat_rates": vat_rates,
+                "total_vat_gbp": month_vat_gbp,
+                "total_vat_try": month_vat_try,
+            })
+    else:
+        form = forms.VATTRForm()
+
+    return render(request, "billing/vat_tr_select.html", {
+        "form": form
+    })
+
 
 @login_required
 @permission_required('billing.view_ledgeritem', raise_exception=True)

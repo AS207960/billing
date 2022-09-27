@@ -2,8 +2,8 @@
 {% load crispy_forms_tags %}
 {% block content %}
     <div class="container my-3">
-        <h1>VAT GB - Q{{ export_quarter }} {{ export_year }}</h1>
-        <h2>Total VAT due: {{ total_vat_gbp|floatformat:2 }} GBP</h2>
+        <h1>VAT TR - M{{ export_month }} {{ export_year }}</h1>
+        <h2>Total VAT due: {{ total_vat_try|floatformat:2 }} TRY / {{ total_vat_gbp|floatformat:2 }} GBP</h2>
         <div class="row d-flex flex-column align-items-center">
             <div class="col-12 col-md-6">
                 <hr/>
@@ -18,17 +18,12 @@
                         </tr>
                         </thead>
                         <tbody>
-                        {% for vat_month in vat_months %}
+                        {% for vat_rate in vat_rates %}
                             <tr>
-                                <th scope="rowgroup" colspan="3">{{ vat_month.month_name }}</th>
+                                <td>{{ vat_rate.vat_rate|floatformat:2 }}%</td>
+                                <td>{{ vat_rate.total_sales_try|floatformat:2 }} TRY / {{ vat_rate.total_sales_gbp|floatformat:2 }} GBP</td>
+                                <td>{{ vat_rate.vat_due_try|floatformat:2 }} TRY / {{ vat_rate.vat_due_gbp|floatformat:2 }} GBP</td>
                             </tr>
-                            {% for vat_rate in vat_month.vat_rates %}
-                                <tr>
-                                    <td>{{ vat_rate.vat_rate|floatformat:2 }}%</td>
-                                    <td>{{ vat_rate.total_sales_gbp|floatformat:2 }} GBP</td>
-                                    <td>{{ vat_rate.vat_due_gbp|floatformat:2 }} GBP</td>
-                                </tr>
-                            {% endfor %}
                         {% endfor %}
                         </tbody>
                     </table>
