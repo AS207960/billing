@@ -18,7 +18,7 @@ from django.shortcuts import reverse
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from . import models, flux, utils, apps, vat
+from . import models, utils, apps, vat
 from .proto import billing_pb2
 
 pika_parameters = pika.URLParameters(settings.RABBITMQ_RPC_URL)
@@ -278,15 +278,6 @@ def fail_payment(ledger_item: models.LedgerItem):
 
 
 def try_update_charge_state(instance: models.LedgerItem, mail=True, force_mail=False):
-    try:
-        as_thread(flux.send_charge_state_notif)(instance.charge_state)
-    except django.core.exceptions.ObjectDoesNotExist:
-        pass
-    try:
-        as_thread(flux.send_charge_state_notif)(instance.charge_state_payment)
-    except django.core.exceptions.ObjectDoesNotExist:
-        pass
-
     subscription_mail_sent = False
 
     if instance.payment_charge_state and \
