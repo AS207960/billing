@@ -1098,31 +1098,32 @@ def update_from_payment_intent(payment_intent, ledger_item: models.LedgerItem = 
     account = ledger_item.account if ledger_item else \
         models.Account.objects.filter(stripe_customer_id=payment_intent["customer"]).first()
 
-    for charge in payment_intent["charges"]["data"]:
-        if charge["payment_method_details"]["type"] == "sepa_debit":
-            models.SEPAMandate.sync_mandate(
-                charge["payment_method_details"]["sepa_debit"]["mandate"],
-                account
-            )
-        elif charge["payment_method_details"]["type"] == "sofort":
-            if "generated_sepa_debit_mandate" in charge["payment_method_details"]["sofort"]:
+    if ["charges"] in payment_intent:
+        for charge in payment_intent["charges"]["data"]:
+            if charge["payment_method_details"]["type"] == "sepa_debit":
                 models.SEPAMandate.sync_mandate(
-                    charge["payment_method_details"]["sofort"]["generated_sepa_debit_mandate"],
+                    charge["payment_method_details"]["sepa_debit"]["mandate"],
                     account
                 )
-        elif charge["payment_method_details"]["type"] == "bancontact":
-            if "generated_sepa_debit_mandate" in charge["payment_method_details"]["bancontact"]:
-                models.SEPAMandate.sync_mandate(
-                    charge["payment_method_details"]["bancontact"]["generated_sepa_debit_mandate"],
-                    account
-                )
-        elif charge["payment_method_details"]["type"] == "ideal":
-            if "generated_sepa_debit_mandate" in charge["payment_method_details"]["ideal"]:
-                models.SEPAMandate.sync_mandate(
-                    charge["payment_method_details"]["ideal"]["generated_sepa_debit_mandate"],
-                    ledger_item.account if ledger_item else
-                    models.Account.objects.filter(stripe_customer_id=payment_intent["customer"]).first()
-                )
+            elif charge["payment_method_details"]["type"] == "sofort":
+                if "generated_sepa_debit_mandate" in charge["payment_method_details"]["sofort"]:
+                    models.SEPAMandate.sync_mandate(
+                        charge["payment_method_details"]["sofort"]["generated_sepa_debit_mandate"],
+                        account
+                    )
+            elif charge["payment_method_details"]["type"] == "bancontact":
+                if "generated_sepa_debit_mandate" in charge["payment_method_details"]["bancontact"]:
+                    models.SEPAMandate.sync_mandate(
+                        charge["payment_method_details"]["bancontact"]["generated_sepa_debit_mandate"],
+                        account
+                    )
+            elif charge["payment_method_details"]["type"] == "ideal":
+                if "generated_sepa_debit_mandate" in charge["payment_method_details"]["ideal"]:
+                    models.SEPAMandate.sync_mandate(
+                        charge["payment_method_details"]["ideal"]["generated_sepa_debit_mandate"],
+                        ledger_item.account if ledger_item else
+                        models.Account.objects.filter(stripe_customer_id=payment_intent["customer"]).first()
+                    )
 
     if payment_intent["status"] == "succeeded":
         ledger_item.state = models.LedgerItem.STATE_COMPLETED
@@ -1239,8 +1240,9 @@ def update_from_charge(charge, ledger_item=None):
         type_id=charge['id']
     ).first() if not ledger_item else ledger_item
 
-    for refund in charge["refunds"]["data"]:
-        update_from_stripe_refund(refund)
+    if "refunds" in charge:
+        for refund in charge["refunds"]["data"]:
+            update_from_stripe_refund(refund)
 
     if not ledger_item:
         return
