@@ -1098,7 +1098,7 @@ def update_from_payment_intent(payment_intent, ledger_item: models.LedgerItem = 
     account = ledger_item.account if ledger_item else \
         models.Account.objects.filter(stripe_customer_id=payment_intent["customer"]).first()
 
-    if ["charges"] in payment_intent:
+    if "charges" in payment_intent:
         for charge in payment_intent["charges"]["data"]:
             if charge["payment_method_details"]["type"] == "sepa_debit":
                 models.SEPAMandate.sync_mandate(
