@@ -225,14 +225,6 @@ def handle_payment(
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
-            elif selected_payment_method_type == "sofort":
-                if billing_address_country in ("at", "be", "de", "it", "nl", "es") or not account.taxable:
-                    available_currencies = ['eur']
-                    mandate_acceptance = True
-                    climate_contribution = True
-                else:
-                    selected_payment_method_type = None
-                    selected_payment_method_id = None
             elif selected_payment_method_type == "uk_instant_bank_transfer":
                 if billing_address_country == "gb" or not account.taxable:
                     available_currencies = ['gbp']
@@ -428,7 +420,7 @@ def handle_payment(
 
         if request.method == "POST":
             if request.POST.get("action") == "payment_requests_pay":
-                amount_int = int(round(to_be_charged * decimal.Decimal(100)))
+                amount_int = int(round(to_be_paid * decimal.Decimal(100)))
 
                 if "selected_payment_method" in request.session:
                     del request.session["selected_payment_method"]
