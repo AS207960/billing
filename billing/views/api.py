@@ -259,15 +259,15 @@ def subscribe_user(request, user_id):
                 return_uri=data.get("return_uri"), supports_delayed=True
             )
         except tasks.ChargeError as e:
+            subscription_charge.last_ledger_item = e.charge_state.ledger_item
             e.charge_state.ledger_item.subscription_charge = subscription_charge
             e.charge_state.ledger_item.save()
-            subscription_charge.last_ledger_item = e.charge_state.ledger_item
             ledger_item = e.charge_state.ledger_item
         except tasks.ChargeStateRequiresActionError as e:
             redirect_url = e.redirect_url
+            subscription_charge.last_ledger_item = e.charge_state.ledger_item
             e.charge_state.ledger_item.subscription_charge = subscription_charge
             e.charge_state.ledger_item.save()
-            subscription_charge.last_ledger_item = e.charge_state.ledger_item
             ledger_item = e.charge_state.ledger_item
         else:
             charge_state.ledger_item.subscription_charge = subscription_charge
