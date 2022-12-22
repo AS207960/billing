@@ -460,29 +460,34 @@ def handle_payment(
                         descriptor=f"Card payment for {charge_descriptor}" if charge_descriptor else "Top-up by card",
                         type=models.LedgerItem.TYPE_CARD,
                     )
-                    payment_intent = stripe.PaymentIntent.create(
-                        amount=amount_int,
-                        currency="GBP",
-                        customer=account.get_stripe_id(),
-                        description=charge_descriptor if charge_descriptor else "Top-up",
-                        receipt_email=request.user.email,
-                        statement_descriptor_suffix="Top-up",
-                        payment_method=payment_method.id,
-                        confirm=True,
-                        return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,)))
-                    )
-                    if settings.STRIPE_CLIMATE:
-                        ledger_item.stripe_climate_contribution = charged_amount * decimal.Decimal(
-                            settings.STRIPE_CLIMATE_RATE)
-                    ledger_item.type_id = payment_intent['id']
-                    ledger_item.save()
-                    tasks.update_from_payment_intent(payment_intent, ledger_item)
+                    try:
+                        payment_intent = stripe.PaymentIntent.create(
+                            amount=amount_int,
+                            currency="GBP",
+                            customer=account.get_stripe_id(),
+                            description=charge_descriptor if charge_descriptor else "Top-up",
+                            receipt_email=request.user.email,
+                            statement_descriptor_suffix="Top-up",
+                            payment_method=payment_method.id,
+                            confirm=True,
+                            return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,)))
+                        )
+                    except stripe.error.CardError as e:
+                        charge_state.last_error = e.user_message
+                        charge_state.save()
+                    else:
+                        if settings.STRIPE_CLIMATE:
+                            ledger_item.stripe_climate_contribution = charged_amount * decimal.Decimal(
+                                settings.STRIPE_CLIMATE_RATE)
+                        ledger_item.type_id = payment_intent['id']
+                        ledger_item.save()
+                        tasks.update_from_payment_intent(payment_intent, ledger_item)
 
-                    if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
-                        return HandlePaymentOutcome.REDIRECT, \
-                               (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+                        if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                            return HandlePaymentOutcome.REDIRECT, \
+                                   (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
 
-                    return HandlePaymentOutcome.DONE, ledger_item
+                        return HandlePaymentOutcome.DONE, ledger_item
 
             if request.POST.get("action") == "pay" and selected_payment_method_type:
                 if charge_state:
