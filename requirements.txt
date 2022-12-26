@@ -25,4 +25,5 @@ zeep
 pika
 django-stubs
 mypy
+asgiref
 
