@@ -366,32 +366,35 @@ class Account(models.Model):
 
     @property
     def virtual_us_bank(self):
-        if self.billing_address:
-            if self.billing_address.country_code.code.lower() == "us" or not self.taxable:
-                if self._virtual_us_bank:
-                    return self._virtual_us_bank
-                else:
-                    cust_id = self.get_stripe_id()
-                    addresses = stripe.stripe_object.StripeObject().request(
-                        "post", f"/v1/customers/{cust_id}/funding_instructions", {
-                            "currency": "usd",
-                            "funding_type": "bank_transfer",
-                            "bank_transfer": {
-                                "type": "us_bank_account"
-                            }
-                        }
-                    )["bank_transfer"]["financial_addresses"]
-                    us_address = next(filter(lambda a: a["type"] == "aba", addresses), None)
-                    if us_address:
-                        address = USBankAddress(
-                            account_number=us_address["aba"]["account_number"],
-                            routing_number=us_address["aba"]["routing_number"],
-                            bank_name=us_address["aba"]["bank_name"],
-                        )
-                        self._virtual_us_bank = address
-                        return address
-
         return None
+        
+        # Stripe seems to have just pulled this from under our feet, what fun!
+        # if self.billing_address:
+        #     if self.billing_address.country_code.code.lower() == "us" or not self.taxable:
+        #         if self._virtual_us_bank:
+        #             return self._virtual_us_bank
+        #         else:
+        #             cust_id = self.get_stripe_id()
+        #             addresses = stripe.stripe_object.StripeObject().request(
+        #                 "post", f"/v1/customers/{cust_id}/funding_instructions", {
+        #                     "currency": "usd",
+        #                     "funding_type": "bank_transfer",
+        #                     "bank_transfer": {
+        #                         "type": "us_bank_account"
+        #                     }
+        #                 }
+        #             )["bank_transfer"]["financial_addresses"]
+        #             us_address = next(filter(lambda a: a["type"] == "aba", addresses), None)
+        #             if us_address:
+        #                 address = USBankAddress(
+        #                     account_number=us_address["aba"]["account_number"],
+        #                     routing_number=us_address["aba"]["routing_number"],
+        #                     bank_name=us_address["aba"]["bank_name"],
+        #                 )
+        #                 self._virtual_us_bank = address
+        #                 return address
+        #
+        # return None
 
     @property
     def country(self):
