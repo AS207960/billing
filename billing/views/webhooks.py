@@ -272,8 +272,8 @@ def xfw_webhook(request):
         post_balance = event["data"]["post_transaction_balance_amount"]
 
         r = requests.get(
-            f"{api_base}/v3/profiles/{profile_id}"
-            f"/borderless-accounts/{account_id}/statement.json",
+            f"{api_base}/v1/profiles/{profile_id}"
+            f"/balance-statements/{account_id}/statement.json",
             headers={
                 "Authorization": f"Bearer {settings.TRANSFERWISE_TOKEN}"
             },

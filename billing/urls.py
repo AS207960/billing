@@ -87,6 +87,7 @@ urlpatterns = [
     path('accounts/vat_gb/', views.admin.view_vat_gb, name='view_vat_gb'),
     path('accounts/vat_moss/', views.admin.view_vat_moss, name='view_vat_moss'),
     path('accounts/vat_tr/', views.admin.view_vat_tr, name='view_vat_tr'),
+    path('accounts/vat_kr/', views.admin.view_vat_kr, name='view_vat_kr'),
     path('accounts/freeagent/link/', views.freeagent.link_freeagent, name='link_freeagent'),
     path('accounts/freeagent/link_callback/', views.freeagent.link_freeagent_callback, name='link_freeagent_callback'),
     path('accounts/freeagent/send_invoice/', views.freeagent.send_freeagent_invoice, name='send_freeagent_invoice'),

@@ -8,6 +8,7 @@
             <a href="{% url 'view_vat_gb' %}" class="btn btn-primary">View VAT GB</a>
             <a href="{% url 'view_vat_moss' %}" class="btn btn-primary">View VAT MOSS</a>
             <a href="{% url 'view_vat_tr' %}" class="btn btn-primary">View VAT TR</a>
+            <a href="{% url 'view_vat_kr' %}" class="btn btn-primary">View VAT KR</a>
             {% if not has_freeagent_auth and perms.billing.change_billingconfig %}
                 <a href="{% url 'link_freeagent' %}" class="btn btn-primary">Link to FreeAgent</a>
             {% elif has_freeagent_auth and perms.billing.add_freeagentinvoice %}

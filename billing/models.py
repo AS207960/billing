@@ -793,6 +793,7 @@ class LedgerItem(models.Model):
     stripe_climate_contribution = models.DecimalField(decimal_places=2, max_digits=9, default=0)
     eur_exchange_rate = models.DecimalField(decimal_places=7, max_digits=20, blank=True, null=True)
     try_exchange_rate = models.DecimalField(decimal_places=7, max_digits=20, blank=True, null=True)
+    krw_exchange_rate = models.DecimalField(decimal_places=7, max_digits=20, blank=True, null=True)
     subscription_charge = models.ForeignKey('SubscriptionCharge', on_delete=models.PROTECT, blank=True, null=True,
                                             related_name='ledger_items')
     payment_charge_state = models.ForeignKey(
