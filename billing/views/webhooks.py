@@ -54,6 +54,9 @@ transferwise_fpid_re = re.compile(
     r"^\((?P<id>\w{20})(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})(?P<currency>\d{3})(?P<sort_code>\d{6})\)"
     r" (?P<account_number>\d{8})$"
 )
+transferwise_private_key = cryptography.hazmat.primitives.serialization.load_pem_private_key(
+    settings.TRANSFERWISE_PRIV_KEY.encode(), backend=cryptography.hazmat.backends.default_backend(), password=None
+)
 
 
 @csrf_exempt
@@ -271,19 +274,34 @@ def xfw_webhook(request):
         amount = event["data"]["amount"]
         post_balance = event["data"]["post_transaction_balance_amount"]
 
-        r = requests.get(
-            f"{api_base}/v1/profiles/{profile_id}"
-            f"/balance-statements/{account_id}/statement.json",
-            headers={
-                "Authorization": f"Bearer {settings.TRANSFERWISE_TOKEN}"
-            },
-            params={
-                "currency": currency,
-                "intervalStart": (credit_time - datetime.timedelta(seconds=5)).strftime('%Y-%m-%dT%H:%M:%SZ'),
-                "intervalEnd": (credit_time + datetime.timedelta(seconds=5)).strftime('%Y-%m-%dT%H:%M:%SZ'),
-                "type": "COMPACT"
-            }
-        )
+        url = f"{api_base}/v1/profiles/{profile_id}/balance-statements/{account_id}/statement.json"
+        params = {
+            "currency": currency,
+            "intervalStart": (credit_time - datetime.timedelta(seconds=5)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "intervalEnd": (credit_time + datetime.timedelta(seconds=5)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "type": "COMPACT"
+        }
+        headers = {
+            "Authorization": f"Bearer {settings.TRANSFERWISE_TOKEN}"
+        }
+
+        r = requests.get(url, params=params, headers=headers)
+        if r.headers.get("x-2fa-approval-result") == "REJECTED":
+            token = r.headers.get("x-2fa-approval")
+            sig = transferwise_private_key.sign(
+                token.encode("utf-8"),
+                cryptography.hazmat.primitives.asymmetric.padding.PSS(
+                    mgf=cryptography.hazmat.primitives.asymmetric.padding.MGF1(
+                        cryptography.hazmat.primitives.hashes.SHA256()
+                    ),
+                    salt_length=cryptography.hazmat.primitives.asymmetric.padding.PSS.MAX_LENGTH
+                ),
+                cryptography.hazmat.primitives.hashes.SHA256()
+            )
+            headers["x-2fa-approval"] = token
+            headers["X-Signature"] = base64.b64encode(sig)
+            r = requests.get(url, params=params, headers=headers)
+
         r.raise_for_status()
         data = r.json()
         transactions = data["transactions"]

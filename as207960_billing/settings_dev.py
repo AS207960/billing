@@ -188,6 +188,8 @@ GOCARDLESS_WEBHOOK_SECRET = gocardless_conf["webhook_secret"]
 
 TRANSFERWISE_TOKEN = transferwise_conf["token"]
 TRANSFERWISE_ENV = transferwise_conf["env"]
+with open(os.path.join(BASE_DIR, "secrets/xfw-private.pem")) as f:
+    TRANSFERWISE_PRIV_KEY = f.read()
 
 OPEN_EXCHANGE_API_KEY = open_exchange_conf["key"]
 
