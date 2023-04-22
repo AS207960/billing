@@ -1200,6 +1200,8 @@ def handle_payment(
             if charge_state:
                 charge_state.ledger_item.state = models.LedgerItem.STATE_COMPLETED
                 charge_state.ledger_item.save()
+                charge_state.payment_ledger_item = None
+                charge_state.save()
             return HandlePaymentOutcome.DONE, None
 
     return HandlePaymentOutcome.RENDER, render(
