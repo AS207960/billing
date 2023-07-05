@@ -394,7 +394,8 @@ def send_charge_state_notif(instance: models.ChargeState):
             state=status,
             last_error=google.protobuf.wrappers_pb2.StringValue(
                 value=instance.last_error
-            ) if instance.last_error else None
+            ) if instance.last_error else None,
+            redirect_url=settings.EXTERNAL_URL_BASE + reverse('complete_order', args=(instance.id,))
         )
         pika_connection = pika.BlockingConnection(parameters=pika_parameters)
         pika_channel = pika_connection.channel()

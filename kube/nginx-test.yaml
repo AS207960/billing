@@ -139,13 +139,13 @@ spec:
       targetPort: 80
       name: nginx
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: billing-test-ingress
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
-    cert-manager.io/cluster-issuer: letsencrypt
+    cert-manager.io/cluster-issuer: "gts"
 spec:
   tls:
     - hosts:
@@ -156,6 +156,9 @@ spec:
     http:
       paths:
       - path: /
+        pathType: Prefix
         backend:
-          serviceName: billing-nginx-test
-          servicePort: 80
+          service:
+            name: billing-test-nginx
+            port:
+              number: 80

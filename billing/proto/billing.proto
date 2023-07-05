@@ -66,6 +66,7 @@ message ChargeStateNotification {
   string account = 2;
   ChargeState state = 3;
   google.protobuf.StringValue last_error = 4;
+  string redirect_url = 5;
 }
 
 enum SubscriptionState {
