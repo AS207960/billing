@@ -26,4 +26,5 @@ pika
 django-stubs
 mypy
 asgiref
+requests
 

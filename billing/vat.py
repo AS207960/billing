@@ -1,39 +1,15 @@
 import datetime
 import decimal
 import uuid
-
-import oauthlib.oauth2
-import oauthlib.oauth2
+import requests
 import pytz
 import typing
-import requests_oauthlib
 from django.conf import settings
 from django.utils import timezone
 import dataclasses
 import enum
 
 from . import utils
-
-_hmrc_oauth_client = None
-_hmrc_oauth_session = None
-
-
-def get_hmrc_session():
-    global _hmrc_oauth_client, _hmrc_oauth_session
-    if settings.HMRC_CLIENT_ID:
-        if not _hmrc_oauth_client:
-            _hmrc_oauth_client = oauthlib.oauth2.BackendApplicationClient(client_id=settings.HMRC_CLIENT_ID)
-        if not _hmrc_oauth_session:
-            _hmrc_oauth_session = requests_oauthlib.OAuth2Session(client=_hmrc_oauth_client)
-            _hmrc_oauth_session.fetch_token(
-                token_url='https://test-api.service.hmrc.gov.uk/oauth/token' if settings.IS_TEST
-                else 'https://api.service.hmrc.gov.uk/oauth/token',
-                client_id=settings.HMRC_CLIENT_ID,
-                client_secret=settings.HMRC_CLIENT_SECRET,
-                include_client_id=True
-            )
-
-    return _hmrc_oauth_session
 
 
 DO_NOT_SELL = [
@@ -312,45 +288,32 @@ class HMRCVATInfo:
 
 
 def verify_vat_hmrc(number: str):
-    hmrc_oauth_session = get_hmrc_session()
-    if hmrc_oauth_session:
-        hmrc_base_url = "https://test-api.service.hmrc.gov.uk" if settings.IS_TEST \
-            else "https://api.service.hmrc.gov.uk"
-        hmrc_url = f"{hmrc_base_url}/organisations/vat/check-vat-number/lookup/{number}"
-        if settings.OWN_UK_VAT_ID:
-            hmrc_url += f"/{settings.OWN_UK_VAT_ID}"
-            
-        headers = {
-            "Accept": "application/vnd.hmrc.1.0+json",
-            "Gov-Client-Connection-Method": "BATCH_PROCESS_DIRECT",
-            "Gov-Client-User-IDs": "",
-            "Gov-Client-Timezone": "UTC+00:00",
-            "Gov-Client-User-Agent": "AS207960 Billing System",
-            "Gov-Client-Local-IPs": "",
-            "Gov-Client-MAC-Addresses": uuid.getnode().to_bytes(6, "big").hex(),
-            "Gov-Vendor-Version": "",
-            "Gov-Vendor-License-IDs": "",
-        }
+    hmrc_base_url = "https://test-api.service.hmrc.gov.uk" if settings.IS_TEST \
+        else "https://api.service.hmrc.gov.uk"
+    hmrc_url = f"{hmrc_base_url}/organisations/vat/check-vat-number/lookup/{number}"
+    if settings.OWN_UK_VAT_ID:
+        hmrc_url += f"/{settings.OWN_UK_VAT_ID}"
 
-        try:
-            resp = hmrc_oauth_session.get(hmrc_url, headers=headers)
-        except (oauthlib.oauth2.rfc6749.errors.InvalidGrantError, oauthlib.oauth2.rfc6749.errors.TokenExpiredError):
-            hmrc_oauth_session.fetch_token(
-                token_url='https://test-api.service.hmrc.gov.uk/oauth/token' if settings.IS_TEST
-                else 'https://api.service.hmrc.gov.uk/oauth/token',
-                client_id=settings.HMRC_CLIENT_ID,
-                client_secret=settings.HMRC_CLIENT_SECRET
-            )
-            resp = hmrc_oauth_session.get(hmrc_url, headers=headers)
-        if resp.status_code == 404:
-            return VerifyVATStatus.INVALID, None
-        elif resp.status_code != 200:
-            return VerifyVATStatus.ERROR, None
+    headers = {
+        "Accept": "application/vnd.hmrc.1.0+json",
+        "Gov-Client-Connection-Method": "BATCH_PROCESS_DIRECT",
+        "Gov-Client-User-IDs": "",
+        "Gov-Client-Timezone": "UTC+00:00",
+        "Gov-Client-User-Agent": "AS207960 Billing System",
+        "Gov-Client-Local-IPs": "",
+        "Gov-Client-MAC-Addresses": uuid.getnode().to_bytes(6, "big").hex(),
+        "Gov-Vendor-Version": "",
+        "Gov-Vendor-License-IDs": "",
+    }
 
-        resp_data = resp.json()
-        return VerifyVATStatus.OK, HMRCVATInfo.from_api_resp(resp_data)
-    else:
-        return VerifyVATStatus.OK, None
+    resp = requests.get(hmrc_url, headers=headers)
+    if resp.status_code == 404:
+        return VerifyVATStatus.INVALID, None
+    elif resp.status_code != 200:
+        return VerifyVATStatus.ERROR, None
+
+    resp_data = resp.json()
+    return VerifyVATStatus.OK, HMRCVATInfo.from_api_resp(resp_data)
 
 
 def verify_vat_tr(number: str):

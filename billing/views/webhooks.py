@@ -224,7 +224,12 @@ def attempt_complete_bank_transfer(
     if not found and data:
         email_msg = EmailMultiAlternatives(
             subject="Unmatched Bank Transaction",
-            body=json.dumps(data, indent=4, sort_keys=True),
+            body=json.dumps({
+                "data": data,
+                "error": error,
+                "ledger_item": ledger_item.id if ledger_item else None,
+                "known_account": known_account.id if known_account else None,
+            }, indent=4, sort_keys=True),
             to=['finance@as207960.net'],
         )
         email_msg.send()
