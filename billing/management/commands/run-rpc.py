@@ -9,6 +9,7 @@ import decimal
 import time
 import traceback
 import sys
+import functools
 from billing import models, views, tasks, vat, apps
 import billing.proto.billing_pb2
 import billing.proto.geoip_pb2
@@ -61,6 +62,31 @@ class Command(BaseCommand):
             return
 
     def callback(self, channel, method, properties, body):
+        t = threading.Thread(target=self._callback, args=(channel, method, properties, body))
+        t.setDaemon(True)
+        t.start()
+
+    def nack(self, channel, tag):
+        self.connection.add_callback_threadsafe(
+            functools.partial(channel.basic_nack, delivery_tag=tag)
+        )
+
+    def ack(self, channel, tag):
+        self.connection.add_callback_threadsafe(
+            functools.partial(channel.basic_ack, delivery_tag=tag)
+        )
+
+    @staticmethod
+    def resp(channel, resp, properties, delivery_tag):
+        channel.basic_publish(
+            exchange='',
+            routing_key=properties.reply_to,
+            properties=pika.BasicProperties(correlation_id=properties.correlation_id),
+            body=resp.SerializeToString()
+        )
+        channel.basic_ack(delivery_tag=delivery_tag)
+
+    def _callback(self, channel, method, properties, body):
         msg = billing.proto.billing_pb2.BillingRequest()
         msg.ParseFromString(body)
 
@@ -73,7 +99,7 @@ class Command(BaseCommand):
                 traceback.print_exc()
                 sys.stdout.flush()
                 sys.stderr.flush()
-                channel.basic_nack(delivery_tag=method.delivery_tag)
+                self.nack(channel, method.delivery_tag)
                 return
         elif msg_type == "charge_user":
             print(f"{properties.correlation_id} - Received charge request\n{msg.charge_user}", flush=True)
@@ -83,22 +109,18 @@ class Command(BaseCommand):
                 traceback.print_exc()
                 sys.stdout.flush()
                 sys.stderr.flush()
-                channel.basic_nack(delivery_tag=method.delivery_tag)
+                self.nack(channel, method.delivery_tag)
                 return
         else:
             print(f"{properties.correlation_id} - Received unknown request\n{msg}", flush=True)
-            channel.basic_ack(delivery_tag=method.delivery_tag)
+            self.ack(channel, method.delivery_tag)
             return
 
         print(f"{properties.correlation_id} - Sending response", flush=True)
 
-        channel.basic_publish(
-            exchange='',
-            routing_key=properties.reply_to,
-            properties=pika.BasicProperties(correlation_id=properties.correlation_id),
-            body=resp.SerializeToString()
+        self.connection.add_callback_threadsafe(
+            functools.partial(self.resp, properties=properties, delivery_tag=method.delivery_tag, resp=resp)
         )
-        channel.basic_ack(delivery_tag=method.delivery_tag)
 
     @staticmethod
     def convert_currency(msg: billing.proto.billing_pb2.ConvertCurrencyRequest) \
