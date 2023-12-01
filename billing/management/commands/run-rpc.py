@@ -116,11 +116,11 @@ class Command(BaseCommand):
             self.ack(channel, method.delivery_tag)
             return
 
-        print(f"{properties.correlation_id} - Sending response", flush=True)
+        print(f"{properties.correlation_id} - Sending response\n{resp}", flush=True)
 
-        self.connection.add_callback_threadsafe(
-            functools.partial(self.resp, properties=properties, delivery_tag=method.delivery_tag, resp=resp)
-        )
+        self.connection.add_callback_threadsafe(functools.partial(
+            self.resp, channel=channel, properties=properties, delivery_tag=method.delivery_tag, resp=resp
+        ))
 
     @staticmethod
     def convert_currency(msg: billing.proto.billing_pb2.ConvertCurrencyRequest) \
