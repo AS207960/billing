@@ -66,7 +66,7 @@ class Command(BaseCommand):
 
         msg_type = msg.WhichOneof("message")
         if msg_type == "convert_currency":
-            print(f"Received currency conversion request: {msg.convert_currency}", flush=True)
+            print(f"{properties.correlation_id} - Received currency conversion request\n{msg.convert_currency}", flush=True)
             try:
                 resp = self.convert_currency(msg.convert_currency)
             except:
@@ -76,7 +76,7 @@ class Command(BaseCommand):
                 channel.basic_nack(delivery_tag=method.delivery_tag)
                 return
         elif msg_type == "charge_user":
-            print(f"Received charge request: {msg.charge_user}", flush=True)
+            print(f"{properties.correlation_id} - Received charge request\n{msg.charge_user}", flush=True)
             try:
                 resp = self.charge_user(msg.charge_user)
             except:
@@ -86,9 +86,11 @@ class Command(BaseCommand):
                 channel.basic_nack(delivery_tag=method.delivery_tag)
                 return
         else:
-            print(f"Received unknown request: {msg}", flush=True)
+            print(f"{properties.correlation_id} - Received unknown request\n{msg}", flush=True)
             channel.basic_ack(delivery_tag=method.delivery_tag)
             return
+
+        print(f"{properties.correlation_id} - Sending response", flush=True)
 
         channel.basic_publish(
             exchange='',
