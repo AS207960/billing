@@ -523,27 +523,32 @@ def handle_payment(
                     del request.session["top_up_amount"]
 
                 if selected_payment_method_type == "stripe_pm":
-                    payment_intent = stripe.PaymentIntent.create(
-                        amount=amount_int,
-                        currency=selected_currency,
-                        customer=account.get_stripe_id(),
-                        description=charge_descriptor if charge_descriptor else "Top-up",
-                        receipt_email=request.user.email,
-                        statement_descriptor_suffix="Top-up",
-                        payment_method=selected_payment_method_id,
-                        confirm=True,
-                        return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,)))
-                    )
-                    ledger_item.descriptor = f"Card payment for {charge_descriptor}" \
-                        if charge_descriptor else "Top-up by card"
-                    ledger_item.type = models.LedgerItem.TYPE_CARD
-                    ledger_item.type_id = payment_intent['id']
-                    ledger_item.save()
-                    tasks.update_from_payment_intent(payment_intent, ledger_item)
+                    try:
+                        payment_intent = stripe.PaymentIntent.create(
+                            amount=amount_int,
+                            currency=selected_currency,
+                            customer=account.get_stripe_id(),
+                            description=charge_descriptor if charge_descriptor else "Top-up",
+                            receipt_email=request.user.email,
+                            statement_descriptor_suffix="Top-up",
+                            payment_method=selected_payment_method_id,
+                            confirm=True,
+                            return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,)))
+                        )
+                    except stripe.error.CardError as e:
+                        charge_state.last_error = e.user_message
+                        charge_state.save()
+                    else:
+                        ledger_item.descriptor = f"Card payment for {charge_descriptor}" \
+                            if charge_descriptor else "Top-up by card"
+                        ledger_item.type = models.LedgerItem.TYPE_CARD
+                        ledger_item.type_id = payment_intent['id']
+                        ledger_item.save()
+                        tasks.update_from_payment_intent(payment_intent, ledger_item)
 
-                    if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
-                        return HandlePaymentOutcome.REDIRECT, \
-                               (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+                        if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                            return HandlePaymentOutcome.REDIRECT, \
+                                   (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
 
                 elif selected_payment_method_type == "sofort":
                     payment_intent = stripe.PaymentIntent.create(
