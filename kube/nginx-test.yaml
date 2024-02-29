@@ -37,7 +37,7 @@ data:
         root /data/;
 
         location / {
-          try_files $uri @proxy_to_app;
+          try_files @proxy_to_app;
         }
 
         location @proxy_to_app {
@@ -77,12 +77,6 @@ spec:
         part: nginx
     spec:
       volumes:
-        - name: static
-          persistentVolumeClaim:
-            claimName: billing-django-test-static
-        - name: media
-          persistentVolumeClaim:
-            claimName: billing-django-test-media
         - name: conf
           configMap:
             name: billing-nginx-test-conf
@@ -92,10 +86,6 @@ spec:
           ports:
             - containerPort: 80
           volumeMounts:
-            - mountPath: "/data/static/"
-              name: static
-            - mountPath: "/data/media/"
-              name: media
             - mountPath: "/etc/nginx/nginx.conf"
               name: conf
               subPath: "nginx.conf"

@@ -27,4 +27,5 @@ django-stubs
 mypy
 asgiref
 requests
-
+django-storages
+boto3

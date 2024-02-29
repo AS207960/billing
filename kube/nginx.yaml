@@ -33,7 +33,7 @@ data:
       server {
         listen       [::]:80;
         server_name  billing.as207960.net;
-
+    
         root /data/;
 
         location /.well-known/apple-developer-merchantid-domain-association {
@@ -41,11 +41,11 @@ data:
         }
 
         location / {
-          try_files $uri @proxy_to_app;
+          try_files @proxy_to_app;
         }
 
         location @proxy_to_app {
-          proxy_pass      http://billing-django:8000;
+          proxy_pass http://billing-django:8000;
 
           proxy_http_version 1.1;
 
@@ -83,12 +83,6 @@ spec:
         part: nginx
     spec:
       volumes:
-        - name: static
-          persistentVolumeClaim:
-            claimName: billing-django-static
-        - name: media
-          persistentVolumeClaim:
-            claimName: billing-django-media
         - name: conf
           configMap:
             name: billing-nginx-conf
@@ -99,10 +93,6 @@ spec:
           ports:
             - containerPort: 80
           volumeMounts:
-            - mountPath: "/data/static/"
-              name: static
-            - mountPath: "/data/media/"
-              name: media
             - mountPath: "/etc/nginx/nginx.conf"
               name: conf
               subPath: "nginx.conf"
