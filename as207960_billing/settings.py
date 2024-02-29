@@ -18,6 +18,11 @@ import sentry_sdk
 from idempotency_key import status
 from sentry_sdk.integrations.django import DjangoIntegration
 
+from django_countries.widgets import LazyChoicesMixin
+
+LazyChoicesMixin.get_choices = lambda self: self._choices
+LazyChoicesMixin.choices = property(LazyChoicesMixin.get_choices, LazyChoicesMixin.set_choices)
+
 logging.basicConfig(level=logging.INFO)
 
 sentry_sdk.init(
