@@ -38,10 +38,9 @@ data:
   STRIPE_PUBLIC_KEY: "pk_live_VLsjEC8QBoN5rQWW0rfVccqW00VzaknDP3"
   DB_HOST: "cockroachdb"
   DB_NAME: "billing"
-  EMAIL_HOST: "mx.postal.as207960.net"
-  EMAIL_HOST_USER: "apikey"
-  EMAIL_PORT: "25"
   EMAIL_FROM: "=?UTF-8?q?AS207960=20Billing?= <billing@as207960.net>"
+  LISTMONK_TEMPLATE_ID: "3"
+  LISTMONK_URL: "https://listmonk.as207960.net"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -115,9 +114,6 @@ spec:
                 name: billing-xfw
               prefix: "TRANSFERWISE_"
             - secretRef:
-                name: billing-email
-              prefix: "EMAIL_"
-            - secretRef:
                 name: billing-rpc
       containers:
         - name: gunicorn
@@ -162,9 +158,6 @@ spec:
             - secretRef:
                 name: billing-xfw
               prefix: "TRANSFERWISE_"
-            - secretRef:
-                name: billing-email
-              prefix: "EMAIL_"
             - secretRef:
                 name: billing-rpc
 ---
@@ -259,9 +252,6 @@ spec:
                 name: billing-xfw
               prefix: "TRANSFERWISE_"
             - secretRef:
-                name: billing-email
-              prefix: "EMAIL_"
-            - secretRef:
                 name: billing-rpc
 ---
 apiVersion: networking.k8s.io/v1
@@ -275,81 +265,6 @@ spec:
       part: rpc
   policyTypes:
   - Ingress
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: billing-keycloak-events
-  labels:
-    app: billing
-    part: keycloak-events
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: billing
-      part: keycloak-events
-  template:
-    metadata:
-      annotations:
-        cni.projectcalico.org/ipv6pools: "[\"default-ipv6-ippool\"]"
-      labels:
-        app: billing
-        part: keycloak-events
-    spec:
-      volumes:
-        - name: static
-          persistentVolumeClaim:
-            claimName: billing-django-static
-        - name: media
-          persistentVolumeClaim:
-            claimName: billing-django-media
-      containers:
-        - name: rpc
-          image: as207960/billing-django:(version)
-          imagePullPolicy: IfNotPresent
-          command: ["sh", "-c", "python3 manage.py keycloak-events"]
-          volumeMounts:
-            - mountPath: "/app/static/"
-              name: static
-            - mountPath: "/app/media/"
-              name: media
-          envFrom:
-            - configMapRef:
-                name: billing-django-conf
-            - secretRef:
-                name: billing-db-creds
-              prefix: "DB_"
-            - secretRef:
-                name: billing-django-secret
-            - secretRef:
-                name: billing-keycloak
-              prefix: "KEYCLOAK_"
-            - secretRef:
-                name: billing-stripe-secret
-            - secretRef:
-                name: billing-monzo-secret
-            - secretRef:
-                name: billing-open-exchange-secret
-            - secretRef:
-                name: billing-webpush
-            - secretRef:
-                name: billing-flux
-              prefix: "FLUX_"
-            - secretRef:
-                name: billing-hmrc
-              prefix: "HMRC_"
-            - secretRef:
-                name: billing-gc
-              prefix: "GOCARDLESS_"
-            - secretRef:
-                name: billing-xfw
-              prefix: "TRANSFERWISE_"
-            - secretRef:
-                name: billing-email
-              prefix: "EMAIL_"
-            - secretRef:
-                name: billing-rpc
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -429,9 +344,6 @@ spec:
                     name: billing-xfw
                   prefix: "TRANSFERWISE_"
                 - secretRef:
-                    name: billing-email
-                  prefix: "EMAIL_"
-                - secretRef:
                     name: billing-rpc
           restartPolicy: OnFailure
 #---
@@ -496,9 +408,6 @@ spec:
 #                - secretRef:
 #                    name: billing-xfw
 #                  prefix: "TRANSFERWISE_"
-#                - secretRef:
-#                    name: billing-email
-#                  prefix: "EMAIL_"
 #                - secretRef:
 #                    name: billing-rpc
 #          restartPolicy: OnFailure
@@ -569,9 +478,6 @@ spec:
                     name: billing-xfw
                   prefix: "TRANSFERWISE_"
                 - secretRef:
-                    name: billing-email
-                  prefix: "EMAIL_"
-                - secretRef:
                     name: billing-rpc
           restartPolicy: OnFailure
 ---
@@ -641,9 +547,6 @@ spec:
                     name: billing-xfw
                   prefix: "TRANSFERWISE_"
                 - secretRef:
-                    name: billing-email
-                  prefix: "EMAIL_"
-                - secretRef:
                     name: billing-rpc
           restartPolicy: OnFailure
 ---
@@ -712,9 +615,6 @@ spec:
                 - secretRef:
                     name: billing-xfw
                   prefix: "TRANSFERWISE_"
-                - secretRef:
-                    name: billing-email
-                  prefix: "EMAIL_"
                 - secretRef:
                     name: billing-rpc
           restartPolicy: OnFailure

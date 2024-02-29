@@ -9,13 +9,13 @@ import requests
 import stripe
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, permission_required
-from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.http import HttpResponseBadRequest, HttpResponse
 from django.shortcuts import redirect, render, reverse, get_object_or_404
 from django.template.loader import render_to_string
 
 from .. import models, tasks
+from . import emails
 
 
 @login_required
@@ -96,7 +96,7 @@ def send_freeagent_invoice(request):
                 "Authorization": f"Bearer {freeagent_token}"
             })
             r.raise_for_status()
-            pdf_data = base64.b64decode(r.json()["pdf"]["content"])
+            # pdf_data = base64.b64decode(r.json()["pdf"]["content"])
 
             account = models.Account.objects.filter(freeagent_contact_id=invoice_data["contact"]).first()
             temp_account = False
@@ -107,7 +107,7 @@ def send_freeagent_invoice(request):
                 user, _ = UserModel.objects.update_or_create(
                     username=str(uuid.uuid4()),
                     defaults={
-                        email_field_name: contact_data.get("billing_email", contact_data.get("email")),
+                        email_field_name: invoice_email,
                         "first_name": contact_data.get("first_name"),
                         "last_name": contact_data.get("last_name"),
                     },
@@ -221,25 +221,15 @@ def send_freeagent_invoice(request):
                                     "reference": bank_instructions["reference"]
                                 }
 
-            context = {
-                "name": invoice_data['contact_name'],
-                "invoice_url": invoice_url,
-                "bank_details": bank_details,
-                "payment_started": payment_started,
-            }
-            html_content = render_to_string("billing_email/new_invoice.html", context)
-            txt_content = render_to_string("billing_email/new_invoice.txt", context)
-
-            email_msg = EmailMultiAlternatives(
-                subject=f"Your AS207960 / Glauca invoice - {invoice_data['reference']}",
-                body=txt_content,
-                to=[invoice_email],
-                bcc=['finance@as207960.net'],
-                reply_to=['hello@glauca.digital']
-            )
-            email_msg.attach_alternative(html_content, "text/html")
-            # email_msg.attach(f"AS207960_Invoice_{invoice_data['reference']}.pdf", pdf_data, "application/pdf")
-            email_msg.send()
+            emails.send_email({
+                "subject": f"Your AS207960 / Glauca invoice - {invoice_data['reference']}",
+                "content": render_to_string("billing_email/new_invoice.html", {
+                    "name": invoice_data['contact_name'],
+                    "invoice_url": invoice_url,
+                    "bank_details": bank_details,
+                    "payment_started": payment_started,
+                })
+            }, user=account.user)
 
             r = requests.put(f'{invoice_data.get("url")}/transitions/mark_as_sent', headers={
                 "Authorization": f"Bearer {freeagent_token}"

@@ -1,55 +1,49 @@
-{% extends "billing_email/email_base.html" %}
-{% block content %}
+<p>
+    Please find attached your latest invoice.
+</p>
+{% if payment_started %}
     <p>
-        Hello {{ name }},
+        We've taken payment from your online billing account.
+        You can make changes to your account using the below link.
     </p>
+    <a href="{{ invoice_url }}"
+       style="color: #fff;background-color: #3182CE;text-align: center;text-decoration: none;box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);border-radius: .5rem;display: block;padding: 0.5rem 1rem;font-size: 1.25rem;line-height: 1.5;">
+        View invoice
+    </a>
+{% else %}
     <p>
-        Please find attached your latest invoice.
+        You can view and pay your invoice online using the below link.
+        You will require an AS207960 account to pay online.
     </p>
-    {% if payment_started %}
-        <p>
-            We've taken payment from your online billing account.
-            You can make changes to your account using the below link.
-        </p>
-        <a href="{{ invoice_url }}"
-           style="color: #fff;background-color: #3182CE;text-align: center;text-decoration: none;box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);border-radius: .5rem;display: block;padding: 0.5rem 1rem;font-size: 1.25rem;line-height: 1.5;">
-            View invoice
-        </a>
-    {% else %}
-        <p>
-            You can view and pay your invoice online using the below link.
-            You will require an AS207960 account to pay online.
-        </p>
-        <a href="{{ invoice_url }}"
-           style="color: #fff;background-color: #3182CE;text-align: center;text-decoration: none;box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);border-radius: .5rem;display: block;padding: 0.5rem 1rem;font-size: 1.25rem;line-height: 1.5;">
-            View and pay
-        </a>
-    {% endif %}
-    {% if bank_details %}
-        <p>
-            You can also pay via bank transfer to the below details;
-        </p>
-        <table style="width:100%;background:#eee;border-radius:5px;padding:20px;">
-            <tbody>
-            {% if bank_details.type == "gb" %}
-                <tr style="padding:5px;">
-                    <th>Sort code</th>
-                    <td>{{ bank_details.sort_code }}</td>
-                </tr>
-                <tr style="padding:5px;">
-                    <th>Account number</th>
-                    <td>{{ bank_details.account_number }}</td>
-                </tr>
-            {% endif %}
+    <a href="{{ invoice_url }}"
+       style="color: #fff;background-color: #3182CE;text-align: center;text-decoration: none;box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);border-radius: .5rem;display: block;padding: 0.5rem 1rem;font-size: 1.25rem;line-height: 1.5;">
+        View and pay
+    </a>
+{% endif %}
+{% if bank_details %}
+    <p>
+        You can also pay via bank transfer to the below details;
+    </p>
+    <table style="width:100%;background:#eee;border-radius:5px;padding:20px;">
+        <tbody>
+        {% if bank_details.type == "gb" %}
             <tr style="padding:5px;">
-                <th>Reference</th>
-                <td>{{ bank_details.reference }}</td>
+                <th>Sort code</th>
+                <td>{{ bank_details.sort_code }}</td>
             </tr>
             <tr style="padding:5px;">
-                <th>Amount due</th>
-                <td>{{ bank_details.amount|floatformat:2 }} {{ bank_details.currency }}</td>
+                <th>Account number</th>
+                <td>{{ bank_details.account_number }}</td>
             </tr>
-            </tbody>
-        </table>
-    {% endif %}
-{% endblock %}
+        {% endif %}
+        <tr style="padding:5px;">
+            <th>Reference</th>
+            <td>{{ bank_details.reference }}</td>
+        </tr>
+        <tr style="padding:5px;">
+            <th>Amount due</th>
+            <td>{{ bank_details.amount|floatformat:2 }} {{ bank_details.currency }}</td>
+        </tr>
+        </tbody>
+    </table>
+{% endif %}

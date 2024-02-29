@@ -1,15 +1,9 @@
-{% extends "billing_email/email_base.html" %}
 {% load mathfilters %}
-{% block content %}
-    <p>
-        Hello {{ name }},
-    </p>
-    <p>
-        Just to let you know the subscription payment of &pound;{{ item.amount|abs|floatformat:2 }}
-        for {{ plan_name }} has succeeded. No further action is required on your part.
-    </p>
-    {% include "billing_email/item_card.html" with item=item %}
-    <p>
-        You can always keep an eye on your account at <a href="https://billing.as207960.net">billing.as207960.net</a>
-    </p>
-{% endblock %}
+<p>
+    Just to let you know the subscription payment of &pound;{{ item.amount|abs|floatformat:2 }}
+    for {{ plan_name }} has succeeded. No further action is required on your part.
+</p>
+{% include "billing_email/item_card.html" with item=item %}
+<p>
+    You can always keep an eye on your account at <a href="https://billing.as207960.net">billing.as207960.net</a>
+</p>

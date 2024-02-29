@@ -22,9 +22,9 @@ from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbid
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django.core.mail import EmailMultiAlternatives
 
-from .. import tasks, models, vat
+from .. import tasks, models
+from . import emails
 
 transferwise_live_pub = cryptography.hazmat.primitives.serialization.load_der_public_key(
     base64.b64decode(
@@ -222,17 +222,16 @@ def attempt_complete_bank_transfer(
             error = "Bank account country does not match billing address"
 
     if not found and data:
-        email_msg = EmailMultiAlternatives(
-            subject="Unmatched Bank Transaction",
-            body=json.dumps({
-                "data": data,
-                "error": error,
-                "ledger_item": ledger_item.id if ledger_item else None,
-                "known_account": known_account.id if known_account else None,
-            }, indent=4, sort_keys=True),
-            to=['finance@as207960.net'],
-        )
-        email_msg.send()
+        text = json.dumps({
+            "data": data,
+            "error": error,
+            "ledger_item": ledger_item.id if ledger_item else None,
+            "known_account": known_account.id if known_account else None,
+        }, indent=4, sort_keys=True)
+        emails.send_email({
+            "subject": "Unmatched Bank Transaction",
+            "content": f"<p><pre>{text}</pre></p>",
+        }, email="finance@as207960.net")
 
     return error
 

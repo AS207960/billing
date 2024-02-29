@@ -218,6 +218,9 @@ FREEAGENT_BASE_URL = "https://api.sandbox.freeagent.com"
 FREEAGENT_CLIENT_ID = freeagent_conf["client_id"]
 FREEAGENT_CLIENT_SECRET = freeagent_conf["client_secret"]
 
+LISTMONK_TEMPLATE_ID = 3
+LISTMONK_URL = "https://listmonk.as207960.net"
+
 COUNTRIES_COMMON_NAMES = True
 # COUNTRIES_OVERRIDE = {
 #     "BS": "the Bahamas",

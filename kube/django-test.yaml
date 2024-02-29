@@ -38,12 +38,11 @@ data:
   STRIPE_PUBLIC_KEY: "pk_test_HiLhXV0p2Gk4HzYr5S5vpmbi00pSy0cAVL"
   DB_HOST: "cockroachdb"
   DB_NAME: "billing-test"
-  EMAIL_HOST: "mx.postal.as207960.net"
-  EMAIL_HOST_USER: "apikey"
-  EMAIL_PORT: "25"
   EMAIL_FROM: "=?UTF-8?q?AS207960=20Billing=20[TEST]?= <billing-test@as207960.net>"
   IS_TEST: "true"
   STRIPE_CLIMATE: "true"
+  LISTMONK_TEMPLATE_ID: "3"
+  LISTMONK_URL: "https://listmonk.as207960.net"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -117,9 +116,6 @@ spec:
                 name: billing-xfw-test
               prefix: "TRANSFERWISE_"
             - secretRef:
-                name: billing-test-email
-              prefix: "EMAIL_"
-            - secretRef:
                 name: billing-test-rpc
       containers:
         - name: gunicorn
@@ -164,9 +160,6 @@ spec:
             - secretRef:
                 name: billing-xfw-test
               prefix: "TRANSFERWISE_"
-            - secretRef:
-                name: billing-test-email
-              prefix: "EMAIL_"
             - secretRef:
                 name: billing-test-rpc
 ---
@@ -263,9 +256,6 @@ spec:
                 name: billing-xfw-test
               prefix: "TRANSFERWISE_"
             - secretRef:
-                name: billing-test-email
-              prefix: "EMAIL_"
-            - secretRef:
                 name: billing-test-rpc
 ---
 apiVersion: networking.k8s.io/v1
@@ -349,9 +339,6 @@ spec:
                     name: billing-xfw-test
                   prefix: "TRANSFERWISE_"
                 - secretRef:
-                    name: billing-test-email
-                  prefix: "EMAIL_"
-                - secretRef:
                     name: billing-test-rpc
           restartPolicy: OnFailure
 #---
@@ -419,9 +406,6 @@ spec:
 #                - secretRef:
 #                    name: billing-xfw-test
 #                  prefix: "TRANSFERWISE_"
-#                - secretRef:
-#                    name: billing-test-email
-#                  prefix: "EMAIL_"
 #                - secretRef:
 #                    name: billing-test-rpc
 #          restartPolicy: OnFailure
@@ -495,9 +479,6 @@ spec:
                     name: billing-xfw-test
                   prefix: "TRANSFERWISE_"
                 - secretRef:
-                    name: billing-test-email
-                  prefix: "EMAIL_"
-                - secretRef:
                     name: billing-test-rpc
           restartPolicy: OnFailure
 ---
@@ -570,9 +551,6 @@ spec:
                     name: billing-xfw-test
                   prefix: "TRANSFERWISE_"
                 - secretRef:
-                    name: billing-test-email
-                  prefix: "EMAIL_"
-                - secretRef:
                     name: billing-test-rpc
           restartPolicy: OnFailure
 ---
@@ -644,9 +622,6 @@ spec:
                 - secretRef:
                     name: billing-xfw-test
                   prefix: "TRANSFERWISE_"
-                - secretRef:
-                    name: billing-test-email
-                  prefix: "EMAIL_"
                 - secretRef:
                     name: billing-test-rpc
           restartPolicy: OnFailure

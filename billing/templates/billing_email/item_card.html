@@ -1,43 +1,43 @@
 {% load mathfilters %}
 {% load static %}
 <table style="width:100%;background:#eee;border-radius:5px;padding:20px;">
-        <tbody>
-        <tr style="padding:5px;">
-            <th>Description</th>
-            <td>{{ item.descriptor }}</td>
-        </tr>
-        <tr style="padding:5px;">
-            <th>Amount</th>
-            {% if item.amount >= 0 %}
-                <td>&pound;{{ item.amount|floatformat:2 }}</td>
-            {% else %}
-                <td>-&pound;{{ item.amount|abs|floatformat:2 }}</td>
-            {% endif %}
-        </tr>
-        <tr style="padding:5px;">
-            <th>State</th>
-            <td>
-                {% if item.state == "P" %}
-                    <span style="background:#ECC94B;padding: 0.25rem 0.4rem;font-size: 75%;border-radius: 10rem;">
+    <tbody>
+    <tr style="padding:5px;">
+        <th>Description</th>
+        <td>{{ item.descriptor }}</td>
+    </tr>
+    <tr style="padding:5px;">
+        <th>Amount</th>
+        {% if item.amount >= 0 %}
+            <td>&pound;{{ item.amount|floatformat:2 }}</td>
+        {% else %}
+            <td>-&pound;{{ item.amount|abs|floatformat:2 }}</td>
+        {% endif %}
+    </tr>
+    <tr style="padding:5px;">
+        <th>State</th>
+        <td>
+            {% if item.state == "P" %}
+                <span style="background:#ECC94B;padding: 0.25rem 0.4rem;font-size: 75%;border-radius: 10rem;">
                         &#x23f3; Pending
                     </span>
-                {% elif item.state == "S" or item.state == "A" %}
-                    <span style="background:#319795;padding: 0.25rem 0.4rem;font-size: 75%;border-radius: 10rem;">
+            {% elif item.state == "S" or item.state == "A" %}
+                <span style="background:#319795;padding: 0.25rem 0.4rem;font-size: 75%;border-radius: 10rem;">
                         &#x1f4c7; Processing
                     </span>
-                {% elif item.state == "F" %}
-                    <span style="background:#E53E3E;padding: 0.25rem 0.4rem;font-size: 75%;border-radius: 10rem;">
+            {% elif item.state == "F" %}
+                <span style="background:#E53E3E;padding: 0.25rem 0.4rem;font-size: 75%;border-radius: 10rem;">
                          &#x1f645; Failed
                     </span>
-                {% elif item.state == "C" %}
-                    <span style="background:#38A169;padding: 0.25rem 0.4rem;font-size: 75%;border-radius: 10rem;">
+            {% elif item.state == "C" %}
+                <span style="background:#38A169;padding: 0.25rem 0.4rem;font-size: 75%;border-radius: 10rem;">
                          &#x1f4b8; Completed
                     </span>
-                {% endif %}
-            </td>
-        </tr>
-        </tbody>
-    </table>
+            {% endif %}
+        </td>
+    </tr>
+    </tbody>
+</table>
 {% if item.stripe_climate_contribution %}
     <p>
         <img src="{% static 'billing/imgs/climate-badge.svg' %}" alt="" style="height: 1.3rem;">

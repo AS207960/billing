@@ -10,15 +10,15 @@ import pywebpush
 import sentry_sdk
 import stripe.error
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
 from django.db.models import Q
-from django.db.models.signals import pre_save, post_save
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.shortcuts import reverse
 from django.template.loader import render_to_string
 from django.utils import timezone
 
 from . import models, utils, apps, vat
+from .views import emails
 from .proto import billing_pb2
 
 pika_parameters = pika.URLParameters(settings.RABBITMQ_RPC_URL)
@@ -74,26 +74,14 @@ def mail_notif(ledger_item: models.LedgerItem):
     else:
         subject = f"{ledger_item.descriptor}: {state_name}"
 
-    context = {
-        "name": ledger_item.account.user.first_name,
-        "item": ledger_item,
-        "charge_state_url": charge_state_url,
-        "charge_state_error": charge_error,
-        "subject": subject
-    }
-
-    html_content = render_to_string("billing_email/billing_notif.html", context)
-    txt_content = render_to_string("billing_email/billing_notif.txt", context)
-
-    email_msg = EmailMultiAlternatives(
-        subject=subject,
-        body=txt_content,
-        to=[ledger_item.account.user.email],
-        bcc=['email-log@as207960.net'],
-        reply_to=['hello@glauca.digital']
-    )
-    email_msg.attach_alternative(html_content, "text/html")
-    email_msg.send()
+    emails.send_email({
+        "subject": subject,
+        "content": render_to_string("billing_email/billing_notif.html", {
+            "item": ledger_item,
+            "charge_state_url": charge_state_url,
+            "charge_state_error": charge_error,
+        })
+    }, user=ledger_item.account.user)
 
 
 @as_thread
@@ -103,25 +91,14 @@ def mail_subscription_success(subscription: models.Subscription, item: models.Le
     except django.core.exceptions.ObjectDoesNotExist:
         charge_state = None
 
-    context = {
-        "name": subscription.account.user.first_name,
-        "plan_name": subscription.plan.name,
-        "item": item,
-        "charge_state": charge_state,
-        "subject": 'Subscription payment successful',
-    }
-    html_content = render_to_string("billing_email/billing_success.html", context)
-    txt_content = render_to_string("billing_email/billing_success.txt", context)
-
-    email_msg = EmailMultiAlternatives(
-        subject='Subscription payment successful',
-        body=txt_content,
-        to=[subscription.account.user.email],
-        bcc=['email-log@as207960.net'],
-        reply_to=['hello@glauca.digital']
-    )
-    email_msg.attach_alternative(html_content, "text/html")
-    email_msg.send()
+    emails.send_email({
+        "subject": "Subscription payment successful",
+        "content": render_to_string("billing_email/billing_success.html", {
+            "plan_name": subscription.plan.name,
+            "item": item,
+            "charge_state": charge_state,
+        })
+    }, user=subscription.account.user)
 
 
 @as_thread
@@ -131,25 +108,14 @@ def mail_subscription_past_due(subscription: models.Subscription, item: models.L
     except django.core.exceptions.ObjectDoesNotExist:
         charge_state = None
 
-    context = {
-        "name": subscription.account.user.first_name,
-        "plan_name": subscription.plan.name,
-        "item": item,
-        "charge_state": charge_state,
-        "subject": 'Subscription payment failed',
-    }
-    html_content = render_to_string("billing_email/billing_past_due.html", context)
-    txt_content = render_to_string("billing_email/billing_past_due.txt", context)
-
-    email_msg = EmailMultiAlternatives(
-        subject='Subscription payment failed',
-        body=txt_content,
-        to=[subscription.account.user.email],
-        bcc=['email-log@as207960.net'],
-        reply_to=['hello@glauca.digital']
-    )
-    email_msg.attach_alternative(html_content, "text/html")
-    email_msg.send()
+    emails.send_email({
+        "subject": "Subscription payment failed",
+        "content": render_to_string("billing_email/billing_past_due.html", {
+            "plan_name": subscription.plan.name,
+            "item": item,
+            "charge_state": charge_state,
+        })
+    }, user=subscription.account.user)
 
 
 @as_thread
@@ -159,25 +125,14 @@ def mail_subscription_cancelled(subscription: models.Subscription, item: models.
     except django.core.exceptions.ObjectDoesNotExist:
         charge_state = None
 
-    context = {
-        "name": subscription.account.user.first_name,
-        "plan_name": subscription.plan.name,
-        "item": item,
-        "charge_state": charge_state,
-        "subject": 'Subscription cancelled',
-    }
-    html_content = render_to_string("billing_email/billing_cancelled.html", context)
-    txt_content = render_to_string("billing_email/billing_cancelled.txt", context)
-
-    email_msg = EmailMultiAlternatives(
-        subject='Subscription cancelled',
-        body=txt_content,
-        to=[subscription.account.user.email],
-        bcc=['email-log@as207960.net'],
-        reply_to=['hello@glauca.digital']
-    )
-    email_msg.attach_alternative(html_content, "text/html")
-    email_msg.send()
+    emails.send_email({
+        "subject": "Subscription cancelled",
+        "content": render_to_string("billing_email/billing_cancelled.html", {
+            "plan_name": subscription.plan.name,
+            "item": item,
+            "charge_state": charge_state,
+        })
+    }, user=subscription.account.user)
 
 
 @as_thread
