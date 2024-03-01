@@ -201,7 +201,7 @@ OPEN_EXCHANGE_API_KEY = open_exchange_conf["key"]
 MONZO_WEBHOOK_SECRET_KEY = "test"
 
 PHONENUMBER_DEFAULT_REGION = "GB"
-CRISPY_TEMPLATE_PACK = "bootstrap4"
+CRISPY_TEMPLATE_PACK = "bootstrap5"
 CRISPY_FAIL_SILENTLY = not DEBUG
 
 with open(os.path.join(BASE_DIR, "secrets/vapid_private.der")) as f:

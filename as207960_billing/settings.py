@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'mathfilters',
     'django_countries',
     'phonenumber_field',
+    'crispy_bootstrap5',
     'billing'
 ]
 
@@ -204,7 +205,7 @@ TRANSFERWISE_ENV = os.getenv("TRANSFERWISE_ENV")
 TRANSFERWISE_PRIV_KEY = os.getenv("TRANSFERWISE_PRIV_KEY")
 
 PHONENUMBER_DEFAULT_REGION = "GB"
-CRISPY_TEMPLATE_PACK = "bootstrap4"
+CRISPY_TEMPLATE_PACK = "bootstrap5"
 CRISPY_FAIL_SILENTLY = True
 
 OWN_EU_VAT_COUNTRY = "EU"
