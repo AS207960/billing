@@ -301,3 +301,4 @@ COUNTRIES_OVERRIDE = {
     "UM": "the United States Minor Outlying Islands",
 }
 
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'

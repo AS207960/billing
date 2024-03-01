@@ -257,3 +257,5 @@ COUNTRIES_COMMON_NAMES = True
 #     "US": "the United States of America",
 #     "UM": "the United States Minor Outlying Islands",
 # }
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
