@@ -34,13 +34,7 @@ data:
         listen       [::]:80;
         server_name  billing.test.as207960.net;
 
-        root /data/;
-
         location / {
-          try_files @proxy_to_app;
-        }
-
-        location @proxy_to_app {
           proxy_pass      http://billing-django-test:8000;
 
           proxy_http_version 1.1;
