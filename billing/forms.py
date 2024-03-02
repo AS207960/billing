@@ -393,6 +393,7 @@ class BACSMarkPaidForm(forms.Form):
     bank_code = forms.CharField(required=False)
     branch_code = forms.CharField(required=False)
     account_number = forms.CharField(label="Account number / IBAN")
+    override_country_check = forms.BooleanField(required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

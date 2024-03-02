@@ -180,7 +180,8 @@ def edit_ledger_item(request, item_id):
 
                 error = webhooks.attempt_complete_bank_transfer(
                     ref=None, amount=gbp_amount, trans_account_data=trans_account_data,
-                    data=None, ledger_item=ledger_item, known_account=None
+                    data=None, ledger_item=ledger_item, known_account=None,
+                    override_country_check=form.cleaned_data["override_country_check"]
                 )
                 if error:
                     form.add_error(None, error)

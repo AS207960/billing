@@ -161,7 +161,7 @@ def gc_webhook(request):
 
 def attempt_complete_bank_transfer(
         ref: typing.Optional[str], amount: decimal.Decimal, trans_account_data: dict, data=None,
-        ledger_item=None, known_account=None
+        ledger_item=None, known_account=None, override_country_check: bool = False,
 ):
     found = False
     error = None
@@ -186,7 +186,7 @@ def attempt_complete_bank_transfer(
 
             if (
                     ledger_item.evidence_billing_address.country_code.code.lower() == known_account.country_code.lower()
-                    or not ledger_item.account.taxable
+                    or not ledger_item.account.taxable or override_country_check
             ):
                 ledger_item.amount = amount
                 ledger_item.state = models.LedgerItem.STATE_COMPLETED
@@ -203,7 +203,7 @@ def attempt_complete_bank_transfer(
             ).first()
         if known_account and known_account.account.billing_address and (
                 known_account.account.billing_address.country_code.code.lower() == known_account.country_code.lower()
-                or not known_account.account.taxable
+                or not known_account.account.taxable or override_country_check
         ):
             can_sell, can_sell_reason = known_account.account.can_sell
             if can_sell:
