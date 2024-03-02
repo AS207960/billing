@@ -16,6 +16,7 @@ import dateutil.parser
 import requests
 import schwifty
 import stripe.error
+import pywisetransfer
 from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
@@ -50,12 +51,17 @@ transferwise_sandbox_pub = cryptography.hazmat.primitives.serialization.load_der
     ),
     backend=cryptography.hazmat.backends.default_backend()
 )
+transferwise_swift_re = re.compile(
+    r"^\((?P<bic>[A-Z0-9]+)\) (?P<iban>[A-Z0-9]+)$"
+)
 transferwise_fpid_re = re.compile(
     r"^\((?P<id>\w{20})(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})(?P<currency>\d{3})(?P<sort_code>\d{6})\)"
     r" (?P<account_number>\d{8})$"
 )
-transferwise_private_key = cryptography.hazmat.primitives.serialization.load_pem_private_key(
-    settings.TRANSFERWISE_PRIV_KEY.encode(), backend=cryptography.hazmat.backends.default_backend(), password=None
+wise_api = pywisetransfer.Client(
+    api_key=settings.TRANSFERWISE_TOKEN,
+    environment=settings.TRANSFERWISE_ENV,
+    private_key_data=settings.TRANSFERWISE_PRIV_KEY.encode()
 )
 
 
@@ -278,53 +284,35 @@ def xfw_webhook(request):
         amount = event["data"]["amount"]
         post_balance = event["data"]["post_transaction_balance_amount"]
 
-        url = f"{api_base}/v1/profiles/{profile_id}/balance-statements/{account_id}/statement.json"
-        params = {
-            "currency": currency,
-            "intervalStart": (credit_time - datetime.timedelta(seconds=5)).strftime('%Y-%m-%dT%H:%M:%SZ'),
-            "intervalEnd": (credit_time + datetime.timedelta(seconds=5)).strftime('%Y-%m-%dT%H:%M:%SZ'),
-            "type": "COMPACT"
-        }
-        headers = {
-            "Authorization": f"Bearer {settings.TRANSFERWISE_TOKEN}"
-        }
+        statement = wise_api.borderless_accounts.statement(
+            profile_id=profile_id,
+            account_id=account_id,
+            currency=currency,
+            interval_start=(credit_time - datetime.timedelta(seconds=5)).isoformat() + "Z",
+            interval_end=(credit_time + datetime.timedelta(seconds=5)).isoformat() + "Z",
+        )
 
-        r = requests.get(url, params=params, headers=headers)
-        if r.headers.get("x-2fa-approval-result") == "REJECTED":
-            token = r.headers.get("x-2fa-approval")
-            sig = transferwise_private_key.sign(
-                token.encode("utf-8"),
-                cryptography.hazmat.primitives.asymmetric.padding.PSS(
-                    mgf=cryptography.hazmat.primitives.asymmetric.padding.MGF1(
-                        cryptography.hazmat.primitives.hashes.SHA256()
-                    ),
-                    salt_length=cryptography.hazmat.primitives.asymmetric.padding.PSS.MAX_LENGTH
-                ),
-                cryptography.hazmat.primitives.hashes.SHA256()
-            )
-            headers["x-2fa-approval"] = token
-            headers["X-Signature"] = base64.b64encode(sig)
-            r = requests.get(url, params=params, headers=headers)
-
-        r.raise_for_status()
-        data = r.json()
-        transactions = data["transactions"]
         credit_transactions = filter(
-            lambda t: t["type"] == "CREDIT" and t["details"]["type"] == "DEPOSIT",
-            transactions
+            lambda t: t.type == "CREDIT" and t.details.type == "DEPOSIT",
+            statement.transactions
         )
         found_t = None
         for t in credit_transactions:
-            if t["amount"]["value"] == amount and t["runningBalance"]["value"] == post_balance:
+            if t.amount.value == amount and t.runningBalance.value == post_balance:
                 found_t = t
                 break
 
         if found_t:
-            sender_account = found_t["details"].get("senderAccount")
+            sender_account = found_t.details.get("senderAccount")
             trans_account_data = None
             if sender_account:
                 try:
-                    trans_iban = schwifty.IBAN(sender_account)
+                    trans_iban = sender_account
+                    swift_match = transferwise_swift_re.match(sender_account)
+                    if swift_match:
+                        trans_iban = swift_match["iban"]
+
+                    trans_iban = schwifty.IBAN(trans_iban)
                     trans_account_data = {
                         "country_code": trans_iban.country_code.lower(),
                         "bank_code": trans_iban.bank_code,
