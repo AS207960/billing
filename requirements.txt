@@ -4,7 +4,7 @@ psycopg2-binary
 gunicorn
 stripe
 django-crispy-forms
-django-countries
+django-countries>=7.6
 django-mathfilters
 django-phonenumber-field[phonenumbers]
 python-dateutil
