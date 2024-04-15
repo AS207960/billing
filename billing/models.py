@@ -192,7 +192,6 @@ class Account(models.Model):
             email=self.user.email,
             description=self.user.username,
             name=f"{self.user.first_name} {self.user.last_name}",
-            balance_version='v2',
         )
         customer_id = customer['id']
         self.stripe_customer_id = customer_id
@@ -265,7 +264,6 @@ class Account(models.Model):
                     "postal_code": self.billing_address.postal_code,
                     "country": self.billing_address.country_code.code,
                 } if self.billing_address else None,
-                "balance_version": "v2"
             })
             t.setDaemon(True)
             t.start()
@@ -344,14 +342,11 @@ class Account(models.Model):
                     return self._virtual_uk_bank
                 else:
                     cust_id = self.get_stripe_id()
-                    addresses = stripe.stripe_object.StripeObject().request(
-                        "post", f"/v1/customers/{cust_id}/funding_instructions", {
-                            "currency": "gbp",
-                            "funding_type": "bank_transfer",
-                            "bank_transfer": {
-                                "type": "gb_bank_account"
-                            }
-                        }
+                    addresses = stripe.Customer.create_funding_instructions(
+                        cust_id,
+                        funding_type="bank_transfer",
+                        bank_transfer={"type": "gb_bank_transfer"},
+                        currency="gbp",
                     )["bank_transfer"]["financial_addresses"]
                     uk_address = next(filter(lambda a: a["type"] == "sort_code", addresses), None)
                     if uk_address:
@@ -367,7 +362,7 @@ class Account(models.Model):
     @property
     def virtual_us_bank(self):
         return None
-        
+
         # Stripe seems to have just pulled this from under our feet, what fun!
         # if self.billing_address:
         #     if self.billing_address.country_code.code.lower() == "us" or not self.taxable:
@@ -375,14 +370,11 @@ class Account(models.Model):
         #             return self._virtual_us_bank
         #         else:
         #             cust_id = self.get_stripe_id()
-        #             addresses = stripe.stripe_object.StripeObject().request(
-        #                 "post", f"/v1/customers/{cust_id}/funding_instructions", {
-        #                     "currency": "usd",
-        #                     "funding_type": "bank_transfer",
-        #                     "bank_transfer": {
-        #                         "type": "us_bank_account"
-        #                     }
-        #                 }
+        #             addresses = stripe.Customer.create_funding_instructions(
+        #                 cust_id,
+        #                 funding_type="bank_transfer",
+        #                 bank_transfer={"type": "us_bank_transfer"},
+        #                 currency="usd",
         #             )["bank_transfer"]["financial_addresses"]
         #             us_address = next(filter(lambda a: a["type"] == "aba", addresses), None)
         #             if us_address:

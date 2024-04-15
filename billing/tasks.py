@@ -1372,9 +1372,9 @@ def setup_intent_succeeded(setup_intent):
         )
 
 
-def balance_funded(balance_transaction):
+def balance_funded(funds_available):
     account = models.Account.objects.filter(
-        stripe_customer_id=balance_transaction["customer"]
+        stripe_customer_id=funds_available["customer"]
     ).first()
 
     if not account:
@@ -1384,57 +1384,40 @@ def balance_funded(balance_transaction):
     if not can_sell:
         return
 
-    balance_transaction = stripe.Customer.retrieve_balance_transaction(
-        balance_transaction["customer"],
-        balance_transaction["id"]
-    )
-    if balance_transaction["balance_type"] != "cash" or balance_transaction["type"] != "adjustment" \
-            or balance_transaction["transaction_type"] != "deposit" \
-            or balance_transaction["deposit"]["type"] != "funding":
-        return
+    available = list(funds_available["available"].items())[0]
+    currency = available[0]
+    amount = available[1]
 
-    customer = stripe.Customer.retrieve(balance_transaction["customer"], expand=["balances"])
-    available_balance = next(filter(
-        lambda b: b["currency"] == balance_transaction["currency"],
-        customer["balances"]["cash"]["available"]
-    ))["amount"]
+    deposited_amount_decimal = decimal.Decimal(amount) / decimal.Decimal(100)
+    deposited_amount_gbp = deposited_amount_decimal * models.ExchangeRate.get_rate(currency, "GBP")
 
-    deposited_amount = min(-balance_transaction["amount"], available_balance)
-    deposited_amount_decimal = decimal.Decimal(deposited_amount) / decimal.Decimal(100)
-    deposited_amount_gbp = deposited_amount_decimal * models.ExchangeRate.get_rate(
-        balance_transaction["currency"], "GBP")
+    if account.billing_address.country_code.code.lower() == "gb" or not account.taxable:
+        payment_intent = stripe.PaymentIntent.create(
+            amount=amount,
+            currency=currency,
+            customer=account.get_stripe_id(),
+            description='Top-up',
+            receipt_email=account.user.email,
+            payment_method_types=["customer_balance"],
+            payment_method_data={
+                "type": "customer_balance"
+            },
+            confirm=True,
+        )
 
-    if balance_transaction["deposit"]["funding"]["type"] == "bank_transfer":
-        ref = balance_transaction["deposit"]["funding"]["bank_transfer"]["reference"]
-        transfer_type = balance_transaction["deposit"]["funding"]["bank_transfer"]["type"]
-        if (account.billing_address.country_code.code.lower() == "gb" and transfer_type == "gb_bank_account") \
-                or not account.taxable:
-            payment_intent = stripe.PaymentIntent.create(
-                amount=deposited_amount,
-                currency=balance_transaction["currency"],
-                customer=account.get_stripe_id(),
-                description='Top-up',
-                receipt_email=account.user.email,
-                payment_method_types=["customer_balance"],
-                payment_method_data={
-                    "type": "customer_balance"
-                },
-                confirm=True,
-            )
-
-            new_ledger_item = models.LedgerItem(
-                account=account,
-                descriptor=f"Top-up by bank transfer: {ref}" if ref else "Top-up by bank transfer",
-                amount=deposited_amount_gbp,
-                charged_amount=deposited_amount_gbp,
-                country_code=account.billing_address.country_code.code.lower(),
-                type=models.LedgerItem.TYPE_STRIPE_BACS,
-                type_id=payment_intent["id"],
-                timestamp=datetime.datetime.utcfromtimestamp(balance_transaction["created"]),
-                evidence_billing_address=account.billing_address,
-                eur_exchange_rate=models.ExchangeRate.get_rate("gbp", "eur")
-            )
-            update_from_payment_intent(payment_intent, ledger_item=new_ledger_item)
+        new_ledger_item = models.LedgerItem(
+            account=account,
+            descriptor="Top-up by bank transfer",
+            amount=deposited_amount_gbp,
+            charged_amount=deposited_amount_gbp,
+            country_code=account.billing_address.country_code.code.lower(),
+            type=models.LedgerItem.TYPE_STRIPE_BACS,
+            type_id=payment_intent["id"],
+            timestamp=timezone.now(),
+            evidence_billing_address=account.billing_address,
+            eur_exchange_rate=models.ExchangeRate.get_rate("gbp", "eur")
+        )
+        update_from_payment_intent(payment_intent, ledger_item=new_ledger_item)
 
 
 def mandate_update(mandate):

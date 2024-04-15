@@ -791,7 +791,7 @@ def handle_payment(
                                 "customer_balance": {
                                     "funding_type": "bank_transfer",
                                     "bank_transfer": {
-                                        "type": "gb_bank_account"
+                                        "type": "gb_bank_transfer"
                                     }
                                 }
                             },
@@ -1649,7 +1649,7 @@ def complete_top_up_bank_transfer_stripe(request, item_id):
 
     bank_instructions = payment_intent["next_action"]["display_bank_transfer_instructions"]
     amount_remaining = decimal.Decimal(bank_instructions["amount_remaining"]) / decimal.Decimal(100)
-    if bank_instructions["type"] == "gb_bank_account":
+    if bank_instructions["type"] == "gb_bank_transfer":
         address = bank_instructions["financial_addresses"][0]["sort_code"]
         sort_code = address["sort_code"]
         account_info = {

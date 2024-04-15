@@ -102,7 +102,7 @@ def stripe_webhook(request):
         elif event.type == "setup_intent.succeeded":
             session = event.data.object
             tasks.setup_intent_succeeded(session)
-        elif event.type == "customer.balance_funded":
+        elif event.type == "cash_balance.funds_available":
             balance_transaction = event.data.object
             tasks.balance_funded(balance_transaction)
         elif event.type == "mandate.updated":

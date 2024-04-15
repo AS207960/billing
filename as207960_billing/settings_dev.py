@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'mathfilters',
     'django_countries',
     'phonenumber_field',
+    'crispy_bootstrap5',
     'billing'
 ]
 
@@ -167,7 +168,7 @@ OIDC_CLIENT_SECRET = keycloak_conf["client_secret"]
 OIDC_SCOPES = keycloak_conf["scopes"]
 
 stripe.api_key = stripe_conf["server_key"]
-stripe.api_version = "2020-08-27; customer_balance_payment_method_beta=v2"
+stripe.api_version = "2024-04-10"
 STRIPE_PUBLIC_KEY = stripe_conf["public_key"]
 STRIPE_ENDPOINT_SECRET = stripe_conf["endpoint_secret"]
 
@@ -196,6 +197,7 @@ OPEN_EXCHANGE_API_KEY = open_exchange_conf["key"]
 MONZO_WEBHOOK_SECRET_KEY = "test"
 
 PHONENUMBER_DEFAULT_REGION = "GB"
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 CRISPY_FAIL_SILENTLY = not DEBUG
 
