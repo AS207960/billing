@@ -235,7 +235,7 @@ class Command(BaseCommand):
     @staticmethod
     def cloudflare_account(msg: billing.proto.billing_pb2.CloudflareAccountRequest) \
             -> billing.proto.billing_pb2.CloudflareAccountResponse:
-        user = get_user_model().objects.filter(username=msg.user_id).first()
+        user = get_user_model().objects.filter(username=msg.id).first()
         account = user.account if user else None  # type: models.Account
 
         if not account:
