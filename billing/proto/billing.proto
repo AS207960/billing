@@ -6,6 +6,7 @@ message BillingRequest {
   oneof message {
     ConvertCurrencyRequest convert_currency = 1;
     ChargeUserRequest charge_user = 2;
+    CloudflareAccountRequest cloudflare_account = 3;
   }
 }
 
@@ -103,4 +104,20 @@ message SubscribeUserResponse {
 message SubscriptionNotification {
   string subscription_id = 1;
   SubscriptionState state = 2;
+}
+
+message CloudflareAccountRequest {
+  string id = 1;
+}
+
+message CloudflareAccountResponse {
+  enum CloudflareAccountResult {
+    FAIL = 0;
+    SUCCESS = 1;
+    NEEDS_SETUP = 2;
+  }
+
+  CloudflareAccountResult result = 1;
+  string account_id = 2;
+  google.protobuf.StringValue message = 3;
 }

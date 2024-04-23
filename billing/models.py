@@ -91,6 +91,7 @@ class Account(models.Model):
     stripe_customer_id = models.CharField(max_length=255, blank=True, null=True)
     gocardless_customer_id = models.CharField(max_length=255, blank=True, null=True)
     freeagent_contact_id = models.CharField(max_length=255, blank=True, null=True)
+    cloudflare_account_id = models.CharField(max_length=255, blank=True, null=True)
     default_stripe_payment_method_id = models.CharField(max_length=255, blank=True, null=True)
     default_ach_mandate = models.ForeignKey(
         'ACHMandate', on_delete=models.PROTECT, blank=True, null=True, related_name='default_accounts')
@@ -290,6 +291,7 @@ class Account(models.Model):
             t.start()
 
         super().save(*args, **kwargs)
+
 
     def merge_account(
             self,

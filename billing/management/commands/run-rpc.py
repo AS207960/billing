@@ -10,7 +10,7 @@ import time
 import traceback
 import sys
 import functools
-from billing import models, views, tasks, vat, apps
+from billing import models, views, tasks, vat, apps, cf
 import billing.proto.billing_pb2
 import billing.proto.geoip_pb2
 
@@ -105,6 +105,16 @@ class Command(BaseCommand):
             print(f"{properties.correlation_id} - Received charge request\n{msg.charge_user}", flush=True)
             try:
                 resp = self.charge_user(msg.charge_user)
+            except:
+                traceback.print_exc()
+                sys.stdout.flush()
+                sys.stderr.flush()
+                self.nack(channel, method.delivery_tag)
+                return
+        elif msg_type == "cloudflare_account":
+            print(f"{properties.correlation_id} - Received cloudflare account request\n{msg.cloudflare_account}", flush=True)
+            try:
+                resp = self.cloudflare_account(msg.cloudflare_account)
             except:
                 traceback.print_exc()
                 sys.stdout.flush()
@@ -221,3 +231,32 @@ class Command(BaseCommand):
                 result=billing.proto.billing_pb2.ChargeUserResponse.SUCCESS,
                 state=tasks.charge_state_to_proto_enum(charge_state.ledger_item.state)
             )
+
+    @staticmethod
+    def cloudflare_account(msg: billing.proto.billing_pb2.CloudflareAccountRequest) \
+            -> billing.proto.billing_pb2.CloudflareAccountResponse:
+        user = get_user_model().objects.filter(username=msg.user_id).first()
+        account = user.account if user else None  # type: models.Account
+
+        if not account:
+            return billing.proto.billing_pb2.CloudflareAccountResponse(
+                result=billing.proto.billing_pb2.CloudflareAccountResponse.FAIL,
+                message="Account not found"
+            )
+
+        res = cf.setup_cloudflare_account(account)
+
+        if res == cf.CloudflareResult.SUCCESS:
+            result_code = billing.proto.billing_pb2.CloudflareAccountResponse.SUCCESS
+        elif res == cf.CloudflareResult.FAILURE:
+            result_code = billing.proto.billing_pb2.CloudflareAccountResponse.FAIL
+        elif res == cf.CloudflareResult.NEEDS_SETUP:
+            result_code = billing.proto.billing_pb2.CloudflareAccountResponse.NEEDS_SETUP
+        else:
+            result_code = billing.proto.billing_pb2.CloudflareAccountResponse.FAIL
+
+        return billing.proto.billing_pb2.CloudflareAccountResponse(
+            result=result_code,
+            account_id=res.account_id,
+            message=res.message
+        )

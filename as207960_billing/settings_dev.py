@@ -157,6 +157,8 @@ with open(os.path.join(BASE_DIR, "secrets/transferwise.json")) as f:
     transferwise_conf = json.load(f)
 with open(os.path.join(BASE_DIR, "secrets/freeagent.json")) as f:
     freeagent_conf = json.load(f)
+with open(os.path.join(BASE_DIR, "secrets/cloudflare.json")) as f:
+    cloudflare_conf = json.load(f)
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "AS207960 Billing <billing@as207960.net>"
@@ -193,6 +195,9 @@ with open(os.path.join(BASE_DIR, "secrets/xfw-private.pem")) as f:
     TRANSFERWISE_PRIV_KEY = f.read()
 
 OPEN_EXCHANGE_API_KEY = open_exchange_conf["key"]
+
+CLOUDFLARE_API_KEY = cloudflare_conf["key"]
+CLOUDFLARE_API_EMAIL = cloudflare_conf["email"]
 
 MONZO_WEBHOOK_SECRET_KEY = "test"
 
