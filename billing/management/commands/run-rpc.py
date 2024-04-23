@@ -246,11 +246,11 @@ class Command(BaseCommand):
 
         res = cf.setup_cloudflare_account(account)
 
-        if res == cf.CloudflareResult.SUCCESS:
+        if res.result == cf.CloudflareResult.SUCCESS:
             result_code = billing.proto.billing_pb2.CloudflareAccountResponse.SUCCESS
-        elif res == cf.CloudflareResult.FAILURE:
+        elif res.result == cf.CloudflareResult.FAILURE:
             result_code = billing.proto.billing_pb2.CloudflareAccountResponse.FAIL
-        elif res == cf.CloudflareResult.NEEDS_SETUP:
+        elif res.result == cf.CloudflareResult.NEEDS_SETUP:
             result_code = billing.proto.billing_pb2.CloudflareAccountResponse.NEEDS_SETUP
         else:
             result_code = billing.proto.billing_pb2.CloudflareAccountResponse.FAIL
