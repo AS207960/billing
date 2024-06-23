@@ -127,9 +127,17 @@
                         <tr class="border-top">
                             <th scope="row">
                                 {{ charge.payment_ledger_item.descriptor }}
-                                <a class="btn btn-sm btn-info"
-                                   href="{% url 'toup_up_details' charge.payment_ledger_item.id %}">&#x1f440; View
-                                    details</a>
+                                {% if charge.payment_ledger_item.type == "Y" %}
+                                    <a href="{% url 'crypto_toup_up_details' charge.payment_ledger_item.id %}"
+                                       class="btn btn-info btn-sm">
+                                        &#x1f440; View details
+                                    </a>
+                                {% else %}
+                                    <a class="btn btn-sm btn-info"
+                                       href="{% url 'toup_up_details' charge.payment_ledger_item.id %}">
+                                        &#x1f440; View details
+                                    </a>
+                                {% endif %}
                             </th>
                             <td>&pound;{{ charge.payment_ledger_item.amount|floatformat:2 }}</td>
                         </tr>

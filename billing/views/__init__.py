@@ -2,6 +2,7 @@ import decimal
 import json
 
 import django_countries
+import requests
 import stripe
 import stripe.error
 import django.core.validators
@@ -109,6 +110,24 @@ def top_up_details(request, item_id):
         "charge_descriptor": charge_descriptor
     })
 
+
+@login_required
+def top_up_details_crypto(request, item_id):
+    ledger_item = get_object_or_404(models.LedgerItem, id=item_id)
+
+    if ledger_item.account != request.user.account:
+        return HttpResponseForbidden()
+
+    if ledger_item.type != models.LedgerItem.TYPE_CRYPTO:
+        return HttpResponseForbidden()
+
+    r = requests.get(f"https://api.commerce.coinbase.com/charges/{ledger_item.type_id}", headers={
+        "X-CC-Api-Key": settings.COINBASE_API_KEY,
+    })
+    r.raise_for_status()
+    data = r.json()
+
+    return redirect(data["data"]["hosted_url"])
 
 @login_required
 def top_up_refund(request, item_id):

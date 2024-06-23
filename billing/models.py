@@ -118,6 +118,7 @@ class Account(models.Model):
     )
     invoice_prefix = models.CharField(max_length=64, blank=True, null=True, unique=True)
     next_invoice_id = models.PositiveIntegerField(default=1)
+    crypto_allowed = models.BooleanField(blank=True, default=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -732,6 +733,7 @@ class LedgerItem(models.Model):
     TYPE_STRIPE_REFUND = "R"
     TYPE_STRIPE_BACS = "T"
     TYPE_GOCARDLESS_PR = "L"
+    TYPE_CRYPTO = "Y"
     TYPES = (
         (TYPE_CHARGE, "Charge"),
         (TYPE_CARD, "Card"),
@@ -751,6 +753,7 @@ class LedgerItem(models.Model):
         (TYPE_STRIPE_REFUND, "Stripe refund"),
         (TYPE_STRIPE_BACS, "Stripe bank transfer"),
         (TYPE_GOCARDLESS_PR, "GoCardless payment request"),
+        (TYPE_CRYPTO, "Coinbase Crypto"),
     )
 
     id = as207960_utils.models.TypedUUIDField('billing_ledgeritem', primary_key=True)

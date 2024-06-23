@@ -95,6 +95,9 @@ spec:
             - secretRef:
                 name: billing-cloudflare
               prefix: "CLOUDFLARE_"
+            - secretRef:
+                name: billing-coinbase
+              prefix: "COINBASE_"
       containers:
         - name: gunicorn
           image: as207960/billing-django:(version)
@@ -192,6 +195,9 @@ spec:
             - secretRef:
                 name: billing-cloudflare
               prefix: "CLOUDFLARE_"
+            - secretRef:
+                name: billing-coinbase
+              prefix: "COINBASE_"
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -280,6 +286,9 @@ spec:
                 - secretRef:
                     name: billing-cloudflare
                   prefix: "CLOUDFLARE_"
+                - secretRef:
+                    name: billing-coinbase
+                  prefix: "COINBASE_"
           restartPolicy: OnFailure
 #---
 #apiVersion: batch/v1beta1
@@ -410,6 +419,9 @@ spec:
                 - secretRef:
                     name: billing-cloudflare
                   prefix: "CLOUDFLARE_"
+                - secretRef:
+                    name: billing-coinbase
+                  prefix: "COINBASE_"
           restartPolicy: OnFailure
 ---
 apiVersion: batch/v1
@@ -475,6 +487,9 @@ spec:
                 - secretRef:
                     name: billing-cloudflare
                   prefix: "CLOUDFLARE_"
+                - secretRef:
+                    name: billing-coinbase
+                  prefix: "COINBASE_"
           restartPolicy: OnFailure
 ---
 apiVersion: batch/v1
@@ -540,6 +555,9 @@ spec:
                 - secretRef:
                     name: billing-cloudflare
                   prefix: "CLOUDFLARE_"
+                - secretRef:
+                    name: billing-coinbase
+                  prefix: "COINBASE_"
           restartPolicy: OnFailure
 ---
 apiVersion: networking.k8s.io/v1

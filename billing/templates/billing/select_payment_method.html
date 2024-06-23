@@ -12,21 +12,21 @@
                     We're only showing payment methods that match.
                 </div>
             {% endif %}
-            <h3>Saved cards &#x1f4b3;</h3>
-            <div class="table-responsive">
-                <table class="table table-hover table-striped">
-                    <thead class="table-dark">
-                    <tr>
-                        <th>Billing name</th>
-                        <th>Brand</th>
-                        <th>Last 4 digits</th>
-                        <th>Expiry</th>
-                        <th>Country</th>
-                        <th></th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% if cards %}
+            {% if cards %}
+                <h3>Saved cards &#x1f4b3;</h3>
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped">
+                        <thead class="table-dark">
+                        <tr>
+                            <th>Billing name</th>
+                            <th>Brand</th>
+                            <th>Last 4 digits</th>
+                            <th>Expiry</th>
+                            <th>Country</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
                         {% for card in cards %}
                             <tr>
                                 <td>
@@ -56,23 +56,19 @@
                                 </td>
                             </tr>
                         {% endfor %}
-                    {% else %}
                         <tr>
-                            <td colspan="6">No available cards</td>
+                            <td colspan="6" class="text-center">
+                                <a href="{% url 'add_card' %}?return_uri={{ request.path }}"
+                                   class="btn btn-success btn-sm">
+                                    &#x1f195; Add new card &#x1f195;
+                                </a>
+                            </td>
                         </tr>
-                    {% endif %}
-                    <tr>
-                        <td colspan="6" class="text-center">
-                            <a href="{% url 'add_card' %}?return_uri={{ request.path }}"
-                               class="btn btn-success btn-sm">
-                                &#x1f195; Add new card &#x1f195;
-                            </a>
-                        </td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-            <hr>
+                        </tbody>
+                    </table>
+                </div>
+                <hr>
+            {% endif %}
             {% if ach_mandates %}
                 <h3>ACH Direct Debit Mandates &#x1f4b5;</h3>
                 <h4>&#x1f1fa;&#x1f1f8; United States</h4>
@@ -417,7 +413,8 @@
                     <div class="col mb-4 d-flex">
                         <div class="card flex-grow-1{% if selected_payment_method_type == "sofort" %} border-success{% endif %}">
                             <div class="card-header text-center">
-                                &#x1f1ec;&#x1f1e7; UK <div class="badge bg-success">New</div>
+                                &#x1f1ec;&#x1f1e7; UK
+                                <div class="badge bg-success">New</div>
                             </div>
                             <div class="card-body d-flex flex-column align-items-center">
                                 <h3 class="display-4">&#x1f3e6;</h3>
@@ -645,6 +642,32 @@
                         </div>
                     </div>
                 {% endif %}
+                {% if crypto_allowed %}
+                    <div class="col mb-4 d-flex">
+                        <div class="card flex-grow-1{% if selected_payment_method_type == "crypto" %} border-success{% endif %}">
+                            <div class="card-header text-center">
+                                &#x1f5fa;&#xfe0f; Global
+                            </div>
+                            <div class="card-body d-flex flex-column align-items-center text-center">
+                                <h3 class="display-4">&#x26a1;</h3>
+                                <h5 class="card-title" style="flex-grow: 1">Crypto</h5>
+                                {% if selected_payment_method_type == "crypto" %}
+                                    <h4 class="mt-0">
+                                        <span class="badge badge-pill bg-success">Selected</span>
+                                    </h4>
+                                {% else %}
+                                    <form action="" method="post" class="align-self-stretch">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="set_payment_method">
+                                        <button type="submit" class="btn btn-primary w-100" name="type" value="crypto">
+                                            Select
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
             </div>
         </div>
         <div class="col-md-4 order-md-2 order-1 mb-3 mb-md-0">
@@ -697,6 +720,10 @@
         </tbody>
     </table>
     {% if needs_payment %}
+        {% if selected_payment_method_type == "crypto" %}
+            <p>Crypto payments are subject to a 10GBP minimum.</p>
+        {% endif %}
+
         {% if billing_country_name %}
             {% if has_vat %}
                 <p>We're charging you taxes applicable in {{ billing_country_name }}.</p>
@@ -788,8 +815,10 @@
     {% if mandate_acceptance %}
         <p class="small mt-3 text-muted">
             By providing your payment information and confirming this payment, you authorise AS207960 Cyfyngedig,
-            trading as Glauca Digital, Stripe and/or PPRO, its local service provider, and GoCardless, our payment service providers,
-            to send instructions to your bank to debit your account and your bank to debit your account in accordance with those instructions.
+            trading as Glauca Digital, Stripe and/or PPRO, its local service provider, and GoCardless, our payment
+            service providers,
+            to send instructions to your bank to debit your account and your bank to debit your account in accordance
+            with those instructions.
             As part of your rights, you are entitled to a refund from your bank under the terms and conditions of
             your agreement with your bank. A refund must be claimed within 8 weeks starting from the date on
             which your account was debited. Your rights are explained in a statement that you can obtain

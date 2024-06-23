@@ -383,3 +383,27 @@ def monzo_webhook(request, secret_key):
         return HttpResponseBadRequest()
 
     return HttpResponse(status=200)
+
+@csrf_exempt
+@require_POST
+def coinbase_webhook(request):
+    payload = request.body
+    sig_header = request.META.get('HTTP_X_CC_WEBHOOK_SIGNATURE')
+
+    own_sig = hmac.new(settings.COINBASE_WEBHOOK_SECRET.encode(), payload, digestmod='sha256')
+    own_digest = own_sig.hexdigest()
+
+    if not hmac.compare_digest(sig_header, own_digest):
+        return HttpResponseForbidden(status=498)
+
+    try:
+        event = json.loads(payload)
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest()
+
+    if event["event"]["type"].startswith("charge:"):
+        tasks.update_from_coinbase_charge(event["event"]["data"])
+    else:
+        return HttpResponseBadRequest()
+
+    return HttpResponse(status=200)

@@ -159,6 +159,8 @@ with open(os.path.join(BASE_DIR, "secrets/freeagent.json")) as f:
     freeagent_conf = json.load(f)
 with open(os.path.join(BASE_DIR, "secrets/cloudflare.json")) as f:
     cloudflare_conf = json.load(f)
+with open(os.path.join(BASE_DIR, "secrets/coinbase.json")) as f:
+    coinbase_conf = json.load(f)
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "AS207960 Billing <billing@as207960.net>"
@@ -198,6 +200,9 @@ OPEN_EXCHANGE_API_KEY = open_exchange_conf["key"]
 
 CLOUDFLARE_API_KEY = cloudflare_conf["key"]
 CLOUDFLARE_API_EMAIL = cloudflare_conf["email"]
+
+COINBASE_API_KEY = coinbase_conf["key"]
+COINBASE_WEBHOOK_SECRET = coinbase_conf["webhook_secret"]
 
 MONZO_WEBHOOK_SECRET_KEY = "test"
 

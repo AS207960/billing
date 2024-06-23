@@ -2,7 +2,7 @@ import decimal
 import enum
 import secrets
 import typing
-
+import requests
 import django_countries
 import gocardless_pro.errors
 import schwifty
@@ -160,7 +160,7 @@ def handle_payment(
             elif account.default_sepa_mandate:
                 selected_payment_method_type = "sepa_mandate_stripe"
                 selected_payment_method_id = account.default_sepa_mandate.id
-                request.session["selected_payment_method"] = f"sepa_mandate_gc;{account.default_sepa_mandate.id}"
+                request.session["selected_payment_method"] = f"sepa_mandate_stripe;{account.default_sepa_mandate.id}"
             elif account.default_gc_sepa_mandate:
                 selected_payment_method_type = "sepa_mandate_gc"
                 selected_payment_method_id = account.default_gc_sepa_mandate.id
@@ -351,6 +351,19 @@ def handle_payment(
                     if payment_method["type"] == "card":
                         available_currencies = ['gbp', 'eur', 'usd']
                     climate_contribution = True
+                else:
+                    selected_payment_method_type = None
+                    selected_payment_method_id = None
+            elif selected_payment_method_type == "crypto":
+                if account.crypto_allowed:
+                    available_currencies = ['gbp']
+
+                    if needs_payment:
+                        if is_top_up and charged_amount < decimal.Decimal("10"):
+                            charged_amount = decimal.Decimal("10")
+                            charged_amount_ext_vat = decimal.Decimal("10")
+                        if to_be_paid < decimal.Decimal("10"):
+                            to_be_paid = decimal.Decimal("10")
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
@@ -1065,6 +1078,36 @@ def handle_payment(
 
                     return HandlePaymentOutcome.REDIRECT, (ledger_item, flow.authorisation_url)
 
+                elif selected_payment_method_type == "crypto":
+                    r = requests.post("https://api.commerce.coinbase.com/charges", headers={
+                        "X-CC-Api-Key": settings.COINBASE_API_KEY,
+                    }, json={
+                        "name": "Glauca Digital",
+                        "description": charge_descriptor,
+                        "pricing_type": "fixed_price",
+                        "local_price": {
+                            "amount": str(to_be_charged),
+                            "currency": "GBP"
+                        },
+                        "cancel_url": request.build_absolute_uri(
+                            reverse('complete_top_up_crypto', args=(ledger_item.id,))
+                        ),
+                        "redirect_url": request.build_absolute_uri(
+                            reverse('complete_top_up_crypto', args=(ledger_item.id,))
+                        )
+                    })
+                    r.raise_for_status()
+                    data = r.json()
+
+                    ledger_item.descriptor = f"Crypto payment for {charge_descriptor}" \
+                        if charge_descriptor else "Top-up with crypto"
+                    ledger_item.type = models.LedgerItem.TYPE_CRYPTO
+                    ledger_item.type_id = data["data"]["id"]
+                    ledger_item.state = models.LedgerItem.STATE_PENDING
+                    ledger_item.save()
+
+                    return HandlePaymentOutcome.REDIRECT, (ledger_item, data["data"]["hosted_url"])
+
                 return HandlePaymentOutcome.DONE, ledger_item
 
         if account.stripe_customer_id:
@@ -1244,7 +1287,8 @@ def handle_payment(
             "can_charge": can_charge,
             "needs_payment": needs_payment,
             "charge": charge_state,
-            "climate_contribution": climate_contribution and settings.STRIPE_CLIMATE
+            "climate_contribution": climate_contribution and settings.STRIPE_CLIMATE,
+            "crypto_allowed": account.crypto_allowed
         }
     )
 
@@ -1764,7 +1808,7 @@ def complete_top_up_uk_instant_bank_transfer(request, item_id):
     ledger_item = get_object_or_404(models.LedgerItem, id=item_id)
 
     if ledger_item.account != request.user.account:
-        return HttpResponseForbidden
+        return HttpResponseForbidden()
 
     try:
         charge_state = ledger_item.charge_state_payment
@@ -1778,7 +1822,7 @@ def complete_top_up_uk_instant_bank_transfer(request, item_id):
         return redirect('dashboard')
 
     if ledger_item.type != ledger_item.TYPE_GOCARDLESS_PR:
-        return HttpResponseBadRequest
+        return HttpResponseBadRequest()
 
     tasks.update_from_gc_billing_request(ledger_item.type_id, ledger_item)
 
@@ -1800,3 +1844,40 @@ def complete_top_up_uk_instant_bank_transfer(request, item_id):
     })
 
     return redirect(flow.authorisation_url)
+
+@login_required
+def complete_top_up_crypto(request, item_id):
+    ledger_item = get_object_or_404(models.LedgerItem, id=item_id)
+
+    if ledger_item.account != request.user.account:
+        return HttpResponseForbidden()
+
+    if ledger_item.type != ledger_item.TYPE_CRYPTO:
+        return HttpResponseBadRequest()
+
+    try:
+        charge_state = ledger_item.charge_state_payment
+    except django.core.exceptions.ObjectDoesNotExist:
+        charge_state = None
+
+    if ledger_item.state != ledger_item.STATE_PENDING:
+        if charge_state:
+            return redirect('complete_order', charge_state.id)
+
+        return redirect('dashboard')
+
+    r = requests.get(f"https://api.commerce.coinbase.com/charges/{ledger_item.type_id}", headers={
+        "X-CC-Api-Key": settings.COINBASE_API_KEY,
+    })
+    r.raise_for_status()
+    data = r.json()
+
+    tasks.update_from_coinbase_charge(data["data"], ledger_item)
+
+    if ledger_item.state != ledger_item.STATE_PENDING:
+        if charge_state:
+            return redirect('complete_order', charge_state.id)
+
+        return redirect('dashboard')
+
+    return redirect(data["data"]["hosted_url"])

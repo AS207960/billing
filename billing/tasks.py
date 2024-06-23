@@ -2,7 +2,7 @@ import datetime
 import decimal
 import json
 import threading
-
+import requests
 import django.core.exceptions
 import google.protobuf.wrappers_pb2
 import pika
@@ -203,7 +203,7 @@ def fail_payment(ledger_item: models.LedgerItem):
             ledger_item.TYPE_CARD, ledger_item.TYPE_BACS, ledger_item.TYPE_SOURCES, ledger_item.TYPE_CHECKOUT,
             ledger_item.TYPE_SEPA, ledger_item.TYPE_SOFORT, ledger_item.TYPE_GIROPAY, ledger_item.TYPE_BANCONTACT,
             ledger_item.TYPE_EPS, ledger_item.TYPE_IDEAL, ledger_item.TYPE_P24, ledger_item.TYPE_GOCARDLESS,
-            ledger_item.TYPE_STRIPE_BACS, ledger_item.TYPE_GOCARDLESS_PR,
+            ledger_item.TYPE_STRIPE_BACS, ledger_item.TYPE_GOCARDLESS_PR, ledger_item.TYPE_CRYPTO,
     ):
         return
 
@@ -1363,6 +1363,29 @@ def update_from_gc_billing_request(request_id, ledger_item=None):
             elif request.mandate_request.scheme == "sepa_core":
                 models.GCSEPAMandate.sync_mandate(mandate_id, ledger_item.account)
 
+
+def update_from_coinbase_charge(charge, ledger_item=None):
+    ledger_item = models.LedgerItem.objects.filter(
+        type=models.LedgerItem.TYPE_CRYPTO, type_id=charge["id"]
+    ).first() if not ledger_item else ledger_item
+
+    if not ledger_item:
+        return
+
+    events = list(map(lambda e: (datetime.datetime.fromisoformat(e["time"]), e), charge["timeline"]))
+    events.sort(key=lambda e: e[0])
+    latest_event = events[-1][1]
+
+    if latest_event["status"] == "NEW":
+        ledger_item.state = models.LedgerItem.STATE_PENDING
+    elif latest_event["status"] == "COMPLETED":
+        ledger_item.state = models.LedgerItem.STATE_COMPLETED
+    elif latest_event["status"] in ("EXPIRED", "FAILED"):
+        ledger_item.state = models.LedgerItem.STATE_FAILED
+    else:
+        ledger_item.state = models.LedgerItem.STATE_PROCESSING
+
+    ledger_item.save()
 
 def setup_intent_succeeded(setup_intent):
     if "sepa_debit" in setup_intent["payment_method_types"]:
