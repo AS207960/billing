@@ -7,6 +7,7 @@ message BillingRequest {
     ConvertCurrencyRequest convert_currency = 1;
     ChargeUserRequest charge_user = 2;
     CloudflareAccountRequest cloudflare_account = 3;
+    NetboxAccountRequest netbox_account = 4;
   }
 }
 
@@ -120,4 +121,18 @@ message CloudflareAccountResponse {
   CloudflareAccountResult result = 1;
   string account_id = 2;
   google.protobuf.StringValue message = 3;
+}
+
+message NetboxAccountRequest {
+  string id = 1;
+}
+
+message NetboxAccountResponse {
+  enum NetboxAccountResult {
+    FAIL = 0;
+    SUCCESS = 1;
+  }
+
+  NetboxAccountResult result = 1;
+  int64 account_id = 2;
 }

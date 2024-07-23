@@ -14,7 +14,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import DecimalField, OuterRef, Sum, Subquery
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 
-from .. import forms, models, tasks, vat
+from .. import forms, models, tasks, vat, nb
 from ..views import webhooks
 
 
@@ -148,7 +148,7 @@ def form_to_account_data(form):
             "branch_code": form.cleaned_data['branch_code'] if form.cleaned_data['branch_code'] else None,
             "account_code": form.cleaned_data['account_number']
         }
-    else:
+    elif form.cleaned_data["account_number"]:
         try:
             trans_iban = schwifty.IBAN(form.cleaned_data['account_number'])
         except ValueError:
@@ -637,3 +637,16 @@ def view_vat_kr(request):
     return render(request, "billing/vat_kr_select.html", {
         "form": form
     })
+
+
+@login_required
+@permission_required('billing.view_account', raise_exception=True)
+def netbox_tenant(request, account_id):
+    user = get_object_or_404(get_user_model(), username=account_id)
+    account = user.account  # type: models.Account
+
+    tenant_id = nb.setup_netbox_account(account)
+    if not tenant_id:
+        return redirect('view_account', user.username)
+    else:
+        return redirect(f"https://nb.as207960.net/tenancy/tenants/{tenant_id}/")

@@ -159,6 +159,8 @@ with open(os.path.join(BASE_DIR, "secrets/freeagent.json")) as f:
     freeagent_conf = json.load(f)
 with open(os.path.join(BASE_DIR, "secrets/cloudflare.json")) as f:
     cloudflare_conf = json.load(f)
+with open(os.path.join(BASE_DIR, "secrets/netbox.json")) as f:
+    netbox_conf = json.load(f)
 with open(os.path.join(BASE_DIR, "secrets/coinbase.json")) as f:
     coinbase_conf = json.load(f)
 
@@ -203,6 +205,8 @@ CLOUDFLARE_API_EMAIL = cloudflare_conf["email"]
 
 COINBASE_API_KEY = coinbase_conf["key"]
 COINBASE_WEBHOOK_SECRET = coinbase_conf["webhook_secret"]
+
+NETBOX_API_TOKEN = netbox_conf["token"]
 
 MONZO_WEBHOOK_SECRET_KEY = "test"
 

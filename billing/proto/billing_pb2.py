@@ -15,43 +15,49 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import wrappers_pb2 as google_dot_protobuf_dot_wrappers__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rbilling.proto\x12\x07\x62illing\x1a\x1egoogle/protobuf/wrappers.proto\"\xcc\x01\n\x0e\x42illingRequest\x12;\n\x10\x63onvert_currency\x18\x01 \x01(\x0b\x32\x1f.billing.ConvertCurrencyRequestH\x00\x12\x31\n\x0b\x63harge_user\x18\x02 \x01(\x0b\x32\x1a.billing.ChargeUserRequestH\x00\x12?\n\x12\x63loudflare_account\x18\x03 \x01(\x0b\x32!.billing.CloudflareAccountRequestH\x00\x42\t\n\x07message\"\xee\x01\n\x16\x43onvertCurrencyRequest\x12\x15\n\rfrom_currency\x18\x01 \x01(\t\x12\x13\n\x0bto_currency\x18\x02 \x01(\t\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x03\x12.\n\x08username\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12/\n\tremote_ip\x18\x05 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12\x37\n\x11\x63ountry_selection\x18\x06 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"z\n\x17\x43onvertCurrencyResponse\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x03\x12\x16\n\x0e\x61mount_inc_vat\x18\x01 \x01(\x03\x12\x0f\n\x07taxable\x18\x02 \x01(\x08\x12\x14\n\x0cused_country\x18\x04 \x01(\t\x12\x10\n\x08\x63urrency\x18\x05 \x01(\t\"\xe2\x01\n\x11\x43hargeUserRequest\x12\x0e\n\x06\x61mount\x18\x01 \x01(\x03\x12\n\n\x02id\x18\x02 \x01(\t\x12\x12\n\ndescriptor\x18\x03 \x01(\t\x12\x12\n\ncan_reject\x18\x04 \x01(\x08\x12\x13\n\x0boff_session\x18\x05 \x01(\x08\x12\x0f\n\x07user_id\x18\x06 \x01(\t\x12\x30\n\nreturn_uri\x18\x07 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12\x31\n\x0bnotif_queue\x18\x08 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"\xf6\x01\n\x12\x43hargeUserResponse\x12\x17\n\x0f\x63harge_state_id\x18\x01 \x01(\t\x12\x38\n\x06result\x18\x02 \x01(\x0e\x32(.billing.ChargeUserResponse.ChargeResult\x12\x11\n\x07message\x18\x03 \x01(\tH\x00\x12\x16\n\x0credirect_uri\x18\x04 \x01(\tH\x00\x12%\n\x05state\x18\x05 \x01(\x0e\x32\x14.billing.ChargeStateH\x00\"3\n\x0c\x43hargeResult\x12\x0b\n\x07SUCCESS\x10\x00\x12\x08\n\x04\x46\x41IL\x10\x01\x12\x0c\n\x08REDIRECT\x10\x02\x42\x06\n\x04\x64\x61ta\"\xaa\x01\n\x17\x43hargeStateNotification\x12\x11\n\tcharge_id\x18\x01 \x01(\t\x12\x0f\n\x07\x61\x63\x63ount\x18\x02 \x01(\t\x12#\n\x05state\x18\x03 \x01(\x0e\x32\x14.billing.ChargeState\x12\x30\n\nlast_error\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12\x14\n\x0credirect_url\x18\x05 \x01(\t\"\xaa\x01\n\x14SubscribeUserRequest\x12\x15\n\rinitial_usage\x18\x01 \x01(\x03\x12\x0f\n\x07plan_id\x18\x02 \x01(\t\x12\x12\n\ncan_reject\x18\x03 \x01(\x08\x12\x13\n\x0boff_session\x18\x04 \x01(\x08\x12\x0f\n\x07user_id\x18\x05 \x01(\t\x12\x30\n\nreturn_uri\x18\x06 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"\xf1\x01\n\x15SubscribeUserResponse\x12\x17\n\x0fsubscription_id\x18\x01 \x01(\t\x12\x41\n\x06result\x18\x02 \x01(\x0e\x32\x31.billing.SubscribeUserResponse.SubscriptionResult\x12\x16\n\x0credirect_uri\x18\x03 \x01(\tH\x00\x12+\n\x05state\x18\x04 \x01(\x0e\x32\x1a.billing.SubscriptionStateH\x00\"/\n\x12SubscriptionResult\x12\x0b\n\x07SUCCESS\x10\x00\x12\x0c\n\x08REDIRECT\x10\x01\x42\x06\n\x04\x64\x61ta\"^\n\x18SubscriptionNotification\x12\x17\n\x0fsubscription_id\x18\x01 \x01(\t\x12)\n\x05state\x18\x02 \x01(\x0e\x32\x1a.billing.SubscriptionState\"&\n\x18\x43loudflareAccountRequest\x12\n\n\x02id\x18\x01 \x01(\t\"\xed\x01\n\x19\x43loudflareAccountResponse\x12J\n\x06result\x18\x01 \x01(\x0e\x32:.billing.CloudflareAccountResponse.CloudflareAccountResult\x12\x12\n\naccount_id\x18\x02 \x01(\t\x12-\n\x07message\x18\x03 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"A\n\x17\x43loudflareAccountResult\x12\x08\n\x04\x46\x41IL\x10\x00\x12\x0b\n\x07SUCCESS\x10\x01\x12\x0f\n\x0bNEEDS_SETUP\x10\x02*R\n\x0b\x43hargeState\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x0b\n\x07PENDING\x10\x01\x12\x0e\n\nPROCESSING\x10\x02\x12\n\n\x06\x46\x41ILED\x10\x03\x12\r\n\tCOMPLETED\x10\x04*j\n\x11SubscriptionState\x12\x0f\n\x0bSUB_UNKNOWN\x10\x00\x12\x0f\n\x0bSUB_PENDING\x10\x01\x12\x10\n\x0cSUB_PAST_DUE\x10\x02\x12\x0e\n\nSUB_ACTIVE\x10\x03\x12\x11\n\rSUB_CANCELLED\x10\x04\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rbilling.proto\x12\x07\x62illing\x1a\x1egoogle/protobuf/wrappers.proto\"\x85\x02\n\x0e\x42illingRequest\x12;\n\x10\x63onvert_currency\x18\x01 \x01(\x0b\x32\x1f.billing.ConvertCurrencyRequestH\x00\x12\x31\n\x0b\x63harge_user\x18\x02 \x01(\x0b\x32\x1a.billing.ChargeUserRequestH\x00\x12?\n\x12\x63loudflare_account\x18\x03 \x01(\x0b\x32!.billing.CloudflareAccountRequestH\x00\x12\x37\n\x0enetbox_account\x18\x04 \x01(\x0b\x32\x1d.billing.NetboxAccountRequestH\x00\x42\t\n\x07message\"\xee\x01\n\x16\x43onvertCurrencyRequest\x12\x15\n\rfrom_currency\x18\x01 \x01(\t\x12\x13\n\x0bto_currency\x18\x02 \x01(\t\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x03\x12.\n\x08username\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12/\n\tremote_ip\x18\x05 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12\x37\n\x11\x63ountry_selection\x18\x06 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"z\n\x17\x43onvertCurrencyResponse\x12\x0e\n\x06\x61mount\x18\x03 \x01(\x03\x12\x16\n\x0e\x61mount_inc_vat\x18\x01 \x01(\x03\x12\x0f\n\x07taxable\x18\x02 \x01(\x08\x12\x14\n\x0cused_country\x18\x04 \x01(\t\x12\x10\n\x08\x63urrency\x18\x05 \x01(\t\"\xe2\x01\n\x11\x43hargeUserRequest\x12\x0e\n\x06\x61mount\x18\x01 \x01(\x03\x12\n\n\x02id\x18\x02 \x01(\t\x12\x12\n\ndescriptor\x18\x03 \x01(\t\x12\x12\n\ncan_reject\x18\x04 \x01(\x08\x12\x13\n\x0boff_session\x18\x05 \x01(\x08\x12\x0f\n\x07user_id\x18\x06 \x01(\t\x12\x30\n\nreturn_uri\x18\x07 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12\x31\n\x0bnotif_queue\x18\x08 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"\xf6\x01\n\x12\x43hargeUserResponse\x12\x17\n\x0f\x63harge_state_id\x18\x01 \x01(\t\x12\x38\n\x06result\x18\x02 \x01(\x0e\x32(.billing.ChargeUserResponse.ChargeResult\x12\x11\n\x07message\x18\x03 \x01(\tH\x00\x12\x16\n\x0credirect_uri\x18\x04 \x01(\tH\x00\x12%\n\x05state\x18\x05 \x01(\x0e\x32\x14.billing.ChargeStateH\x00\"3\n\x0c\x43hargeResult\x12\x0b\n\x07SUCCESS\x10\x00\x12\x08\n\x04\x46\x41IL\x10\x01\x12\x0c\n\x08REDIRECT\x10\x02\x42\x06\n\x04\x64\x61ta\"\xaa\x01\n\x17\x43hargeStateNotification\x12\x11\n\tcharge_id\x18\x01 \x01(\t\x12\x0f\n\x07\x61\x63\x63ount\x18\x02 \x01(\t\x12#\n\x05state\x18\x03 \x01(\x0e\x32\x14.billing.ChargeState\x12\x30\n\nlast_error\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12\x14\n\x0credirect_url\x18\x05 \x01(\t\"\xaa\x01\n\x14SubscribeUserRequest\x12\x15\n\rinitial_usage\x18\x01 \x01(\x03\x12\x0f\n\x07plan_id\x18\x02 \x01(\t\x12\x12\n\ncan_reject\x18\x03 \x01(\x08\x12\x13\n\x0boff_session\x18\x04 \x01(\x08\x12\x0f\n\x07user_id\x18\x05 \x01(\t\x12\x30\n\nreturn_uri\x18\x06 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"\xf1\x01\n\x15SubscribeUserResponse\x12\x17\n\x0fsubscription_id\x18\x01 \x01(\t\x12\x41\n\x06result\x18\x02 \x01(\x0e\x32\x31.billing.SubscribeUserResponse.SubscriptionResult\x12\x16\n\x0credirect_uri\x18\x03 \x01(\tH\x00\x12+\n\x05state\x18\x04 \x01(\x0e\x32\x1a.billing.SubscriptionStateH\x00\"/\n\x12SubscriptionResult\x12\x0b\n\x07SUCCESS\x10\x00\x12\x0c\n\x08REDIRECT\x10\x01\x42\x06\n\x04\x64\x61ta\"^\n\x18SubscriptionNotification\x12\x17\n\x0fsubscription_id\x18\x01 \x01(\t\x12)\n\x05state\x18\x02 \x01(\x0e\x32\x1a.billing.SubscriptionState\"&\n\x18\x43loudflareAccountRequest\x12\n\n\x02id\x18\x01 \x01(\t\"\xed\x01\n\x19\x43loudflareAccountResponse\x12J\n\x06result\x18\x01 \x01(\x0e\x32:.billing.CloudflareAccountResponse.CloudflareAccountResult\x12\x12\n\naccount_id\x18\x02 \x01(\t\x12-\n\x07message\x18\x03 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"A\n\x17\x43loudflareAccountResult\x12\x08\n\x04\x46\x41IL\x10\x00\x12\x0b\n\x07SUCCESS\x10\x01\x12\x0f\n\x0bNEEDS_SETUP\x10\x02\"\"\n\x14NetboxAccountRequest\x12\n\n\x02id\x18\x01 \x01(\t\"\x9d\x01\n\x15NetboxAccountResponse\x12\x42\n\x06result\x18\x01 \x01(\x0e\x32\x32.billing.NetboxAccountResponse.NetboxAccountResult\x12\x12\n\naccount_id\x18\x02 \x01(\x03\",\n\x13NetboxAccountResult\x12\x08\n\x04\x46\x41IL\x10\x00\x12\x0b\n\x07SUCCESS\x10\x01*R\n\x0b\x43hargeState\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x0b\n\x07PENDING\x10\x01\x12\x0e\n\nPROCESSING\x10\x02\x12\n\n\x06\x46\x41ILED\x10\x03\x12\r\n\tCOMPLETED\x10\x04*j\n\x11SubscriptionState\x12\x0f\n\x0bSUB_UNKNOWN\x10\x00\x12\x0f\n\x0bSUB_PENDING\x10\x01\x12\x10\n\x0cSUB_PAST_DUE\x10\x02\x12\x0e\n\nSUB_ACTIVE\x10\x03\x12\x11\n\rSUB_CANCELLED\x10\x04\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'billing_pb2', _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
   DESCRIPTOR._options = None
-  _globals['_CHARGESTATE']._serialized_start=2074
-  _globals['_CHARGESTATE']._serialized_end=2156
-  _globals['_SUBSCRIPTIONSTATE']._serialized_start=2158
-  _globals['_SUBSCRIPTIONSTATE']._serialized_end=2264
+  _globals['_CHARGESTATE']._serialized_start=2327
+  _globals['_CHARGESTATE']._serialized_end=2409
+  _globals['_SUBSCRIPTIONSTATE']._serialized_start=2411
+  _globals['_SUBSCRIPTIONSTATE']._serialized_end=2517
   _globals['_BILLINGREQUEST']._serialized_start=59
-  _globals['_BILLINGREQUEST']._serialized_end=263
-  _globals['_CONVERTCURRENCYREQUEST']._serialized_start=266
-  _globals['_CONVERTCURRENCYREQUEST']._serialized_end=504
-  _globals['_CONVERTCURRENCYRESPONSE']._serialized_start=506
-  _globals['_CONVERTCURRENCYRESPONSE']._serialized_end=628
-  _globals['_CHARGEUSERREQUEST']._serialized_start=631
-  _globals['_CHARGEUSERREQUEST']._serialized_end=857
-  _globals['_CHARGEUSERRESPONSE']._serialized_start=860
-  _globals['_CHARGEUSERRESPONSE']._serialized_end=1106
-  _globals['_CHARGEUSERRESPONSE_CHARGERESULT']._serialized_start=1047
-  _globals['_CHARGEUSERRESPONSE_CHARGERESULT']._serialized_end=1098
-  _globals['_CHARGESTATENOTIFICATION']._serialized_start=1109
-  _globals['_CHARGESTATENOTIFICATION']._serialized_end=1279
-  _globals['_SUBSCRIBEUSERREQUEST']._serialized_start=1282
-  _globals['_SUBSCRIBEUSERREQUEST']._serialized_end=1452
-  _globals['_SUBSCRIBEUSERRESPONSE']._serialized_start=1455
-  _globals['_SUBSCRIBEUSERRESPONSE']._serialized_end=1696
-  _globals['_SUBSCRIBEUSERRESPONSE_SUBSCRIPTIONRESULT']._serialized_start=1641
-  _globals['_SUBSCRIBEUSERRESPONSE_SUBSCRIPTIONRESULT']._serialized_end=1688
-  _globals['_SUBSCRIPTIONNOTIFICATION']._serialized_start=1698
-  _globals['_SUBSCRIPTIONNOTIFICATION']._serialized_end=1792
-  _globals['_CLOUDFLAREACCOUNTREQUEST']._serialized_start=1794
-  _globals['_CLOUDFLAREACCOUNTREQUEST']._serialized_end=1832
-  _globals['_CLOUDFLAREACCOUNTRESPONSE']._serialized_start=1835
-  _globals['_CLOUDFLAREACCOUNTRESPONSE']._serialized_end=2072
-  _globals['_CLOUDFLAREACCOUNTRESPONSE_CLOUDFLAREACCOUNTRESULT']._serialized_start=2007
-  _globals['_CLOUDFLAREACCOUNTRESPONSE_CLOUDFLAREACCOUNTRESULT']._serialized_end=2072
+  _globals['_BILLINGREQUEST']._serialized_end=320
+  _globals['_CONVERTCURRENCYREQUEST']._serialized_start=323
+  _globals['_CONVERTCURRENCYREQUEST']._serialized_end=561
+  _globals['_CONVERTCURRENCYRESPONSE']._serialized_start=563
+  _globals['_CONVERTCURRENCYRESPONSE']._serialized_end=685
+  _globals['_CHARGEUSERREQUEST']._serialized_start=688
+  _globals['_CHARGEUSERREQUEST']._serialized_end=914
+  _globals['_CHARGEUSERRESPONSE']._serialized_start=917
+  _globals['_CHARGEUSERRESPONSE']._serialized_end=1163
+  _globals['_CHARGEUSERRESPONSE_CHARGERESULT']._serialized_start=1104
+  _globals['_CHARGEUSERRESPONSE_CHARGERESULT']._serialized_end=1155
+  _globals['_CHARGESTATENOTIFICATION']._serialized_start=1166
+  _globals['_CHARGESTATENOTIFICATION']._serialized_end=1336
+  _globals['_SUBSCRIBEUSERREQUEST']._serialized_start=1339
+  _globals['_SUBSCRIBEUSERREQUEST']._serialized_end=1509
+  _globals['_SUBSCRIBEUSERRESPONSE']._serialized_start=1512
+  _globals['_SUBSCRIBEUSERRESPONSE']._serialized_end=1753
+  _globals['_SUBSCRIBEUSERRESPONSE_SUBSCRIPTIONRESULT']._serialized_start=1698
+  _globals['_SUBSCRIBEUSERRESPONSE_SUBSCRIPTIONRESULT']._serialized_end=1745
+  _globals['_SUBSCRIPTIONNOTIFICATION']._serialized_start=1755
+  _globals['_SUBSCRIPTIONNOTIFICATION']._serialized_end=1849
+  _globals['_CLOUDFLAREACCOUNTREQUEST']._serialized_start=1851
+  _globals['_CLOUDFLAREACCOUNTREQUEST']._serialized_end=1889
+  _globals['_CLOUDFLAREACCOUNTRESPONSE']._serialized_start=1892
+  _globals['_CLOUDFLAREACCOUNTRESPONSE']._serialized_end=2129
+  _globals['_CLOUDFLAREACCOUNTRESPONSE_CLOUDFLAREACCOUNTRESULT']._serialized_start=2064
+  _globals['_CLOUDFLAREACCOUNTRESPONSE_CLOUDFLAREACCOUNTRESULT']._serialized_end=2129
+  _globals['_NETBOXACCOUNTREQUEST']._serialized_start=2131
+  _globals['_NETBOXACCOUNTREQUEST']._serialized_end=2165
+  _globals['_NETBOXACCOUNTRESPONSE']._serialized_start=2168
+  _globals['_NETBOXACCOUNTRESPONSE']._serialized_end=2325
+  _globals['_NETBOXACCOUNTRESPONSE_NETBOXACCOUNTRESULT']._serialized_start=2281
+  _globals['_NETBOXACCOUNTRESPONSE_NETBOXACCOUNTRESULT']._serialized_end=2325
 # @@protoc_insertion_point(module_scope)

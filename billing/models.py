@@ -92,6 +92,7 @@ class Account(models.Model):
     gocardless_customer_id = models.CharField(max_length=255, blank=True, null=True)
     freeagent_contact_id = models.CharField(max_length=255, blank=True, null=True)
     cloudflare_account_id = models.CharField(max_length=255, blank=True, null=True)
+    netbox_account_id = models.PositiveIntegerField(blank=True, null=True)
     default_stripe_payment_method_id = models.CharField(max_length=255, blank=True, null=True)
     default_ach_mandate = models.ForeignKey(
         'ACHMandate', on_delete=models.PROTECT, blank=True, null=True, related_name='default_accounts')
@@ -419,7 +420,7 @@ class Account(models.Model):
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def create_user_profile(sender, instance, created, **kwargs):
+def create_user_profile(instance, created, **kwargs):
     if created:
         Account.objects.create(user=instance)
     instance.account.save()

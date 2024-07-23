@@ -67,22 +67,26 @@ class BillingRequest(google.protobuf.message.Message):
     CONVERT_CURRENCY_FIELD_NUMBER: builtins.int
     CHARGE_USER_FIELD_NUMBER: builtins.int
     CLOUDFLARE_ACCOUNT_FIELD_NUMBER: builtins.int
+    NETBOX_ACCOUNT_FIELD_NUMBER: builtins.int
     @property
     def convert_currency(self) -> global___ConvertCurrencyRequest: ...
     @property
     def charge_user(self) -> global___ChargeUserRequest: ...
     @property
     def cloudflare_account(self) -> global___CloudflareAccountRequest: ...
+    @property
+    def netbox_account(self) -> global___NetboxAccountRequest: ...
     def __init__(
         self,
         *,
         convert_currency: global___ConvertCurrencyRequest | None = ...,
         charge_user: global___ChargeUserRequest | None = ...,
         cloudflare_account: global___CloudflareAccountRequest | None = ...,
+        netbox_account: global___NetboxAccountRequest | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing.Literal["charge_user", b"charge_user", "cloudflare_account", b"cloudflare_account", "convert_currency", b"convert_currency", "message", b"message"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["charge_user", b"charge_user", "cloudflare_account", b"cloudflare_account", "convert_currency", b"convert_currency", "message", b"message"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing.Literal["message", b"message"]) -> typing.Literal["convert_currency", "charge_user", "cloudflare_account"] | None: ...
+    def HasField(self, field_name: typing.Literal["charge_user", b"charge_user", "cloudflare_account", b"cloudflare_account", "convert_currency", b"convert_currency", "message", b"message", "netbox_account", b"netbox_account"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["charge_user", b"charge_user", "cloudflare_account", b"cloudflare_account", "convert_currency", b"convert_currency", "message", b"message", "netbox_account", b"netbox_account"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing.Literal["message", b"message"]) -> typing.Literal["convert_currency", "charge_user", "cloudflare_account", "netbox_account"] | None: ...
 
 global___BillingRequest = BillingRequest
 
@@ -400,3 +404,49 @@ class CloudflareAccountResponse(google.protobuf.message.Message):
     def ClearField(self, field_name: typing.Literal["account_id", b"account_id", "message", b"message", "result", b"result"]) -> None: ...
 
 global___CloudflareAccountResponse = CloudflareAccountResponse
+
+@typing.final
+class NetboxAccountRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    ID_FIELD_NUMBER: builtins.int
+    id: builtins.str
+    def __init__(
+        self,
+        *,
+        id: builtins.str = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["id", b"id"]) -> None: ...
+
+global___NetboxAccountRequest = NetboxAccountRequest
+
+@typing.final
+class NetboxAccountResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    class _NetboxAccountResult:
+        ValueType = typing.NewType("ValueType", builtins.int)
+        V: typing_extensions.TypeAlias = ValueType
+
+    class _NetboxAccountResultEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[NetboxAccountResponse._NetboxAccountResult.ValueType], builtins.type):
+        DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+        FAIL: NetboxAccountResponse._NetboxAccountResult.ValueType  # 0
+        SUCCESS: NetboxAccountResponse._NetboxAccountResult.ValueType  # 1
+
+    class NetboxAccountResult(_NetboxAccountResult, metaclass=_NetboxAccountResultEnumTypeWrapper): ...
+    FAIL: NetboxAccountResponse.NetboxAccountResult.ValueType  # 0
+    SUCCESS: NetboxAccountResponse.NetboxAccountResult.ValueType  # 1
+
+    RESULT_FIELD_NUMBER: builtins.int
+    ACCOUNT_ID_FIELD_NUMBER: builtins.int
+    result: global___NetboxAccountResponse.NetboxAccountResult.ValueType
+    account_id: builtins.int
+    def __init__(
+        self,
+        *,
+        result: global___NetboxAccountResponse.NetboxAccountResult.ValueType = ...,
+        account_id: builtins.int = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["account_id", b"account_id", "result", b"result"]) -> None: ...
+
+global___NetboxAccountResponse = NetboxAccountResponse

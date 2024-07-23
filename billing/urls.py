@@ -99,4 +99,5 @@ urlpatterns = [
     path('accounts/<account_id>/charge/', views.admin.charge_account, name='charge_account'),
     path('accounts/<account_id>/top_up/', views.admin.manual_top_up_account, name='manual_top_up_account'),
     path('accounts/<account_id>/add_bank_account/', views.admin.add_bank_account, name='add_bank_account'),
+    path('accounts/<account_id>/netbox_tenant/', views.admin.netbox_tenant, name='netbox_tenant'),
 ]

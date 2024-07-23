@@ -29,7 +29,17 @@
                         </a>
                     {% else %}
                         <b>N/A</b>
-                    {% endif %}
+                    {% endif %}<br/>
+                    Netbox tenant ID:
+                    {% if account.netbox_account_id %}
+                        <a href="https://nb.as207960.net/tenancy/tenants/{{ account.netbox_account_id }}/"
+                           target="_blank">
+                            <b>#{{ account.netbox_account_id }}</b>
+                        </a>
+                    {% else %}
+                        <b>N/A</b>
+                        <a href="{% url 'netbox_tenant' account.user.username %}" class="btn btn-sm btn-primary">Create</a>
+                    {% endif %}<br/>
                 </p>
                 {% if account.virtual_uk_bank %}
                     <p>

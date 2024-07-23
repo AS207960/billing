@@ -3,9 +3,9 @@ import dataclasses
 import typing
 import requests
 from django.conf import settings
-from django.db.models.signals import pre_delete
+from django.db.models.signals import pre_delete, post_save
 from django.dispatch import receiver
-from . import models
+from . import models, tasks
 
 class CloudflareResult(enum.Enum):
     SUCCESS = enum.auto()
@@ -68,7 +68,7 @@ def set_cloudflare_ns(account: models.Account):
         "X-Auth-Key": settings.CLOUDFLARE_API_KEY,
     }, json={
         "settings": {
-            "default_nameservers": "custom.tenant"
+            "default_nameservers": "custom.tenant",
         }
     })
     r.raise_for_status()
@@ -86,9 +86,36 @@ def delete_cloudflare_account(account: models.Account):
     account.cloudflare_account_id = None
     account.save()
 
+@tasks.as_thread
+def update_cloudflare_account_name(account: models.Account):
+    if not account.cloudflare_account_id:
+        return
+
+    if account.billing_address.organisation:
+        account_name = account.billing_address.organisation
+    else:
+        account_name = f"{account.user.first_name} {account.user.last_name}"
+
+    r = requests.put(f"https://api.cloudflare.com/client/v4/accounts/{account.cloudflare_account_id}", headers={
+        "X-Auth-Email": settings.CLOUDFLARE_API_EMAIL,
+        "X-Auth-Key": settings.CLOUDFLARE_API_KEY,
+    }, json={
+        "name": account_name,
+    })
+    r.raise_for_status()
+
 @receiver(pre_delete, sender=models.Account)
-def account_delete_handler(_sender, **kwargs):
-    delete_cloudflare_account(kwargs["instance"])
+def account_delete_handler(instance: models.Account, **kwargs):
+    delete_cloudflare_account(instance)
+
+@receiver(post_save, sender=models.Account)
+def send_charge_state_notif_receiver(instance: models.Account, **kwargs):
+    update_cloudflare_account_name(instance)
+
+@receiver(post_save, sender=models.AccountBillingAddress)
+def send_charge_state_notif_receiver(instance: models.AccountBillingAddress, **kwargs):
+    if instance.account.billing_address == instance:
+        update_cloudflare_account_name(instance.account)
 
 
 def add_cloudflare_user(account: models.Account):

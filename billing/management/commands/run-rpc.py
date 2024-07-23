@@ -10,7 +10,7 @@ import time
 import traceback
 import sys
 import functools
-from billing import models, views, tasks, vat, apps, cf
+from billing import models, tasks, vat, apps, cf, nb
 import billing.proto.billing_pb2
 import billing.proto.geoip_pb2
 
@@ -24,6 +24,13 @@ class Command(BaseCommand):
         self.parameters = pika.URLParameters(settings.RABBITMQ_RPC_URL)
         self.connection = None
         self.channel = None
+
+        self.commands = {
+            "convert_currency": self.convert_currency,
+            "charge_user": self.charge_user,
+            "cloudflare_account": self.cloudflare_account,
+            "netbox_account": self.netbox_account,
+        }
 
     def setup_connection(self):
         self.connection = pika.BlockingConnection(parameters=self.parameters)
@@ -91,30 +98,10 @@ class Command(BaseCommand):
         msg.ParseFromString(body)
 
         msg_type = msg.WhichOneof("message")
-        if msg_type == "convert_currency":
-            print(f"{properties.correlation_id} - Received currency conversion request\n{msg.convert_currency}", flush=True)
+        if msg_type and msg_type in self.commands:
+            print(f"{properties.correlation_id} - Received {msg_type} request\n{getattr(msg, str(msg_type))}", flush=True)
             try:
-                resp = self.convert_currency(msg.convert_currency)
-            except:
-                traceback.print_exc()
-                sys.stdout.flush()
-                sys.stderr.flush()
-                self.nack(channel, method.delivery_tag)
-                return
-        elif msg_type == "charge_user":
-            print(f"{properties.correlation_id} - Received charge request\n{msg.charge_user}", flush=True)
-            try:
-                resp = self.charge_user(msg.charge_user)
-            except:
-                traceback.print_exc()
-                sys.stdout.flush()
-                sys.stderr.flush()
-                self.nack(channel, method.delivery_tag)
-                return
-        elif msg_type == "cloudflare_account":
-            print(f"{properties.correlation_id} - Received cloudflare account request\n{msg.cloudflare_account}", flush=True)
-            try:
-                resp = self.cloudflare_account(msg.cloudflare_account)
+                resp = self.commands[msg_type](getattr(msg, str(msg_type)))
             except:
                 traceback.print_exc()
                 sys.stdout.flush()
@@ -259,4 +246,27 @@ class Command(BaseCommand):
             result=result_code,
             account_id=res.account_id,
             message=res.message
+        )
+
+    @staticmethod
+    def netbox_account(msg: billing.proto.billing_pb2.NetboxAccountRequest) \
+            -> billing.proto.billing_pb2.NetboxAccountResponse:
+        user = get_user_model().objects.filter(username=msg.id).first()
+        account = user.account if user else None  # type: models.Account
+
+        if not account:
+            return billing.proto.billing_pb2.NetboxAccountResponse(
+                result=billing.proto.billing_pb2.NetboxAccountResponse.FAIL,
+            )
+
+        res = nb.setup_netbox_account(account)
+        if not res:
+            return billing.proto.billing_pb2.NetboxAccountResponse(
+                result=billing.proto.billing_pb2.NetboxAccountResponse.FAIL,
+                account_id=0,
+            )
+
+        return billing.proto.billing_pb2.NetboxAccountResponse(
+            result=billing.proto.billing_pb2.NetboxAccountResponse.SUCCESS,
+            account_id=res,
         )

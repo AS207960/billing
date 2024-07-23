@@ -363,12 +363,12 @@ def send_charge_state_notif(instance: models.ChargeState):
 
 
 @receiver(post_save, sender=models.ChargeState)
-def send_charge_state_notif_receiver(sender, instance: models.ChargeState, **kwargs):
+def send_charge_state_notif_receiver(instance: models.ChargeState, **kwargs):
     send_charge_state_notif(instance)
 
 
 @receiver(post_save, sender=models.Subscription)
-def send_subscription_notif(sender, instance: models.Subscription, **kwargs):
+def send_subscription_notif(instance: models.Subscription, **kwargs):
     if instance.plan.notif_queue:
         if instance.state == models.Subscription.STATE_PENDING:
             status = billing_pb2.SUB_PENDING
