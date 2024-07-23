@@ -178,19 +178,24 @@ def attempt_complete_bank_transfer(
                     ledger_item = poss_ledger_item
                     break
 
-        if trans_account_data and ledger_item:
-            known_account, _ = models.KnownBankAccount.objects.update_or_create(
-                account=ledger_item.account,
-                **trans_account_data
-            )
+        if (trans_account_data or override_country_check) and ledger_item:
+            if trans_account_data:
+                known_account, _ = models.KnownBankAccount.objects.update_or_create(
+                    account=ledger_item.account,
+                    **trans_account_data
+                )
+            else:
+                known_account = None
 
             if (
-                    ledger_item.evidence_billing_address.country_code.code.lower() == known_account.country_code.lower()
-                    or not ledger_item.account.taxable or override_country_check
+                    override_country_check
+                    or not ledger_item.account.taxable
+                    or ledger_item.evidence_billing_address.country_code.code.lower() == known_account.country_code.lower()
             ):
                 ledger_item.amount = amount
                 ledger_item.state = models.LedgerItem.STATE_COMPLETED
-                ledger_item.evidence_bank_account = known_account
+                if known_account:
+                    ledger_item.evidence_bank_account = known_account
                 ledger_item.save()
                 found = True
             else:
