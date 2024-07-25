@@ -1,7 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.template.loader import render_to_string
-from billing import models, tasks
-from billing.views import emails
+from billing import models, tasks, emails
 
 
 class Command(BaseCommand):

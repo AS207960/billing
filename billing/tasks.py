@@ -2,7 +2,6 @@ import datetime
 import decimal
 import json
 import threading
-import requests
 import django.core.exceptions
 import google.protobuf.wrappers_pb2
 import pika
@@ -17,8 +16,7 @@ from django.shortcuts import reverse
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from . import models, utils, apps, vat
-from .views import emails
+from . import models, utils, apps, vat, emails
 from .proto import billing_pb2
 
 pika_parameters = pika.URLParameters(settings.RABBITMQ_RPC_URL)

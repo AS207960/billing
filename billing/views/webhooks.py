@@ -13,7 +13,6 @@ import cryptography.hazmat.primitives.asymmetric.padding
 import cryptography.hazmat.primitives.hashes
 import cryptography.hazmat.primitives.serialization
 import dateutil.parser
-import requests
 import schwifty
 import stripe.error
 import pywisetransfer
@@ -24,8 +23,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from .. import tasks, models
-from . import emails
+from .. import tasks, models, emails
 
 transferwise_live_pub = cryptography.hazmat.primitives.serialization.load_der_public_key(
     base64.b64decode(

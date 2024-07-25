@@ -14,8 +14,7 @@ from django.http import HttpResponseBadRequest, HttpResponse
 from django.shortcuts import redirect, render, reverse, get_object_or_404
 from django.template.loader import render_to_string
 
-from .. import models, tasks
-from . import emails
+from .. import models, tasks, emails
 
 
 @login_required
