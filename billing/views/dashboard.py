@@ -34,7 +34,7 @@ def dashboard(request):
 
 @login_required
 def statement_export(request):
-    if request.method == "POST":r
+    if request.method == "POST":
         form = forms.StatementExportForm(request.POST)
         if form.is_valid():
             from_date = form.cleaned_data["date_from"]
