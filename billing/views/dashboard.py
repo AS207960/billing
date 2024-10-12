@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template import loader
+from django.core.paginator import Paginator
 import datetime
 import decimal
 from django.db.models import Q
@@ -19,9 +20,13 @@ def dashboard(request):
     active_subscriptions = reversed(sorted(list(request.user.account.subscription_set.filter(
         Q(state=models.Subscription.STATE_ACTIVE) | Q(state=models.Subscription.STATE_PAST_DUE)
     )), key=lambda s: s.next_bill))
+    
+    ledger_items = Paginator(ledger_items, 10)
+    page_number = request.GET.get('page')
+    page_obj = ledger_items.get_page(page_number)
 
     return render(request, "billing/dashboard.html", {
-        "ledger_items": ledger_items,
+        "ledger_items": page_obj,
         "account": request.user.account,
         "active_subscriptions": active_subscriptions
     })
@@ -29,7 +34,7 @@ def dashboard(request):
 
 @login_required
 def statement_export(request):
-    if request.method == "POST":
+    if request.method == "POST":r
         form = forms.StatementExportForm(request.POST)
         if form.is_valid():
             from_date = form.cleaned_data["date_from"]

@@ -67,39 +67,39 @@
                     </div>
                 </div>
                 {% if account.virtual_uk_bank %}
-                        <div class="card mt-3">
-                            <div class="card-body">
-                                <h5 class="card-title">Virtual account number</h5>
-                                <p class="card-text">
-                                    Sort Code: <br/><b>{{ account.virtual_uk_bank.formatted_sort_code }}</b><br/>
-                                    Account number: <br/><b>{{ account.virtual_uk_bank.account_number }}</b>
-                                </p>
-                                <p class="card-text">
-                                    <small>
-                                        If we receive any payment to these details, from any payer, with any reference,
-                                        we'll automatically credit it to your billing account.
-                                    </small>
-                                </p>
-                            </div>
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Virtual account number</h5>
+                            <p class="card-text">
+                                Sort Code: <br/><b>{{ account.virtual_uk_bank.formatted_sort_code }}</b><br/>
+                                Account number: <br/><b>{{ account.virtual_uk_bank.account_number }}</b>
+                            </p>
+                            <p class="card-text">
+                                <small>
+                                    If we receive any payment to these details, from any payer, with any reference,
+                                    we'll automatically credit it to your billing account.
+                                </small>
+                            </p>
                         </div>
+                    </div>
                 {% endif %}
                 {% if account.virtual_us_bank %}
-                        <div class="card mt-3">
-                            <div class="card-body">
-                                <h5 class="card-title">Virtual account number</h5>
-                                <p class="card-text">
-                                    Bank name: <br/><b>{{ account.virtual_us_bank.bank_name }}</b><br/>
-                                    Routing number: <br/><b>{{ account.virtual_us_bank.routing_number }}</b><br/>
-                                    Account number: <br/><b>{{ account.virtual_us_bank.account_number }}</b>
-                                </p>
-                                <p class="card-text">
-                                    <small>
-                                        If we receive any payment to these details, from any payer, with any reference,
-                                        we'll automatically credit it to your billing account.
-                                    </small>
-                                </p>
-                            </div>
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Virtual account number</h5>
+                            <p class="card-text">
+                                Bank name: <br/><b>{{ account.virtual_us_bank.bank_name }}</b><br/>
+                                Routing number: <br/><b>{{ account.virtual_us_bank.routing_number }}</b><br/>
+                                Account number: <br/><b>{{ account.virtual_us_bank.account_number }}</b>
+                            </p>
+                            <p class="card-text">
+                                <small>
+                                    If we receive any payment to these details, from any payer, with any reference,
+                                    we'll automatically credit it to your billing account.
+                                </small>
+                            </p>
                         </div>
+                    </div>
                 {% endif %}
             </div>
             <div class="col-md-9">
@@ -231,13 +231,17 @@
                                             </div>
                                         {% elif item.type == "L" %}
                                             <div class="btn-group">
-                                                <a href="{% url 'complete_top_up_uk_instant_bank_transfer' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
-                                                <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
+                                                <a href="{% url 'complete_top_up_uk_instant_bank_transfer' item.id %}"
+                                                   class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
+                                                <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1;
+                                                    Cancel</a>
                                             </div>
                                         {% elif item.type == "Y" %}
                                             <div class="btn-group">
-                                                <a href="{% url 'complete_top_up_crypto' item.id %}" class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
-                                                <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1; Cancel</a>
+                                                <a href="{% url 'complete_top_up_crypto' item.id %}"
+                                                   class="btn btn-success btn-sm">&#x27a1;&#xfe0f; Complete</a>
+                                                <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1;
+                                                    Cancel</a>
                                             </div>
                                         {% elif item.type == "B" and item.charge_state %}
                                             <div class="btn-group">
@@ -278,6 +282,25 @@
                         </tbody>
                     </table>
                 </div>
+                <nav>
+                    <ul class="pagination">
+                        {% if ledger_items.has_previous %}
+                            <li class="page-item"><a class="page-link" href="?page=1">&laquo; First</a></li>
+                            <li class="page-item"><a class="page-link" href="?page={{ ledger_items.previous_page_number }}">Previous</a>
+                            </li>
+                        {% endif %}
+                        <li class="page-item active">
+                            <a class="page-link" href="#">Page {{ ledger_items.number }}
+                                of {{ ledger_items.paginator.num_pages }}</a>
+                        </li>
+                        {% if ledger_items.has_next %}
+                            <li class="page-item"><a class="page-link"
+                                                     href="?page={{ ledger_items.next_page_number }}">Next</a></li>
+                            <li class="page-item"><a class="page-link" href="?page={{ ledger_items.paginator.num_pages }}">Last
+                                &raquo;</a></li>
+                        {% endif %}
+                    </ul>
+                </nav>
                 <div class="alert alert-info">
                     All times are in UTC.<br/>
                     (&pound;X.XX) means a value pending and not currently applied to your balance.
