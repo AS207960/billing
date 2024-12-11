@@ -8,6 +8,7 @@ import pika
 import pywebpush
 import sentry_sdk
 import stripe.error
+import gocardless_pro.errors
 from django.conf import settings
 from django.db.models import Q
 from django.db.models.signals import post_save
@@ -398,7 +399,7 @@ class ChargeError(Exception):
         self.payment_ledger_item = payment_ledger_item
         self.message = message
         self.charge_state = None
-        self.must_reject = True
+        self.must_reject = must_reject
 
 
 class RequiresActionError(Exception):
@@ -760,15 +761,18 @@ def attempt_charge_off_session(charge_state):
             charge_state.save()
             update_from_payment_intent(payment_intent, ledger_item)
         elif selected_payment_method_type == "ach_mandate_gc":
-            payment = apps.gocardless_client.payments.create(params={
-                "amount": amount_int,
-                "currency": selected_currency.upper(),
-                "description": charge_state.ledger_item.descriptor,
-                "retry_if_possible": False,
-                "links": {
-                    "mandate": selected_payment_method_id.mandate_id
-                }
-            })
+            try:
+                payment = apps.gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": selected_currency.upper(),
+                    "description": charge_state.ledger_item.descriptor,
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": selected_payment_method_id.mandate_id
+                    }
+                })
+            except gocardless_pro.errors.InvalidStateError as e:
+                raise ChargeError(ledger_item, e.message, must_reject=False) from e
 
             ledger_item.descriptor = f"ACH Direct Debit payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
@@ -779,15 +783,18 @@ def attempt_charge_off_session(charge_state):
             charge_state.payment_ledger_item = ledger_item
             charge_state.save()
         elif selected_payment_method_type == "autogiro_mandate_gc":
-            payment = apps.gocardless_client.payments.create(params={
-                "amount": amount_int,
-                "currency": selected_currency.upper(),
-                "description": charge_state.ledger_item.descriptor,
-                "retry_if_possible": False,
-                "links": {
-                    "mandate": selected_payment_method_id.mandate_id
-                }
-            })
+            try:
+                payment = apps.gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": selected_currency.upper(),
+                    "description": charge_state.ledger_item.descriptor,
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": selected_payment_method_id.mandate_id
+                    }
+                })
+            except gocardless_pro.errors.InvalidStateError as e:
+                raise ChargeError(ledger_item, e.message, must_reject=False) from e
 
             ledger_item.descriptor = f"Autogiro payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
@@ -798,15 +805,18 @@ def attempt_charge_off_session(charge_state):
             charge_state.payment_ledger_item = ledger_item
             charge_state.save()
         elif selected_payment_method_type == "bacs_mandate_gc":
-            payment = apps.gocardless_client.payments.create(params={
-                "amount": amount_int,
-                "currency": selected_currency.upper(),
-                "description": charge_state.ledger_item.descriptor,
-                "retry_if_possible": False,
-                "links": {
-                    "mandate": selected_payment_method_id.mandate_id
-                }
-            })
+            try:
+                payment = apps.gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": selected_currency.upper(),
+                    "description": charge_state.ledger_item.descriptor,
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": selected_payment_method_id.mandate_id
+                    }
+                })
+            except gocardless_pro.errors.InvalidStateError as e:
+                raise ChargeError(ledger_item, e.message, must_reject=False) from e
 
             ledger_item.descriptor = f"BACS Direct Debit payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
@@ -817,15 +827,18 @@ def attempt_charge_off_session(charge_state):
             charge_state.payment_ledger_item = ledger_item
             charge_state.save()
         elif selected_payment_method_type == "becs_mandate_gc":
-            payment = apps.gocardless_client.payments.create(params={
-                "amount": amount_int,
-                "currency": selected_currency.upper(),
-                "description": charge_state.ledger_item.descriptor,
-                "retry_if_possible": False,
-                "links": {
-                    "mandate": selected_payment_method_id.mandate_id
-                }
-            })
+            try:
+                payment = apps.gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": selected_currency.upper(),
+                    "description": charge_state.ledger_item.descriptor,
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": selected_payment_method_id.mandate_id
+                    }
+                })
+            except gocardless_pro.errors.InvalidStateError as e:
+                raise ChargeError(ledger_item, e.message, must_reject=False) from e
 
             ledger_item.descriptor = f"BECS Direct Debit payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
@@ -836,15 +849,18 @@ def attempt_charge_off_session(charge_state):
             charge_state.payment_ledger_item = ledger_item
             charge_state.save()
         elif selected_payment_method_type == "becs_nz_mandate_gc":
-            payment = apps.gocardless_client.payments.create(params={
-                "amount": amount_int,
-                "currency": selected_currency.upper(),
-                "description": charge_state.ledger_item.descriptor,
-                "retry_if_possible": False,
-                "links": {
-                    "mandate": selected_payment_method_id.mandate_id
-                }
-            })
+            try:
+                payment = apps.gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": selected_currency.upper(),
+                    "description": charge_state.ledger_item.descriptor,
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": selected_payment_method_id.mandate_id
+                    }
+                })
+            except gocardless_pro.errors.InvalidStateError as e:
+                raise ChargeError(ledger_item, e.message, must_reject=False) from e
 
             ledger_item.descriptor = f"BECS NZ Direct Debit payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
@@ -855,15 +871,18 @@ def attempt_charge_off_session(charge_state):
             charge_state.payment_ledger_item = ledger_item
             charge_state.save()
         elif selected_payment_method_type == "betalingsservice_mandate_gc":
-            payment = apps.gocardless_client.payments.create(params={
-                "amount": amount_int,
-                "currency": selected_currency.upper(),
-                "description": charge_state.ledger_item.descriptor,
-                "retry_if_possible": False,
-                "links": {
-                    "mandate": selected_payment_method_id.mandate_id
-                }
-            })
+            try:
+                payment = apps.gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": selected_currency.upper(),
+                    "description": charge_state.ledger_item.descriptor,
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": selected_payment_method_id.mandate_id
+                    }
+                })
+            except gocardless_pro.errors.InvalidStateError as e:
+                raise ChargeError(ledger_item, e.message, must_reject=False) from e
 
             ledger_item.descriptor = f"Betalingsservice payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
@@ -874,15 +893,18 @@ def attempt_charge_off_session(charge_state):
             charge_state.payment_ledger_item = ledger_item
             charge_state.save()
         elif selected_payment_method_type == "pad_mandate_gc":
-            payment = apps.gocardless_client.payments.create(params={
-                "amount": amount_int,
-                "currency": selected_currency.upper(),
-                "description": charge_state.ledger_item.descriptor,
-                "retry_if_possible": False,
-                "links": {
-                    "mandate": selected_payment_method_id.mandate_id
-                }
-            })
+            try:
+                payment = apps.gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": selected_currency.upper(),
+                    "description": charge_state.ledger_item.descriptor,
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": selected_payment_method_id.mandate_id
+                    }
+                })
+            except gocardless_pro.errors.InvalidStateError as e:
+                raise ChargeError(ledger_item, e.message, must_reject=False) from e
 
             ledger_item.descriptor = f"PAD Direct Debit payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
@@ -893,15 +915,18 @@ def attempt_charge_off_session(charge_state):
             charge_state.payment_ledger_item = ledger_item
             charge_state.save()
         elif selected_payment_method_type == "sepa_mandate_gc":
-            payment = apps.gocardless_client.payments.create(params={
-                "amount": amount_int,
-                "currency": selected_currency.upper(),
-                "description": charge_state.ledger_item.descriptor,
-                "retry_if_possible": False,
-                "links": {
-                    "mandate": selected_payment_method_id.mandate_id
-                }
-            })
+            try:
+                payment = apps.gocardless_client.payments.create(params={
+                    "amount": amount_int,
+                    "currency": selected_currency.upper(),
+                    "description": charge_state.ledger_item.descriptor,
+                    "retry_if_possible": False,
+                    "links": {
+                        "mandate": selected_payment_method_id.mandate_id
+                    }
+                })
+            except gocardless_pro.errors.InvalidStateError as e:
+                raise ChargeError(ledger_item, e.message, must_reject=False) from e
 
             ledger_item.descriptor = f"SEPA Direct Debit payment for {charge_state.ledger_item.descriptor}"
             ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
