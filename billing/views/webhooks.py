@@ -189,6 +189,7 @@ def attempt_complete_bank_transfer(
                     override_country_check
                     or not ledger_item.account.taxable
                     or ledger_item.evidence_billing_address.country_code.code.lower() == known_account.country_code.lower()
+                    or known_account
             ):
                 ledger_item.amount = amount
                 ledger_item.state = models.LedgerItem.STATE_COMPLETED
@@ -207,6 +208,7 @@ def attempt_complete_bank_transfer(
         if known_account and known_account.account.billing_address and (
                 known_account.account.billing_address.country_code.code.lower() == known_account.country_code.lower()
                 or not known_account.account.taxable or override_country_check
+                or known_account
         ):
             can_sell, can_sell_reason = known_account.account.can_sell
             if can_sell:
