@@ -258,8 +258,6 @@ def xfw_webhook(request):
         return HttpResponseBadRequest()
 
     pubkey = transferwise_live_pub if settings.TRANSFERWISE_ENV == "live" else transferwise_sandbox_pub
-    api_base = "https://api.transferwise.com" if settings.TRANSFERWISE_ENV == "live" else \
-        "https://api.sandbox.transferwise.tech"
 
     try:
         pubkey.verify(
@@ -307,7 +305,6 @@ def xfw_webhook(request):
 
         if found_t:
             sender_account = found_t.details.get("senderAccount")
-            trans_account_data = None
             if sender_account:
                 try:
                     trans_iban = sender_account
@@ -332,6 +329,20 @@ def xfw_webhook(request):
                             "branch_code": fpid_data["sort_code"],
                             "account_code": fpid_data["account_number"],
                         }
+                    else:
+                        trans_account_data = {
+                            "country_code": "xx",
+                            "bank_code": "",
+                            "branch_code": "",
+                            "account_code": sender_account,
+                        }
+            else:
+                trans_account_data = {
+                    "country_code": "xx",
+                    "bank_code": "",
+                    "branch_code": "",
+                    "account_code": ""
+                }
 
             amount = decimal.Decimal(found_t["amount"]["value"]) * \
                      models.ExchangeRate.get_rate(found_t["amount"]["currency"], "GBP")
