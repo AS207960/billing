@@ -28,6 +28,6 @@ mypy
 asgiref
 requests
 django-storages
-boto3
+boto3==1.35.99
 crispy-bootstrap5
 pywisetransfer
