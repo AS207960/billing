@@ -202,19 +202,19 @@ class Command(BaseCommand):
                 )
             except tasks.ChargeError as e:
                 return billing.proto.billing_pb2.ChargeUserResponse(
-                    charge_state_id=str(e.charge_state.id),
+                    charge_state_id=str(e.charge_state.id) if e.charge_state else None,
                     result=billing.proto.billing_pb2.ChargeUserResponse.FAIL,
                     message=e.message
                 )
             except tasks.ChargeStateRequiresActionError as e:
                 return billing.proto.billing_pb2.ChargeUserResponse(
-                    charge_state_id=str(e.charge_state.id),
+                    charge_state_id=str(e.charge_state.id) if e.charge_state else None,
                     result=billing.proto.billing_pb2.ChargeUserResponse.REDIRECT,
                     redirect_uri=e.redirect_url
                 )
 
             return billing.proto.billing_pb2.ChargeUserResponse(
-                charge_state_id=str(charge_state.id),
+                charge_state_id=str(charge_state.id) if charge_state else None,
                 result=billing.proto.billing_pb2.ChargeUserResponse.SUCCESS,
                 state=tasks.charge_state_to_proto_enum(charge_state.ledger_item.state)
             )
