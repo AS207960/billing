@@ -225,7 +225,7 @@ def manual_refund(request, item_id):
 
         return render(request, "billing/account_manual_refund.html", {
             "form": refund_form,
-            "legder_item": ledger_item,
+            "ledger_item": ledger_item,
         })
 
     return redirect('view_account', ledger_item.account.user.username)

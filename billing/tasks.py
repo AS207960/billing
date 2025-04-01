@@ -1070,6 +1070,7 @@ def manual_ledger_item_refund(ledger_item: models.LedgerItem, amount: decimal.De
     ledger_item = models.LedgerItem(
         account=ledger_item.account,
         type=ledger_item.TYPE_MANUAL_REFUND,
+        state=models.LedgerItem.STATE_COMPLETED,
         amount=-amount,
         descriptor=f"Refund: {ledger_item.descriptor}",
         is_reversal=True,

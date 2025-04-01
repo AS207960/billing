@@ -346,7 +346,7 @@
                                         </a>
                                     {% endif %}
                                     {% if item.state == "C" %}
-                                        {% if item.type == "C" or item.type == "O" or item.type == "G" or item.type == "N" or item.type == "P" or item.type == "I" or item.type == "F" or item.type == "E" or item.type == "S" or item.type == "H" or item.type == "T" or item.type == "L" %}
+                                        {% if item.type == "C" or item.type == "O" or item.type == "G" or item.type == "N" or item.type == "P" or item.type == "I" or item.type == "F" or item.type == "E" or item.type == "S" or item.type == "H" or item.type == "T" or item.type == "L" or item.type == "D" %}
                                             <a href="{% url 'manual_refund' item.id %}" class="btn btn-primary btn-sm">
                                                 Manual refund
                                             </a>
