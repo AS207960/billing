@@ -1040,7 +1040,10 @@ def charge_account(account: models.Account, amount: decimal.Decimal, descriptor:
 
 
 def process_ledger_item_refund(ledger_item: models.LedgerItem, amount: decimal.Decimal):
-    if ledger_item.type == ledger_item.TYPE_GIROPAY:
+    if ledger_item.type in (
+            ledger_item.TYPE_GIROPAY, ledger_item.TYPE_BANCONTACT, ledger_item.TYPE_EPS, ledger_item.TYPE_IDEAL,
+            ledger_item.TYPE_P24, ledger_item.TYPE_SOFORT, ledger_item.TYPE_CARD, ledger_item.TYPE_SEPA,
+        ):
         payment_intent = stripe.PaymentIntent.retrieve(ledger_item.type_id)
         payment_amount = decimal.Decimal(payment_intent["amount"]) / decimal.Decimal(100)
         exchange_rate = payment_amount / ledger_item.amount
@@ -1061,6 +1064,18 @@ def process_ledger_item_refund(ledger_item: models.LedgerItem, amount: decimal.D
             timestamp=timezone.now()
         )
         update_from_stripe_refund(refund, ledger_item)
+
+
+def manual_ledger_item_refund(ledger_item: models.LedgerItem, amount: decimal.Decimal):
+    ledger_item = models.LedgerItem(
+        account=ledger_item.account,
+        type=ledger_item.TYPE_MANUAL_REFUND,
+        amount=-amount,
+        descriptor=f"Refund: {ledger_item.descriptor}",
+        is_reversal=True,
+        reversal_for=ledger_item,
+        timestamp=timezone.now()
+    )
 
 
 def update_from_payment_intent(payment_intent, ledger_item: models.LedgerItem = None):

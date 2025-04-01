@@ -731,6 +731,7 @@ class LedgerItem(models.Model):
     TYPE_CHARGES = "A"
     TYPE_CHECKOUT = "H"
     TYPE_MANUAL = "M"
+    TYPE_MANUAL_REFUND = "Q"
     TYPE_STRIPE_REFUND = "R"
     TYPE_STRIPE_BACS = "T"
     TYPE_GOCARDLESS_PR = "L"
@@ -751,6 +752,7 @@ class LedgerItem(models.Model):
         (TYPE_CHARGES, "Charges"),
         (TYPE_CHECKOUT, "Checkout"),
         (TYPE_MANUAL, "Manual"),
+        (TYPE_MANUAL_REFUND, "Manual Refund"),
         (TYPE_STRIPE_REFUND, "Stripe refund"),
         (TYPE_STRIPE_BACS, "Stripe bank transfer"),
         (TYPE_GOCARDLESS_PR, "GoCardless payment request"),
@@ -825,7 +827,7 @@ class LedgerItem(models.Model):
 
     @property
     def type_name(self):
-        if self.type == self.TYPE_STRIPE_REFUND:
+        if self.type in (self.TYPE_STRIPE_REFUND, self.TYPE_MANUAL_REFUND):
             return "refund"
         elif self.type == self.TYPE_CHARGE:
             if self.is_reversal:

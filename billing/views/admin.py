@@ -200,6 +200,38 @@ def edit_ledger_item(request, item_id):
 
 
 @login_required
+@permission_required('billing.change_ledgeritem', raise_exception=True)
+def manual_refund(request, item_id):
+    ledger_item = get_object_or_404(models.LedgerItem, pk=item_id)
+
+    if ledger_item.state == ledger_item.STATE_COMPLETED and (
+        ledger_item.type in (
+            ledger_item.TYPE_BACS, ledger_item.TYPE_SEPA, ledger_item.TYPE_SOFORT,
+            ledger_item.TYPE_GIROPAY, ledger_item.TYPE_BANCONTACT, ledger_item.TYPE_EPS,
+            ledger_item.TYPE_IDEAL, ledger_item.TYPE_P24, ledger_item.TYPE_GOCARDLESS,
+            ledger_item.TYPE_SOURCES, ledger_item.TYPE_CHARGES, ledger_item.TYPE_CHECKOUT,
+            ledger_item.TYPE_MANUAL, ledger_item.TYPE_STRIPE_BACS, ledger_item.TYPE_GOCARDLESS_PR,
+            ledger_item.TYPE_CRYPTO
+        )
+    ):
+        if request.method == "POST":
+            refund_form = forms.TopUpRefundForm(request.POST)
+
+            if refund_form.is_valid():
+                tasks.manual_ledger_item_refund(ledger_item, refund_form.cleaned_data['amount'])
+                return redirect('view_account', ledger_item.account.user.username)
+        else:
+            refund_form = forms.TopUpRefundForm()
+
+        return render(request, "billing/account_manual_refund.html", {
+            "form": refund_form,
+            "legder_item": ledger_item,
+        })
+
+    return redirect('view_account', ledger_item.account.user.username)
+
+
+@login_required
 @permission_required('billing.add_knownbankaccount', raise_exception=True)
 def add_bank_account(request, account_id):
     user = get_object_or_404(get_user_model(), username=account_id)

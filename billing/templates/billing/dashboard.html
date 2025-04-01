@@ -253,7 +253,7 @@
                                         {% endif %}
                                     {% elif item.state == "A" and item.type == "D" %}
                                         <div class="btn-group">
-                                            <a href="{% url 'toup_up_details' item.id %}"
+                                            <a href="{% url 'top_up_details' item.id %}"
                                                class="btn btn-info btn-sm">&#x1f440; View details</a>
                                             <a href="{% url 'fail_top_up' item.id %}" class="btn btn-danger btn-sm">&#x1f5d1;
                                                 Cancel</a>
@@ -264,14 +264,14 @@
                                                 <a href="{% url 'order_details' item.charge_state.id %}"
                                                    class="btn btn-info btn-sm">&#x1f440; View details</a>
                                             </div>
-                                        {% elif item.type == "C" or item.type == "O" or item.type == "G" or item.type == "N" or item.type == "P" or item.type == "I" or item.type == "F" or item.type == "E" or item.type == "S" or item.type == "H" or item.type == "T" %}
+                                        {% elif item.type == "C" or item.type == "O" or item.type == "G" or item.type == "N" or item.type == "P" or item.type == "I" or item.type == "F" or item.type == "E" or item.type == "S" or item.type == "H" or item.type == "T" or item.type == "L" %}
                                             <div class="btn-group">
-                                                <a href="{% url 'toup_up_details' item.id %}"
+                                                <a href="{% url 'top_up_details' item.id %}"
                                                    class="btn btn-info btn-sm">&#x1f440; View details</a>
                                             </div>
                                         {% elif item.type == "Y" %}
                                             <div class="btn-group">
-                                                <a href="{% url 'crypto_toup_up_details' item.id %}"
+                                                <a href="{% url 'crypto_top_up_details' item.id %}"
                                                    class="btn btn-info btn-sm">&#x1f440; View details</a>
                                             </div>
                                         {% endif %}

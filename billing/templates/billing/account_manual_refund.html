@@ -1,0 +1,20 @@
+{% extends 'billing/base.html' %}
+{% load crispy_forms_tags %}
+{% block content %}
+    <div class="container my-3">
+        <h1>Manual top-up refund</h1>
+        <p>
+            Top-up ID: <b>{{ legder_item.id }}</b><br/>
+            Reference: <b>{{ legder_item.type_id }}</b><br/>
+            Created on: <b>{{ ledger_item.timestamp }}</b>
+            {% if ledger_item.completed_timestamp %}
+                <br/>Paid on: <b>{{ ledger_item.completed_timestamp }}</b>
+            {% endif %}
+        </p>
+        <div class="row d-flex flex-column align-items-center">
+            <div class="col-12 col-md-6">
+                {% crispy form %}
+            </div>
+        </div>
+    </div>
+{% endblock %}
