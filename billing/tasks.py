@@ -1076,6 +1076,7 @@ def manual_ledger_item_refund(ledger_item: models.LedgerItem, amount: decimal.De
         reversal_for=ledger_item,
         timestamp=timezone.now()
     )
+    ledger_item.save()
 
 
 def update_from_payment_intent(payment_intent, ledger_item: models.LedgerItem = None):
