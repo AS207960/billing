@@ -139,74 +139,105 @@ USE_TZ = True
 EXTERNAL_URL_BASE = "http://localhost:8001"
 STATIC_URL = '/static/'
 
-with open(os.path.join(BASE_DIR, "secrets/keycloak.json")) as f:
-    keycloak_conf = json.load(f)
-with open(os.path.join(BASE_DIR, "secrets/stripe.json")) as f:
-    stripe_conf = json.load(f)
-with open(os.path.join(BASE_DIR, "secrets/open_exchange.json")) as f:
-    open_exchange_conf = json.load(f)
-with open(os.path.join(BASE_DIR, "secrets/plaid.json")) as f:
-    plaid_conf = json.load(f)
-with open(os.path.join(BASE_DIR, "secrets/flux.json")) as f:
-    flux_conf = json.load(f)
-with open(os.path.join(BASE_DIR, "secrets/hmrc.json")) as f:
-    hmrc_conf = json.load(f)
-with open(os.path.join(BASE_DIR, "secrets/gocardless.json")) as f:
-    gocardless_conf = json.load(f)
-with open(os.path.join(BASE_DIR, "secrets/transferwise.json")) as f:
-    transferwise_conf = json.load(f)
-with open(os.path.join(BASE_DIR, "secrets/freeagent.json")) as f:
-    freeagent_conf = json.load(f)
-with open(os.path.join(BASE_DIR, "secrets/cloudflare.json")) as f:
-    cloudflare_conf = json.load(f)
-with open(os.path.join(BASE_DIR, "secrets/netbox.json")) as f:
-    netbox_conf = json.load(f)
-with open(os.path.join(BASE_DIR, "secrets/coinbase.json")) as f:
-    coinbase_conf = json.load(f)
+try:
+    with open(os.path.join(BASE_DIR, "secrets/keycloak.json")) as f:
+        keycloak_conf = json.load(f)
+except FileNotFoundError:
+    keycloak_conf = {}
+try:
+    with open(os.path.join(BASE_DIR, "secrets/stripe.json")) as f:
+        stripe_conf = json.load(f)
+except FileNotFoundError:
+    stripe_conf = {}
+try:
+    with open(os.path.join(BASE_DIR, "secrets/open_exchange.json")) as f:
+        open_exchange_conf = json.load(f)
+except FileNotFoundError:
+    open_exchange_conf = {}
+try:
+    with open(os.path.join(BASE_DIR, "secrets/plaid.json")) as f:
+        plaid_conf = json.load(f)
+except FileNotFoundError:
+    plaid_conf = {}
+try:
+    with open(os.path.join(BASE_DIR, "secrets/hmrc.json")) as f:
+        hmrc_conf = json.load(f)
+except FileNotFoundError:
+    hmrc_conf = {}
+try:
+    with open(os.path.join(BASE_DIR, "secrets/gocardless.json")) as f:
+        gocardless_conf = json.load(f)
+except FileNotFoundError:
+    gocardless_conf = {}
+try:
+    with open(os.path.join(BASE_DIR, "secrets/transferwise.json")) as f:
+        transferwise_conf = json.load(f)
+except FileNotFoundError:
+    transferwise_conf = {}
+try:
+    with open(os.path.join(BASE_DIR, "secrets/freeagent.json")) as f:
+        freeagent_conf = json.load(f)
+except FileNotFoundError:
+    freeagent_conf = {}
+try:
+    with open(os.path.join(BASE_DIR, "secrets/cloudflare.json")) as f:
+        cloudflare_conf = json.load(f)
+except FileNotFoundError:
+    cloudflare_conf = {}
+try:
+    with open(os.path.join(BASE_DIR, "secrets/netbox.json")) as f:
+        netbox_conf = json.load(f)
+except FileNotFoundError:
+    netbox_conf = {}
+try:
+    with open(os.path.join(BASE_DIR, "secrets/coinbase.json")) as f:
+        coinbase_conf = json.load(f)
+except FileNotFoundError:
+    coinbase_conf = {}
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "AS207960 Billing <billing@as207960.net>"
 
-KEYCLOAK_SERVER_URL = keycloak_conf["server_url"]
-KEYCLOAK_REALM = keycloak_conf["realm"]
-OIDC_CLIENT_ID = keycloak_conf["client_id"]
-OIDC_CLIENT_SECRET = keycloak_conf["client_secret"]
-OIDC_SCOPES = keycloak_conf["scopes"]
+KEYCLOAK_SERVER_URL = keycloak_conf.get("server_url")
+KEYCLOAK_REALM = keycloak_conf.get("realm")
+OIDC_CLIENT_ID = keycloak_conf.get("client_id")
+OIDC_CLIENT_SECRET = keycloak_conf.get("client_secret")
+OIDC_SCOPES = keycloak_conf.get("scopes")
 
-stripe.api_key = stripe_conf["server_key"]
+stripe.api_key = stripe_conf.get("server_key")
 stripe.api_version = "2024-04-10"
-STRIPE_PUBLIC_KEY = stripe_conf["public_key"]
-STRIPE_ENDPOINT_SECRET = stripe_conf["endpoint_secret"]
+STRIPE_PUBLIC_KEY = stripe_conf.get("public_key")
+STRIPE_ENDPOINT_SECRET = stripe_conf.get("endpoint_secret")
 
-PLAID_CLIENT_ID = plaid_conf["client_id"]
-PLAID_PUBLIC_KEY = plaid_conf["public_key"]
-PLAID_SECRET = plaid_conf["client_secret"]
-PLAID_ENV = plaid_conf["env"]
+PLAID_CLIENT_ID = plaid_conf.get("client_id")
+PLAID_PUBLIC_KEY = plaid_conf.get("public_key")
+PLAID_SECRET = plaid_conf.get("client_secret")
+PLAID_ENV = plaid_conf.get("env")
 
-FLUX_CLIENT_ID = flux_conf["client_id"]
-FLUX_CLIENT_SECRET = flux_conf["client_secret"]
+HMRC_CLIENT_ID = hmrc_conf.get("client_id")
+HMRC_CLIENT_SECRET = hmrc_conf.get("client_secret")
 
-HMRC_CLIENT_ID = hmrc_conf["client_id"]
-HMRC_CLIENT_SECRET = hmrc_conf["client_secret"]
+GOCARDLESS_TOKEN = gocardless_conf.get("token")
+GOCARDLESS_ENV = gocardless_conf.get("env")
+GOCARDLESS_WEBHOOK_SECRET = gocardless_conf.get("webhook_secret")
 
-GOCARDLESS_TOKEN = gocardless_conf["token"]
-GOCARDLESS_ENV = gocardless_conf["env"]
-GOCARDLESS_WEBHOOK_SECRET = gocardless_conf["webhook_secret"]
+TRANSFERWISE_TOKEN = transferwise_conf.get("token")
+TRANSFERWISE_ENV = transferwise_conf.get("env")
+try:
+    with open(os.path.join(BASE_DIR, "secrets/xfw-private.pem")) as f:
+        TRANSFERWISE_PRIV_KEY = f.read()
+except FileNotFoundError:
+    TRANSFERWISE_PRIV_KEY = None
 
-TRANSFERWISE_TOKEN = transferwise_conf["token"]
-TRANSFERWISE_ENV = transferwise_conf["env"]
-with open(os.path.join(BASE_DIR, "secrets/xfw-private.pem")) as f:
-    TRANSFERWISE_PRIV_KEY = f.read()
+OPEN_EXCHANGE_API_KEY = open_exchange_conf.get("key")
 
-OPEN_EXCHANGE_API_KEY = open_exchange_conf["key"]
+CLOUDFLARE_API_KEY = cloudflare_conf.get("key")
+CLOUDFLARE_API_EMAIL = cloudflare_conf.get("email")
 
-CLOUDFLARE_API_KEY = cloudflare_conf["key"]
-CLOUDFLARE_API_EMAIL = cloudflare_conf["email"]
+COINBASE_API_KEY = coinbase_conf.get("key")
+COINBASE_WEBHOOK_SECRET = coinbase_conf.get("webhook_secret")
 
-COINBASE_API_KEY = coinbase_conf["key"]
-COINBASE_WEBHOOK_SECRET = coinbase_conf["webhook_secret"]
-
-NETBOX_API_TOKEN = netbox_conf["token"]
+NETBOX_API_TOKEN = netbox_conf.get("token")
 
 MONZO_WEBHOOK_SECRET_KEY = "test"
 
@@ -215,8 +246,15 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 CRISPY_FAIL_SILENTLY = not DEBUG
 
-with open(os.path.join(BASE_DIR, "secrets/vapid_private.der")) as f:
-    PUSH_PRIV_KEY = f.read()
+FREEAGENT_BASE_URL = "https://api.sandbox.freeagent.com"
+FREEAGENT_CLIENT_ID = freeagent_conf.get("client_id")
+FREEAGENT_CLIENT_SECRET = freeagent_conf.get("client_secret")
+
+try:
+    with open(os.path.join(BASE_DIR, "secrets/vapid_private.der")) as f:
+        PUSH_PRIV_KEY = f.read()
+except FileNotFoundError:
+    PUSH_PRIV_KEY = None
 
 IS_TEST = True
 
@@ -229,10 +267,6 @@ RABBITMQ_RPC_URL = "amqp://guest:guest@localhost:5672/rpc"
 
 STRIPE_CLIMATE = True
 STRIPE_CLIMATE_RATE = "0.01"
-
-FREEAGENT_BASE_URL = "https://api.sandbox.freeagent.com"
-FREEAGENT_CLIENT_ID = freeagent_conf["client_id"]
-FREEAGENT_CLIENT_SECRET = freeagent_conf["client_secret"]
 
 LISTMONK_TEMPLATE_ID = 3
 LISTMONK_URL = "https://listmonk.as207960.net"

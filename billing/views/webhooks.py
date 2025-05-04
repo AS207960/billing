@@ -56,11 +56,12 @@ transferwise_fpid_re = re.compile(
     r"^\((?P<id>\w{20})(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})(?P<currency>\d{3})(?P<sort_code>\d{6})\)"
     r" (?P<account_number>\d{8})$"
 )
-wise_api = pywisetransfer.Client(
-    api_key=settings.TRANSFERWISE_TOKEN,
-    environment=settings.TRANSFERWISE_ENV,
-    private_key_data=settings.TRANSFERWISE_PRIV_KEY.encode()
-)
+if settings.TRANSFERWISE_TOKEN:
+    wise_api = pywisetransfer.Client(
+        api_key=settings.TRANSFERWISE_TOKEN,
+        environment=settings.TRANSFERWISE_ENV,
+        private_key_data=settings.TRANSFERWISE_PRIV_KEY.encode() if settings.TRANSFERWISE_PRIV_KEY else None
+    )
 
 
 @csrf_exempt
