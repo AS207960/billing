@@ -4,6 +4,8 @@ import uuid
 import requests
 import pytz
 import typing
+import oauthlib.oauth2
+import requests_oauthlib
 from django.conf import settings
 from django.utils import timezone
 import dataclasses
@@ -214,6 +216,29 @@ COUNTRY_CURRENCIES = {
 }
 
 
+_hmrc_oauth_client = None
+_hmrc_oauth_session = None
+
+
+def get_hmrc_session():
+    global _hmrc_oauth_client, _hmrc_oauth_session
+    if settings.HMRC_CLIENT_ID:
+        if not _hmrc_oauth_client:
+            _hmrc_oauth_client = oauthlib.oauth2.BackendApplicationClient(client_id=settings.HMRC_CLIENT_ID)
+        if not _hmrc_oauth_session:
+            _hmrc_oauth_session = requests_oauthlib.OAuth2Session(client=_hmrc_oauth_client)
+            _hmrc_oauth_session.fetch_token(
+                token_url='https://test-api.service.hmrc.gov.uk/oauth/token' if settings.IS_TEST
+                else 'https://api.service.hmrc.gov.uk/oauth/token',
+                client_id=settings.HMRC_CLIENT_ID,
+                client_secret=settings.HMRC_CLIENT_SECRET,
+                include_client_id=True
+            )
+
+    return _hmrc_oauth_session
+
+
+
 def get_vat_rate(country, postal_code: typing.Optional[str]):
     now = timezone.now()
 
@@ -288,6 +313,10 @@ class HMRCVATInfo:
 
 
 def verify_vat_hmrc(number: str):
+    hmrc_oauth_session = get_hmrc_session()
+    if hmrc_oauth_session is None:
+        return VerifyVATStatus.ERROR, None
+
     hmrc_base_url = "https://test-api.service.hmrc.gov.uk" if settings.IS_TEST \
         else "https://api.service.hmrc.gov.uk"
     hmrc_url = f"{hmrc_base_url}/organisations/vat/check-vat-number/lookup/{number}"
@@ -295,7 +324,7 @@ def verify_vat_hmrc(number: str):
         hmrc_url += f"/{settings.OWN_UK_VAT_ID}"
 
     headers = {
-        "Accept": "application/vnd.hmrc.1.0+json",
+        "Accept": "application/vnd.hmrc.2.0+json",
         "Gov-Client-Connection-Method": "BATCH_PROCESS_DIRECT",
         "Gov-Client-User-IDs": "",
         "Gov-Client-Timezone": "UTC+00:00",
@@ -306,7 +335,16 @@ def verify_vat_hmrc(number: str):
         "Gov-Vendor-License-IDs": "",
     }
 
-    resp = requests.get(hmrc_url, headers=headers)
+    try:
+        resp = hmrc_oauth_session.get(hmrc_url, headers=headers)
+    except (oauthlib.oauth2.rfc6749.errors.InvalidGrantError, oauthlib.oauth2.rfc6749.errors.TokenExpiredError):
+        hmrc_oauth_session.fetch_token(
+            token_url='https://test-api.service.hmrc.gov.uk/oauth/token' if settings.IS_TEST
+            else 'https://api.service.hmrc.gov.uk/oauth/token',
+            client_id=settings.HMRC_CLIENT_ID,
+            client_secret=settings.HMRC_CLIENT_SECRET
+        )
+        resp = hmrc_oauth_session.get(hmrc_url, headers=headers)
     if resp.status_code == 404:
         return VerifyVATStatus.INVALID, None
     elif resp.status_code != 200:
