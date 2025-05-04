@@ -425,9 +425,9 @@ class Account(models.Model):
         elif self.billing_address.residency_verified:
             return True
         elif isinstance(country, str):
-            return self.billing_address.country_code.lower() == country.lower()
+            return str(self.billing_address.country_code).lower() == country.lower()
         elif isinstance(country, collections.abc.Iterable):
-            return self.billing_address.country_code.lower() in country
+            return str(self.billing_address.country_code).lower() in country
         else:
             return False
 
