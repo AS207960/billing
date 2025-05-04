@@ -456,7 +456,7 @@ def attempt_charge_off_session(charge_state):
         if charge_state.account.default_stripe_payment_method_id:
             payment_method = stripe.PaymentMethod.retrieve(charge_state.account.default_stripe_payment_method_id)
             method_country = utils.country_from_stripe_payment_method(payment_method)
-            if method_country == billing_address_country or not account.taxable:
+            if account.can_use_payment_country(method_country):
                 if payment_method["type"] == "card":
                     if selected_currency not in ['gbp', 'eur', 'usd']:
                         selected_currency = 'gbp'
@@ -468,7 +468,7 @@ def attempt_charge_off_session(charge_state):
         elif charge_state.account.default_sepa_mandate and charge_state.account.default_sepa_mandate.active:
             payment_method = stripe.PaymentMethod.retrieve(charge_state.account.default_sepa_mandate.payment_method)
             method_country = utils.country_from_stripe_payment_method(payment_method)
-            if method_country == billing_address_country or not account.taxable:
+            if account.can_use_payment_country(method_country):
                 selected_currency = 'eur'
             else:
                 raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
@@ -478,7 +478,7 @@ def attempt_charge_off_session(charge_state):
         elif charge_state.account.default_bacs_mandate and charge_state.account.default_bacs_mandate.active:
             payment_method = stripe.PaymentMethod.retrieve(charge_state.account.default_bacs_mandate.payment_method)
             method_country = utils.country_from_stripe_payment_method(payment_method)
-            if method_country == billing_address_country or not account.taxable:
+            if account.can_use_payment_country(method_country):
                 selected_currency = 'gbp'
             else:
                 raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
@@ -486,49 +486,49 @@ def attempt_charge_off_session(charge_state):
             selected_payment_method_type = "bacs_mandate_stripe"
             selected_payment_method_id = charge_state.account.default_bacs_mandate.payment_method
         elif charge_state.account.default_ach_mandate and charge_state.account.default_ach_mandate.active:
-            if billing_address_country == "us" or not account.taxable:
+            if account.can_use_payment_country("us"):
                 selected_currency = 'usd'
             else:
                 raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
             selected_payment_method_type = "ach_mandate_gc"
             selected_payment_method_id = charge_state.account.default_ach_mandate
         elif charge_state.account.default_autogiro_mandate and charge_state.account.default_autogiro_mandate.active:
-            if billing_address_country == "se" or not account.taxable:
+            if account.can_use_payment_country("se"):
                 selected_currency = 'sek'
             else:
                 raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
             selected_payment_method_type = "autogiro_mandate_gc"
             selected_payment_method_id = charge_state.account.default_autogiro_mandate
         elif charge_state.account.default_gc_bacs_mandate and charge_state.account.default_gc_bacs_mandate.active:
-            if billing_address_country == "gb" or not account.taxable:
+            if account.can_use_payment_country("gb"):
                 selected_currency = 'gbp'
             else:
                 raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
             selected_payment_method_type = "bacs_mandate_gc"
             selected_payment_method_id = charge_state.account.default_gc_bacs_mandate
         elif charge_state.account.default_becs_mandate and charge_state.account.default_becs_mandate.active:
-            if billing_address_country == "au" or not account.taxable:
+            if account.can_use_payment_country("au"):
                 selected_currency = 'aud'
             else:
                 raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
             selected_payment_method_type = "becs_mandate_gc"
             selected_payment_method_id = charge_state.account.default_becs_mandate
         elif charge_state.account.default_becs_nz_mandate and charge_state.account.default_becs_nz_mandate.active:
-            if billing_address_country == "nz" or not account.taxable:
+            if account.can_use_payment_country("nz"):
                 selected_currency = 'nzd'
             else:
                 raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
             selected_payment_method_type = "becs_nz_mandate_gc"
             selected_payment_method_id = charge_state.account.default_becs_nz_mandate
         elif charge_state.account.default_betalingsservice_mandate and charge_state.account.default_betalingsservice_mandate.active:
-            if billing_address_country == "dk" or not account.taxable:
+            if account.can_use_payment_country("dk"):
                 selected_currency = 'dkk'
             else:
                 raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
             selected_payment_method_type = "betalingsservice_mandate_gc"
             selected_payment_method_id = charge_state.account.default_betalingsservice_mandate
         elif charge_state.account.default_pad_mandate and charge_state.account.default_pad_mandate.active:
-            if billing_address_country == "ca" or not account.taxable:
+            if account.can_use_payment_country("ca"):
                 selected_currency = 'cad'
             else:
                 raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
@@ -537,7 +537,7 @@ def attempt_charge_off_session(charge_state):
         elif charge_state.account.default_gc_sepa_mandate and charge_state.account.default_gc_sepa_mandate:
             mandate = apps.gocardless_client.mandates.get(charge_state.account.default_gc_sepa_mandate.mandate_id)
             bank_account = apps.gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
-            if bank_account.country_code.lower() == billing_address_country or not account.taxable:
+            if account.can_use_payment_country(bank_account.country_code):
                 selected_currency = 'eur'
             else:
                 raise ChargeError(None, "Insufficient evidence for country of tax residency", must_reject=True)
@@ -551,7 +551,7 @@ def attempt_charge_off_session(charge_state):
             ).auto_paging_iter()
             for card in cards:
                 method_country = utils.country_from_stripe_payment_method(card)
-                if method_country == billing_address_country or not account.taxable:
+                if account.can_use_payment_country(method_country):
                     if selected_currency not in ['gbp', 'eur', 'usd']:
                         selected_currency = 'gbp'
                     climate_contribution = True
@@ -565,7 +565,7 @@ def attempt_charge_off_session(charge_state):
                 for sepa_mandate in sepa_mandates:
                     payment_method = stripe.PaymentMethod.retrieve(sepa_mandate.payment_method)
                     method_country = utils.country_from_stripe_payment_method(payment_method)
-                    if method_country == billing_address_country or not account.taxable:
+                    if account.can_use_payment_country(method_country):
                         selected_currency = 'eur'
                         climate_contribution = True
                         selected_payment_method_type = "sepa_mandate_stripe"
@@ -578,7 +578,7 @@ def attempt_charge_off_session(charge_state):
                 for bacs_mandate in bacs_mandates:
                     payment_method = stripe.PaymentMethod.retrieve(bacs_mandate.payment_method)
                     method_country = utils.country_from_stripe_payment_method(payment_method)
-                    if method_country == billing_address_country or not account.taxable:
+                    if account.can_use_payment_country(method_country):
                         selected_currency = 'gbp'
                         climate_contribution = True
                         selected_payment_method_type = "bacs_mandate_stripe"
@@ -588,7 +588,7 @@ def attempt_charge_off_session(charge_state):
 
             if not found:
                 ach_mandate = models.ACHMandate.objects.filter(account=account, active=True).first()
-                if (billing_address_country == "us" or not account.taxable) and ach_mandate:
+                if account.can_use_payment_country("us") and ach_mandate:
                     selected_currency = 'usd'
                     selected_payment_method_type = "ach_mandate_gc"
                     selected_payment_method_id = ach_mandate
@@ -596,7 +596,7 @@ def attempt_charge_off_session(charge_state):
 
             if not found:
                 autogiro_mandate = models.AutogiroMandate.objects.filter(account=account, active=True).first()
-                if (billing_address_country == "se" or not account.taxable) and autogiro_mandate:
+                if account.can_use_payment_country("se") and autogiro_mandate:
                     selected_currency = 'sek'
                     selected_payment_method_type = "autogiro_mandate_gc"
                     selected_payment_method_id = autogiro_mandate
@@ -604,7 +604,7 @@ def attempt_charge_off_session(charge_state):
 
             if not found:
                 bacs_mandate = models.GCBACSMandate.objects.filter(account=account, active=True).first()
-                if (billing_address_country == "gb" or not account.taxable) and bacs_mandate:
+                if account.can_use_payment_country("gb") and bacs_mandate:
                     selected_currency = 'gbp'
                     selected_payment_method_type = "bacs_mandate_gc"
                     selected_payment_method_id = bacs_mandate
@@ -612,7 +612,7 @@ def attempt_charge_off_session(charge_state):
 
             if not found:
                 becs_mandate = models.BECSMandate.objects.filter(account=account, active=True).first()
-                if (billing_address_country == "au" or not account.taxable) and becs_mandate:
+                if account.can_use_payment_country("au") and becs_mandate:
                     selected_currency = 'aud'
                     selected_payment_method_type = "becs_mandate_gc"
                     selected_payment_method_id = becs_mandate
@@ -620,7 +620,7 @@ def attempt_charge_off_session(charge_state):
 
             if not found:
                 becs_nz_mandate = models.BECSNZMandate.objects.filter(account=account, active=True).first()
-                if (billing_address_country == "nz" or not account.taxable) and becs_nz_mandate:
+                if account.can_use_payment_country("nz") and becs_nz_mandate:
                     selected_currency = 'nzd'
                     selected_payment_method_type = "becs_nz_mandate_gc"
                     selected_payment_method_id = becs_nz_mandate
@@ -628,7 +628,7 @@ def attempt_charge_off_session(charge_state):
 
             if not found:
                 betalingsservice_mandate = models.BetalingsserviceMandate.objects.filter(account=account, active=True).first()
-                if (billing_address_country == "dk" or not account.taxable) and betalingsservice_mandate:
+                if account.can_use_payment_country("dk")  and betalingsservice_mandate:
                     selected_currency = 'dkk'
                     selected_payment_method_type = "betalingsservice_mandate_gc"
                     selected_payment_method_id = betalingsservice_mandate
@@ -636,7 +636,7 @@ def attempt_charge_off_session(charge_state):
 
             if not found:
                 pad_mandate = models.PADMandate.objects.filter(account=account, active=True).first()
-                if (billing_address_country == "ca" or not account.taxable) and pad_mandate:
+                if account.can_use_payment_country("ca") and pad_mandate:
                     selected_currency = 'cad'
                     selected_payment_method_type = "pad_mandate_gc"
                     selected_payment_method_id = pad_mandate
@@ -647,7 +647,7 @@ def attempt_charge_off_session(charge_state):
                 for sepa_mandate in sepa_mandates:
                     mandate = apps.gocardless_client.mandates.get(sepa_mandate.mandate_id)
                     bank_account = apps.gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
-                    if bank_account.country_code.lower() == billing_address_country or not account.taxable:
+                    if account.can_use_payment_country(bank_account.country_code):
                         selected_currency = 'eur'
                         selected_payment_method_type = "sepa_mandate_gc"
                         selected_payment_method_id = sepa_mandate
@@ -1454,7 +1454,7 @@ def balance_funded(funds_available):
     deposited_amount_decimal = decimal.Decimal(amount) / decimal.Decimal(100)
     deposited_amount_gbp = deposited_amount_decimal * models.ExchangeRate.get_rate(currency, "GBP")
 
-    if account.billing_address.country_code.code.lower() == "gb" or not account.taxable:
+    if account.can_use_payment_country("gb"):
         payment_intent = stripe.PaymentIntent.create(
             amount=amount,
             currency=currency,

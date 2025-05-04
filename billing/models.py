@@ -1,4 +1,3 @@
-import abc
 import dataclasses
 import datetime
 import decimal
@@ -10,6 +9,7 @@ import inflect
 import stripe
 import threading
 import requests
+import collections.abc
 import as207960_utils.models
 import django.core.exceptions
 from dateutil import relativedelta
@@ -294,7 +294,6 @@ class Account(models.Model):
 
         super().save(*args, **kwargs)
 
-
     def merge_account(
             self,
             old_account  # type: Account
@@ -341,7 +340,7 @@ class Account(models.Model):
     @property
     def virtual_uk_bank(self):
         if self.billing_address:
-            if self.billing_address.country_code.code.lower() == "gb" or not self.taxable:
+            if self.can_use_payment_country("gb"):
                 if self._virtual_uk_bank:
                     return self._virtual_uk_bank
                 else:
@@ -418,6 +417,15 @@ class Account(models.Model):
 
         return True, None
 
+    def can_use_payment_country(self, country: typing.Union[str, typing.Iterable[str]]):
+        if not self.taxable:
+            return True
+        elif self.billing_address.residency_verified:
+            return True
+        elif isinstance(country, collections.abc.Iterable):
+            return self.billing_address.country_code.lower() in country
+        else:
+            return self.billing_address.country_code.lower() == country.lower()
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_user_profile(instance, created, **kwargs):
@@ -468,6 +476,7 @@ class AccountBillingAddress(models.Model):
     vat_id_verification_request = models.CharField(max_length=255, blank=True, null=True)
     deleted = models.BooleanField(default=False, blank=True)
     default = models.BooleanField(default=False, blank=True)
+    residency_verified = models.BooleanField(default=False, blank=True)
 
     @property
     def formatted(self):
@@ -495,6 +504,8 @@ class AccountBillingAddress(models.Model):
                 return f"{vat_country_code} {self.vat_id}"
             else:
                 return self.vat_id
+        else:
+            return ""
 
 
 class KnownBankAccount(models.Model):

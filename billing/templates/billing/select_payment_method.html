@@ -1,6 +1,4 @@
-{% load mathfilters %}
-{% load crispy_forms_tags %}
-{% load static %}
+{% load static mathfilters crispy_forms_tags billing %}
 <div class="row justify-content-center">
     {% if needs_payment %}
         <div class="col-md-8 order-md-1 order-2">
@@ -409,7 +407,7 @@
             {% endif %}
             <h2>Pay with a new method</h2>
             <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
-                {% if country == "gb" or not taxable %}
+                {% if user.account|can_use_payment_country:"gb" %}
                     <div class="col mb-4 d-flex">
                         <div class="card flex-grow-1{% if selected_payment_method_type == "sofort" %} border-success{% endif %}">
                             <div class="card-header text-center">
@@ -458,7 +456,7 @@
                         </div>
                     </div>
                 </div>
-                {% if country == "at" or country == "be" or country == "de" or country == "it" or country == "nl" or country == "es" or not taxable %}
+                {% if user.account|can_use_payment_country:"at" or user.account|can_use_payment_country:"be" or user.account|can_use_payment_country:"de" or user.account|can_use_payment_country:"it" or user.account|can_use_payment_country:"nl" or user.account|can_use_payment_country:"es" %}
                     <div class="col mb-4 d-flex">
                         <div class="card flex-grow-1{% if selected_payment_method_type == "sofort" %} border-success{% endif %}">
                             <div class="card-header text-center">
@@ -485,7 +483,7 @@
                         </div>
                     </div>
                 {% endif %}
-                {% if country == "de" or not taxable %}
+                {% if user.account|can_use_payment_country:"de" %}
                     <div class="col mb-4 d-flex">
                         <div class="card flex-grow-1{% if selected_payment_method_type == "giropay" %} border-success{% endif %}">
                             <div class="card-header text-center">
@@ -511,7 +509,7 @@
                         </div>
                     </div>
                 {% endif %}
-                {% if country == "be" or not taxable %}
+                {% if user.account|can_use_payment_country:"be" %}
                     <div class="col mb-4 d-flex">
                         <div class="card flex-grow-1{% if selected_payment_method_type == "bancontact" %} border-success{% endif %}">
                             <div class="card-header text-center">
@@ -538,7 +536,7 @@
                         </div>
                     </div>
                 {% endif %}
-                {% if country == "at" or not taxable %}
+                {% if user.account|can_use_payment_country:"at" %}
                     <div class="col mb-4 d-flex">
                         <div class="card flex-grow-1{% if selected_payment_method_type == "eps" %} border-success{% endif %}">
                             <div class="card-header text-center">
@@ -564,7 +562,7 @@
                         </div>
                     </div>
                 {% endif %}
-                {% if country == "nl" or not taxable %}
+                {% if user.account|can_use_payment_country:"nl" %}
                     <div class="col mb-4 d-flex">
                         <div class="card flex-grow-1{% if selected_payment_method_type == "ideal" %} border-success{% endif %}">
                             <div class="card-header text-center">
@@ -590,7 +588,7 @@
                         </div>
                     </div>
                 {% endif %}
-                {% if country == "pl" or not taxable %}
+                {% if user.account|can_use_payment_country:"pl" %}
                     <div class="col mb-4 d-flex">
                         <div class="card flex-grow-1{% if selected_payment_method_type == "p24" %} border-success{% endif %}">
                             <div class="card-header text-center">
@@ -616,7 +614,7 @@
                         </div>
                     </div>
                 {% endif %}
-                {% if country == "pt" or not taxable %}
+                {% if user.account|can_use_payment_country:"pt" %}
                     <div class="col mb-4 d-flex">
                         <div class="card flex-grow-1{% if selected_payment_method_type == "multibanco" %} border-success{% endif %}">
                             <div class="card-header text-center">

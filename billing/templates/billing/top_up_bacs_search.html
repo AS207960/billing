@@ -1,5 +1,5 @@
 {% extends 'billing/base.html' %}
-{% load static %}
+{% load static billing %}
 {% block content %}
     <div class="container my-3">
         <h1>Top-up from your bank account</h1>
@@ -32,7 +32,7 @@
     <div class="container my-3 mt-5">
         <h2>Or, enter local bank details</h2>
         <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 justify-content-center">
-            {% if country == "au" or not taxable %}
+            {% if user.account|can_use_payment_country:"au" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -46,7 +46,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "at" or not taxable %}
+            {% if user.account|can_use_payment_country:"at" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -60,7 +60,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "be" or not taxable %}
+            {% if user.account|can_use_payment_country:"be" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -74,7 +74,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "ca" or not taxable %}
+            {% if user.account|can_use_payment_country:"ca" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -88,7 +88,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "cy" or not taxable %}
+            {% if cuser.account|can_use_payment_country:"cy" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -102,7 +102,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "dk" or not taxable %}
+            {% if user.account|can_use_payment_country:"dk" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -116,7 +116,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "ee" or not taxable %}
+            {% if user.account|can_use_payment_country:"ee" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -130,7 +130,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "fi" or not taxable %}
+            {% if user.account|can_use_payment_country:"fi" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -144,7 +144,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "fr" or not taxable %}
+            {% if user.account|can_use_payment_country:"fr" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -158,7 +158,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "de" or not taxable %}
+            {% if user.account|can_use_payment_country:"de" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -172,7 +172,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "gr" or not taxable %}
+            {% if user.account|can_use_payment_country:"gr" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -186,7 +186,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "ie" or not taxable %}
+            {% if user.account|can_use_payment_country:"ie" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -200,7 +200,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "it" or not taxable %}
+            {% if user.account|can_use_payment_country:"it" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -214,7 +214,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "lv" or not taxable %}
+            {% if user.account|can_use_payment_country:"lv" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -228,7 +228,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "lt" or not taxable %}
+            {% if user.account|can_use_payment_country:"lt" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -242,7 +242,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "lu" or not taxable %}
+            {% if user.account|can_use_payment_country:"lu" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -256,7 +256,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "mt" or not taxable %}
+            {% if user.account|can_use_payment_country:"mt" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -270,7 +270,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "mc" or not taxable %}
+            {% if user.account|can_use_payment_country:"mc" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -284,7 +284,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "nl" or not taxable %}
+            {% if user.account|can_use_payment_country:"nl" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -298,7 +298,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "nz" or not taxable %}
+            {% if user.account|can_use_payment_country:"nz" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -312,7 +312,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "pt" or not taxable %}
+            {% if user.account|can_use_payment_country:"pt" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -326,7 +326,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "sm" or not taxable %}
+            {% if user.account|can_use_payment_country:"sm" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -340,7 +340,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "sk" or not taxable %}
+            {% if user.account|can_use_payment_country:"sk" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -354,7 +354,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "si" or not taxable %}
+            {% if user.account|can_use_payment_country:"si" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -368,7 +368,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "es" or not taxable %}
+            {% if user.account|can_use_payment_country:"es" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -382,7 +382,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "se" or not taxable %}
+            {% if user.account|can_use_payment_country:"se" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -396,7 +396,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "us" or not taxable %}
+            {% if user.account|can_use_payment_country:"us" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -410,7 +410,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == "gb" or not taxable %}
+            {% if user.account|can_use_payment_country:"gb" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -428,7 +428,7 @@
         <hr>
         <h2>Already know how you want to pay?</h2>
         <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 justify-content-center">
-            {% if country == 'us' or not taxable %}
+            {% if user.account|can_use_payment_country:"us" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -440,7 +440,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == 'se' or not taxable %}
+            {% if user.account|can_use_payment_country:"se" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -452,7 +452,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == 'gb' or not taxable %}
+            {% if user.account|can_use_payment_country:"gb" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -465,7 +465,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == 'au' or not taxable %}
+            {% if user.account|can_use_payment_country:"au" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -477,7 +477,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == 'nz' or not taxable %}
+            {% if user.account|can_use_payment_country:"nz" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -489,7 +489,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == 'dk' or not taxable %}
+            {% if user.account|can_use_payment_country:"dk" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">
@@ -501,7 +501,7 @@
                     </div>
                 </div>
             {% endif %}
-            {% if country == 'ca' or not taxable %}
+            {% if user.account|can_use_payment_country:"ca" %}
                 <div class="col mb-4 d-flex">
                     <div class="card text-center flex-grow-1">
                         <div class="card-body d-flex flex-column align-items-center justify-content-between">

@@ -175,14 +175,14 @@ def handle_payment(
 
         if selected_payment_method_type:
             if selected_payment_method_type == "giropay":
-                if billing_address_country == "de" or not account.taxable:
+                if account.can_use_payment_country("de"):
                     available_currencies = ['eur']
                     climate_contribution = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
             elif selected_payment_method_type == "bancontact":
-                if billing_address_country == "be" or not account.taxable:
+                if account.can_use_payment_country("be"):
                     available_currencies = ['eur']
                     mandate_acceptance = True
                     climate_contribution = True
@@ -190,14 +190,14 @@ def handle_payment(
                     selected_payment_method_type = None
                     selected_payment_method_id = None
             elif selected_payment_method_type == "eps":
-                if billing_address_country == "at" or not account.taxable:
+                if account.can_use_payment_country("at"):
                     available_currencies = ['eur']
                     climate_contribution = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
             elif selected_payment_method_type == "ideal":
-                if billing_address_country == "nl" or not account.taxable:
+                if account.can_use_payment_country("nl"):
                     available_currencies = ['eur']
                     mandate_acceptance = True
                     climate_contribution = True
@@ -205,20 +205,20 @@ def handle_payment(
                     selected_payment_method_type = None
                     selected_payment_method_id = None
             elif selected_payment_method_type == "p24":
-                if billing_address_country == "pl" or not account.taxable:
+                if account.can_use_payment_country("pl"):
                     available_currencies = ['eur']
                     climate_contribution = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
             elif selected_payment_method_type == "multibanco":
-                if billing_address_country == "pt" or not account.taxable:
+                if account.can_use_payment_country("pt"):
                     available_currencies = ['eur']
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
             elif selected_payment_method_type == "sofort":
-                if billing_address_country in ("at", "be", "de", "it", "nl", "es") or not account.taxable:
+                if account.can_use_payment_country(("at", "be", "de", "it", "nl", "es")):
                     available_currencies = ['eur']
                     mandate_acceptance = True
                     climate_contribution = True
@@ -226,14 +226,14 @@ def handle_payment(
                     selected_payment_method_type = None
                     selected_payment_method_id = None
             elif selected_payment_method_type == "uk_instant_bank_transfer":
-                if billing_address_country == "gb" or not account.taxable:
+                if account.can_use_payment_country("gb"):
                     available_currencies = ['gbp']
                     mandate_acceptance = True
                 else:
                     selected_payment_method_type = None
                     selected_payment_method_id = None
             elif selected_payment_method_type == "bank_transfer_stripe":
-                if selected_payment_method_id == "gbp" and billing_address_country == "gb" or not account.taxable:
+                if selected_payment_method_id == "gbp" and account.can_use_payment_country("gb"):
                     available_currencies = ['gbp']
                 else:
                     selected_payment_method_type = None
@@ -244,7 +244,7 @@ def handle_payment(
                 if payment_method['customer'] != account.stripe_customer_id:
                     return HandlePaymentOutcome.FORBIDDEN, None
                 method_country = utils.country_from_stripe_payment_method(payment_method)
-                if method_country == billing_address_country or not account.taxable:
+                if account.can_use_payment_country(method_country):
                     available_currencies = ['eur']
                     climate_contribution = True
                 else:
@@ -256,7 +256,7 @@ def handle_payment(
                 if payment_method['customer'] != account.stripe_customer_id:
                     return HandlePaymentOutcome.FORBIDDEN, None
                 method_country = utils.country_from_stripe_payment_method(payment_method)
-                if method_country == billing_address_country or not account.taxable:
+                if account.can_use_payment_country(method_country):
                     available_currencies = ['gbp']
                     climate_contribution = True
                 else:
@@ -266,7 +266,7 @@ def handle_payment(
                 m = get_object_or_404(models.ACHMandate, id=selected_payment_method_id)
                 if m.account != account:
                     return HandlePaymentOutcome.FORBIDDEN, None
-                if billing_address_country == "us" or not account.taxable:
+                if account.can_use_payment_country("us"):
                     available_currencies = ['usd']
                 else:
                     selected_payment_method_type = None
@@ -275,7 +275,7 @@ def handle_payment(
                 m = get_object_or_404(models.AutogiroMandate, id=selected_payment_method_id)
                 if m.account != account:
                     return HandlePaymentOutcome.FORBIDDEN, None
-                if billing_address_country == "se" or not account.taxable:
+                if account.can_use_payment_country("se"):
                     available_currencies = ['sek']
                 else:
                     selected_payment_method_type = None
@@ -284,7 +284,7 @@ def handle_payment(
                 m = get_object_or_404(models.GCBACSMandate, id=selected_payment_method_id)
                 if m.account != account:
                     return HandlePaymentOutcome.FORBIDDEN, None
-                if billing_address_country == "gb" or not account.taxable:
+                if account.can_use_payment_country("gb"):
                     available_currencies = ['gbp']
                 else:
                     selected_payment_method_type = None
@@ -293,7 +293,7 @@ def handle_payment(
                 m = get_object_or_404(models.BECSMandate, id=selected_payment_method_id)
                 if m.account != account:
                     return HandlePaymentOutcome.FORBIDDEN, None
-                if billing_address_country == "au" or not account.taxable:
+                if account.can_use_payment_country("au"):
                     available_currencies = ['aud']
                 else:
                     selected_payment_method_type = None
@@ -302,7 +302,7 @@ def handle_payment(
                 m = get_object_or_404(models.BECSNZMandate, id=selected_payment_method_id)
                 if m.account != account:
                     return HandlePaymentOutcome.FORBIDDEN, None
-                if billing_address_country == "nz" or not account.taxable:
+                if account.can_use_payment_country("nz"):
                     available_currencies = ['nzd']
                 else:
                     selected_payment_method_type = None
@@ -311,7 +311,7 @@ def handle_payment(
                 m = get_object_or_404(models.BetalingsserviceMandate, id=selected_payment_method_id)
                 if m.account != account:
                     return HandlePaymentOutcome.FORBIDDEN, None
-                if billing_address_country == "dk" or not account.taxable:
+                if account.can_use_payment_country("dk"):
                     available_currencies = ['dkk']
                 else:
                     selected_payment_method_type = None
@@ -320,7 +320,7 @@ def handle_payment(
                 m = get_object_or_404(models.PADMandate, id=selected_payment_method_id)
                 if m.account != account:
                     return HandlePaymentOutcome.FORBIDDEN, None
-                if billing_address_country == "ca" or not account.taxable:
+                if account.can_use_payment_country("ca"):
                     available_currencies = ['cad']
                 else:
                     selected_payment_method_type = None
@@ -331,7 +331,7 @@ def handle_payment(
                     return HandlePaymentOutcome.FORBIDDEN, None
                 mandate = gocardless_client.mandates.get(m.mandate_id)
                 bank_account = gocardless_client.customer_bank_accounts.get(mandate.links.customer_bank_account)
-                if bank_account.country_code.lower() == billing_address_country or not account.taxable:
+                if account.can_use_payment_country(bank_account.country_code.lower()):
                     available_currencies = ['eur']
                 else:
                     selected_payment_method_type = None
@@ -347,7 +347,7 @@ def handle_payment(
                         "country_code": method_country
                     }
                 )
-                if method_country == billing_address_country or not account.taxable:
+                if account.can_use_payment_country(method_country):
                     if payment_method["type"] == "card":
                         available_currencies = ['gbp', 'eur', 'usd']
                     climate_contribution = True
@@ -375,37 +375,37 @@ def handle_payment(
                 elif selected_payment_method_id == "usd":
                     available_currencies = ['usd']
                 elif selected_payment_method_id == "aud":
-                    if billing_address_country == "au" or not account.taxable:
+                    if account.can_use_payment_country("au"):
                         available_currencies = ['aud']
                     else:
                         selected_payment_method_type = None
                         selected_payment_method_id = None
                 elif selected_payment_method_id == "nzd":
-                    if billing_address_country == "nz" or not account.taxable:
+                    if account.can_use_payment_country("nz"):
                         available_currencies = ['nzd']
                     else:
                         selected_payment_method_type = None
                         selected_payment_method_id = None
                 elif selected_payment_method_id == "huf":
-                    if billing_address_country == "hu" or not account.taxable:
+                    if account.can_use_payment_country("hu"):
                         available_currencies = ['huf']
                     else:
                         selected_payment_method_type = None
                         selected_payment_method_id = None
                 elif selected_payment_method_id == "ron":
-                    if billing_address_country == "ro" or not account.taxable:
+                    if account.can_use_payment_country("ro"):
                         available_currencies = ['ron']
                     else:
                         selected_payment_method_type = None
                         selected_payment_method_id = None
                 elif selected_payment_method_id == "sgd":
-                    if billing_address_country == "sg" or not account.taxable:
+                    if account.can_use_payment_country("sg"):
                         available_currencies = ['sgd']
                     else:
                         selected_payment_method_type = None
                         selected_payment_method_id = None
                 elif selected_payment_method_id == "try":
-                    if billing_address_country == "tr" or not account.taxable:
+                    if account.can_use_payment_country("tr"):
                         available_currencies = ['try']
                     else:
                         selected_payment_method_type = None
@@ -452,7 +452,7 @@ def handle_payment(
                         "country_code": method_country
                     }
                 )
-                if method_country == billing_address_country or not account.taxable:
+                if account.can_use_payment_country(method_country):
                     if charge_state:
                         charge_state.ready_to_complete = True
                         charge_state.ledger_item.amount = -charged_amount
@@ -1123,10 +1123,7 @@ def handle_payment(
                     "country_emoji": chr(ord(c.card.country[0]) + 127397) + chr(ord(c.card.country[1]) + 127397)
                 }
             }, filter(
-                lambda c: (
-                        c.card.country.lower() == account.billing_address.country_code.code.lower()
-                        or not account.taxable
-                ),
+                lambda c: account.can_use_payment_country(c.card.country),
                 stripe.PaymentMethod.list(
                     customer=account.stripe_customer_id,
                     type="card"
@@ -1202,46 +1199,42 @@ def handle_payment(
                 "ref": mandate.reference,
             }
 
-        if account.billing_address.country_code.code.lower() == "us" or not account.taxable:
+        if account.can_use_payment_country("us"):
             ach_mandates = list(map(map_ach_mandate, models.ACHMandate.objects.filter(account=account, active=True)))
-        if account.billing_address.country_code.code.lower() == "se" or not account.taxable:
+        if account.can_use_payment_country("se"):
             autogiro_mandates = list(map(
                 lambda m: map_gc_bacs_mandate(m, "autogiro"),
                 models.AutogiroMandate.objects.filter(account=account, active=True)
             ))
-        if account.billing_address.country_code.code.lower() == "gb" or not account.taxable:
+        if account.can_use_payment_country("gb"):
             bacs_mandates = list(map(map_bacs_mandate, models.BACSMandate.objects.filter(account=account, active=True)))
             bacs_mandates += list(map(
                 lambda m: map_gc_bacs_mandate(m, "bacs"),
                 models.GCBACSMandate.objects.filter(account=account, active=True)
             ))
-        if account.billing_address.country_code.code.lower() == "au" or not account.taxable:
+        if account.can_use_payment_country("au"):
             becs_mandates = list(map(
                 lambda m: map_gc_bacs_mandate(m, "becs"),
                 models.BECSMandate.objects.filter(account=account, active=True)
             ))
-        if account.billing_address.country_code.code.lower() == "nz" or not account.taxable:
+        if account.can_use_payment_country("nz"):
             becs_nz_mandates = list(map(
                 lambda m: map_gc_bacs_mandate(m, "becs_nz"),
                 models.BECSNZMandate.objects.filter(account=account, active=True)
             ))
-        if account.billing_address.country_code.code.lower() == "dk" or not account.taxable:
+        if account.can_use_payment_country("dk"):
             betalingsservice_mandates = list(map(
                 lambda m: map_gc_bacs_mandate(m, "betalingsservice"),
                 models.BetalingsserviceMandate.objects.filter(account=account, active=True)
             ))
-        if account.billing_address.country_code.code.lower() == "ca" or not account.taxable:
+        if account.can_use_payment_country("ca"):
             pad_mandates = list(map(
                 lambda m: map_gc_bacs_mandate(m, "pad"),
                 models.PADMandate.objects.filter(account=account, active=True)
             ))
         sepa_mandates = list(map(map_sepa_mandate, models.SEPAMandate.objects.filter(account=account, active=True)))
-        sepa_mandates += list(
-            map(map_gc_sepa_mandate, models.GCSEPAMandate.objects.filter(account=account, active=True)))
-        if account.taxable:
-            sepa_mandates = list(filter(
-                lambda m: m["country"] == account.billing_address.country_code.code.upper(), sepa_mandates
-            ))
+        sepa_mandates += list(map(map_gc_sepa_mandate, models.GCSEPAMandate.objects.filter(account=account, active=True)))
+        sepa_mandates = list(filter(lambda m: account.can_use_payment_country(m["country"]), sepa_mandates))
     else:
         can_charge = True
         if request.method == "POST" and request.POST.get("action") == "pay":

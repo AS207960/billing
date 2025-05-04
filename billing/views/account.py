@@ -166,10 +166,7 @@ def edit_card(request, pm_id):
             return redirect('account_details')
 
         elif action == "default":
-            if (
-                    request.user.account.billing_address and
-                    request.user.account.billing_address.country_code.code.upper() == payment_method["card"]["country"]
-            ) or not request.user.account.taxable:
+            if request.user.account.can_use_payment_country(payment_method["card"]["country"]):
                 request.user.account.default_stripe_payment_method_id = pm_id
                 request.user.account.default_ach_mandate = None
                 request.user.account.default_autogiro_mandate = None
@@ -411,10 +408,7 @@ def edit_ach_mandate(request, m_id):
     elif action == "default" and mandate.active:
         gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
         bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate.links.customer_bank_account)
-        if (
-                mandate.account.billing_address and
-                mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
-        ) or not mandate.account.taxable:
+        if account.can_use_payment_country(bank_account.country_code):
             mandate.account.default_stripe_payment_method_id = None
             mandate.account.default_ach_mandate = mandate
             mandate.account.default_autogiro_mandate = None
@@ -511,10 +505,7 @@ def edit_autogiro_mandate(request, m_id):
     elif action == "default" and mandate.active:
         gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
         bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate.links.customer_bank_account)
-        if (
-                mandate.account.billing_address and
-                mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
-        ) or not mandate.account.taxable:
+        if mandate.account.can_use_payment_country(bank_account.country_code):
             mandate.account.default_stripe_payment_method_id = None
             mandate.account.default_ach_mandate = None
             mandate.account.default_autogiro_mandate = mandate
@@ -552,10 +543,7 @@ def setup_new_bacs(request):
     session_id = secrets.token_hex(16)
     request.session["gc_bacs_session_id"] = session_id
 
-    if not (
-            request.user.account.billing_address and
-            request.user.account.billing_address.country_code.code.lower() == "gb"
-    ):
+    if request.user.account.can_use_payment_country("gb"):
         return redirect("account_details")
 
     if "redirect_uri" in request.GET:
@@ -611,10 +599,7 @@ def edit_bacs_mandate(request, m_id):
         elif action == "default" and gc_mandate.active:
             gc_mandate_obj = gocardless_client.mandates.get(gc_mandate.mandate_id)
             bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate_obj.links.customer_bank_account)
-            if (
-                    gc_mandate.account.billing_address and
-                    gc_mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
-            ) or not gc_mandate.account.taxable:
+            if gc_mandate.account.can_use_payment_country(bank_account.country_code):
                 gc_mandate.account.default_stripe_payment_method_id = None
                 gc_mandate.account.default_ach_mandate = None
                 gc_mandate.account.default_autogiro_mandate = None
@@ -642,10 +627,7 @@ def edit_bacs_mandate(request, m_id):
                 mandate.account.save()
 
         elif action == "default" and mandate.active:
-            if (
-                mandate.account.billing_address and
-                mandate.account.billing_address.country_code.code.lower() == "gb"
-            ) or not mandate.account.taxable:
+            if mandate.account.can_use_payment_country("gb"):
                 mandate.account.default_stripe_payment_method_id = None
                 mandate.account.default_ach_mandate = None
                 mandate.account.default_autogiro_mandate = None
@@ -742,10 +724,7 @@ def edit_becs_mandate(request, m_id):
     elif action == "default" and mandate.active:
         gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
         bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate.links.customer_bank_account)
-        if (
-                mandate.account.billing_address and
-                mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
-        ) or not mandate.account.taxable:
+        if mandate.account.can_use_payment_country(bank_account.country_code):
             mandate.account.default_stripe_payment_method_id = None
             mandate.account.default_ach_mandate = None
             mandate.account.default_autogiro_mandate = None
@@ -843,10 +822,7 @@ def edit_becs_nz_mandate(request, m_id):
     elif action == "default" and mandate.active:
         gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
         bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate.links.customer_bank_account)
-        if (
-                mandate.account.billing_address and
-                mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
-        ) or not mandate.account.taxable:
+        if mandate.account.can_use_payment_country(bank_account.country_code):
             mandate.account.default_stripe_payment_method_id = None
             mandate.account.default_ach_mandate = None
             mandate.account.default_autogiro_mandate = None
@@ -943,10 +919,7 @@ def edit_betalingsservice_mandate(request, m_id):
     elif action == "default" and mandate.active:
         gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
         bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate.links.customer_bank_account)
-        if (
-                mandate.account.billing_address and
-                mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
-        ) or not mandate.account.taxable:
+        if mandate.account.can_use_payment_country(bank_account.country_code):
             mandate.account.default_stripe_payment_method_id = None
             mandate.account.default_ach_mandate = None
             mandate.account.default_autogiro_mandate = None
@@ -1043,10 +1016,7 @@ def edit_pad_mandate(request, m_id):
     elif action == "default" and mandate.active:
         gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
         bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate.links.customer_bank_account)
-        if (
-                mandate.account.billing_address and
-                mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
-        ) or not mandate.account.taxable:
+        if mandate.account.can_use_payment_country(bank_account.country_code):
             mandate.account.default_stripe_payment_method_id = None
             mandate.account.default_ach_mandate = None
             mandate.account.default_autogiro_mandate = None
@@ -1137,10 +1107,7 @@ def edit_sepa_mandate(request, m_id):
         elif action == "default" and gc_mandate.active:
             gc_mandate_obj = gocardless_client.mandates.get(gc_mandate.mandate_id)
             bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate_obj.links.customer_bank_account)
-            if (
-                    gc_mandate.account.billing_address and
-                    gc_mandate.account.billing_address.country_code.code.upper() == bank_account.country_code
-            ) or not gc_mandate.account.taxable:
+            if mandate.account.can_use_payment_country(bank_account.country_code):
                 gc_mandate.account.default_stripe_payment_method_id = None
                 gc_mandate.account.default_ach_mandate = None
                 gc_mandate.account.default_autogiro_mandate = None
@@ -1170,10 +1137,7 @@ def edit_sepa_mandate(request, m_id):
         elif action == "default" and mandate.active:
             stripe_mandate = stripe.Mandate.retrieve(mandate.mandate_id)
             payment_method = stripe.PaymentMethod.retrieve(stripe_mandate["payment_method"])
-            if (
-                mandate.account.billing_address and
-                mandate.account.billing_address.country_code.code.upper() == payment_method["sepa_debit"]["country"]
-            ) or not mandate.account.taxable:
+            if mandate.account.can_use_payment_country(payment_method["sepa_debit"]["country"]):
                 mandate.account.default_stripe_payment_method_id = None
                 mandate.account.default_ach_mandate = None
                 mandate.account.default_autogiro_mandate = None

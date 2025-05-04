@@ -1,5 +1,5 @@
 {% extends 'billing/base.html' %}
-{% load mathfilters %}
+{% load mathfilters billing %}
 {% block content %}
     <div class="container my-3">
         <h1>Account details</h1>
@@ -102,7 +102,7 @@
                                                 &#x1f58a; Edit
                                             </a>
                                             {% if card.id != user.account.default_stripe_payment_method_id %}
-                                                {% if not taxable or billing_address.country_code.code|upper == card.card.country %}
+                                                {% if user.account|can_use_payment_country:card.card.country %}
                                                     <button type="submit" class="btn btn-primary btn-sm" name="action"
                                                             value="default">
                                                         &#x1f4b8; Make default
@@ -134,7 +134,7 @@
                 </table>
             </div>
             <hr>
-            {% if ach_mandates or billing_address.country_code.code|lower == "us" or not taxable %}
+            {% if ach_mandates or user.account|can_use_payment_country:"us" %}
                 <h2>ACH Direct Debit Mandates &#x1f4b5;</h2>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover">
@@ -175,7 +175,7 @@
                                                 <a href="{{ mandate.url }}"
                                                    class="btn btn-info btn-sm">&#x1f440; View mandate</a>
                                                 {% if not mandate.is_default and mandate.active %}
-                                                    {% if not taxable or billing_address.country_code.code|lower == "us" %}
+                                                    {% if user.account|can_use_payment_country:"us" %}
                                                         <button type="submit" class="btn btn-primary btn-sm"
                                                                 name="action"
                                                                 value="default">
@@ -197,7 +197,7 @@
                                 <td colspan="5">No mandates</td>
                             </tr>
                         {% endif %}
-                        {% if billing_address.country_code.code|lower == "us" or not taxable %}
+                        {% if user.account|can_use_payment_country:"us" %}
                             <tr>
                                 <td colspan="5" class="text-center">
                                     <a href="{% url 'setup_new_ach' %}" class="btn btn-success btn-sm">
@@ -210,7 +210,7 @@
                     </table>
                 </div>
             {% endif %}
-            {% if autogiro_mandates or billing_address.country_code.code|lower == "se" or not taxable %}
+            {% if autogiro_mandates or user.account|can_use_payment_country:"se" %}
                 <h2>Autogiro Mandates &#x1f3e6;</h2>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover">
@@ -248,7 +248,7 @@
                                                 <a href="{{ mandate.url }}"
                                                    class="btn btn-info btn-sm">&#x1f440; View mandate</a>
                                                 {% if not mandate.is_default and mandate.active %}
-                                                    {% if not taxable or billing_address.country_code.code|lower == "se" %}
+                                                    {% if user.account|can_use_payment_country:"se" %}
                                                         <button type="submit" class="btn btn-primary btn-sm"
                                                                 name="action"
                                                                 value="default">
@@ -270,7 +270,7 @@
                                 <td colspan="4">No mandates</td>
                             </tr>
                         {% endif %}
-                        {% if billing_address.country_code.code|lower == "se" or not taxable %}
+                        {% if user.account|can_use_payment_country:"se" %}
                             <tr>
                                 <td colspan="4" class="text-center">
                                     <a href="{% url 'setup_new_autogiro' %}" class="btn btn-success btn-sm">
@@ -283,7 +283,7 @@
                     </table>
                 </div>
             {% endif %}
-            {% if bacs_mandates or billing_address.country_code.code|lower == "gb" or not taxable %}
+            {% if bacs_mandates or user.account|can_use_payment_country:"gb" %}
                 <h2>BACS Direct Debit Mandates &#x1f3e6;</h2>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover">
@@ -321,7 +321,7 @@
                                                 <a href="{{ mandate.url }}"
                                                    class="btn btn-info btn-sm">&#x1f440; View mandate</a>
                                                 {% if not mandate.is_default and mandate.active %}
-                                                    {% if not taxable or billing_address.country_code.code|lower == "gb" %}
+                                                    {% if user.account|can_use_payment_country:"gb" %}
                                                         <button type="submit" class="btn btn-primary btn-sm"
                                                                 name="action"
                                                                 value="default">
@@ -343,7 +343,7 @@
                                 <td colspan="4">No mandates</td>
                             </tr>
                         {% endif %}
-                        {% if billing_address.country_code.code|lower == "gb" or not taxable %}
+                        {% if user.account|can_use_payment_country:"gb" %}
                             <tr>
                                 <td colspan="4" class="text-center">
                                     <a href="{% url 'setup_new_bacs' %}" class="btn btn-success btn-sm">
@@ -356,7 +356,7 @@
                     </table>
                 </div>
             {% endif %}
-            {% if becs_mandates or billing_address.country_code.code|lower == "au" or not taxable %}
+            {% if becs_mandates or user.account|can_use_payment_country:"au" %}
                 <h2>BECS Direct Debit Mandates &#x1f3e6;</h2>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover">
@@ -394,7 +394,7 @@
                                                 <a href="{{ mandate.url }}"
                                                    class="btn btn-info btn-sm">&#x1f440; View mandate</a>
                                                 {% if not mandate.is_default and mandate.active %}
-                                                    {% if not taxable or billing_address.country_code.code|lower == "au" %}
+                                                    {% if user.account|can_use_payment_country:"au" %}
                                                         <button type="submit" class="btn btn-primary btn-sm"
                                                                 name="action"
                                                                 value="default">
@@ -417,7 +417,7 @@
                                 <td colspan="4">No mandates</td>
                             </tr>
                         {% endif %}
-                        {% if billing_address.country_code.code|lower == "au" or not taxable %}
+                        {% if user.account|can_use_payment_country:"au" %}
                             <tr>
                                 <td colspan="4" class="text-center">
                                     <a href="{% url 'setup_new_becs' %}" class="btn btn-success btn-sm">
@@ -430,7 +430,7 @@
                     </table>
                 </div>
             {% endif %}
-            {% if becs_nz_mandates or billing_address.country_code.code|lower == "nz" or not taxable %}
+            {% if becs_nz_mandates or user.account|can_use_payment_country:"nz" %}
                 <h2>BECS NZ Direct Debit Mandates &#x1f3e6;</h2>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover">
@@ -468,7 +468,7 @@
                                                 <a href="{{ mandate.url }}"
                                                    class="btn btn-info btn-sm">&#x1f440; View mandate</a>
                                                 {% if not mandate.is_default and mandate.active %}
-                                                    {% if not taxable or billing_address.country_code.code|lower == "nz" %}
+                                                    {% if user.account|can_use_payment_country:"nz" %}
                                                         <button type="submit" class="btn btn-primary btn-sm"
                                                                 name="action"
                                                                 value="default">
@@ -492,7 +492,7 @@
                             </tr>
                         {% endif %}
 
-                        {% if billing_address.country_code.code|lower == "nz" or not taxable %}
+                        {% if user.account|can_use_payment_country:"nz" %}
                             <tr>
                                 <td colspan="4" class="text-center">
                                     <a href="{% url 'setup_new_becs_nz' %}" class="btn btn-success btn-sm">
@@ -505,7 +505,7 @@
                     </table>
                 </div>
             {% endif %}
-            {% if betalingsservice_mandates or billing_address.country_code.code|lower == "dk" or not taxable %}
+            {% if betalingsservice_mandates or user.account|can_use_payment_country:"dk" %}
                 <h2>Betalingsservice Mandates &#x1f3e6;</h2>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover">
@@ -544,7 +544,7 @@
                                                 <a href="{{ mandate.url }}"
                                                    class="btn btn-info btn-sm">&#x1f440; View mandate</a>
                                                 {% if not mandate.is_default and mandate.active %}
-                                                    {% if not taxable or billing_address.country_code.code|lower == "dk" %}
+                                                    {% if user.account|can_use_payment_country:"dk" %}
                                                         <button type="submit" class="btn btn-primary btn-sm"
                                                                 name="action"
                                                                 value="default">
@@ -567,7 +567,7 @@
                                 <td colspan="4">No mandates</td>
                             </tr>
                         {% endif %}
-                        {% if billing_address.country_code.code|lower == "dk" or not taxable %}
+                        {% if user.account|can_use_payment_country:"dk" %}
                             <tr>
                                 <td colspan="4" class="text-center">
                                     <a href="{% url 'setup_new_betalingsservice' %}" class="btn btn-success btn-sm">
@@ -580,7 +580,7 @@
                     </table>
                 </div>
             {% endif %}
-            {% if pad_mandates or billing_address.country_code.code|lower == "ca" or not taxable %}
+            {% if pad_mandates or user.account|can_use_payment_country:"ca" %}
                 <h2>PAD Direct Debit Mandates &#x1f3e6;</h2>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover">
@@ -618,7 +618,7 @@
                                                 <a href="{{ mandate.url }}"
                                                    class="btn btn-info btn-sm">&#x1f440; View mandate</a>
                                                 {% if not mandate.is_default and mandate.active %}
-                                                    {% if not taxable or billing_address.country_code.code|lower == "ca" %}
+                                                    {% if user.account|can_use_payment_country:"ca" %}
                                                         <button type="submit" class="btn btn-primary btn-sm"
                                                                 name="action"
                                                                 value="default">
@@ -640,7 +640,7 @@
                                 <td colspan="4">No mandates</td>
                             </tr>
                         {% endif %}
-                        {% if billing_address.country_code.code|lower == "ca" or not taxable %}
+                        {% if user.account|can_use_payment_country:"ca" %}
                             <tr>
                                 <td colspan="4" class="text-center">
                                     <a href="{% url 'setup_new_pad' %}" class="btn btn-success btn-sm">
@@ -692,7 +692,7 @@
                                             <a href="{{ mandate.url }}"
                                                class="btn btn-info btn-sm">&#x1f440; View mandate</a>
                                             {% if not mandate.is_default and mandate.active %}
-                                                {% if not taxable or billing_address.country_code.code|upper == mandate.cc %}
+                                                {% if user.account|can_use_payment_country:mandate.cc %}
                                                     <button type="submit" class="btn btn-primary btn-sm" name="action"
                                                             value="default">
                                                         &#x1f4b8; Make default

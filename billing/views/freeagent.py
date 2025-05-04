@@ -161,10 +161,7 @@ def send_freeagent_invoice(request):
                 if not payment_started:
                     amount_int = int(round(due_value * decimal.Decimal(100)))
 
-                    if (
-                            account.billing_address.country_code.code.lower() == "gb"
-                            or not account.taxable
-                    ):
+                    if account.can_use_payment_country("gb"):
                         ledger_item = models.LedgerItem(
                             account=account,
                             amount=net_value,
