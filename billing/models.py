@@ -420,12 +420,16 @@ class Account(models.Model):
     def can_use_payment_country(self, country: typing.Union[str, typing.Iterable[str]]):
         if not self.taxable:
             return True
+        elif not self.billing_address:
+            return False
         elif self.billing_address.residency_verified:
             return True
+        elif isinstance(country, str):
+            return self.billing_address.country_code.lower() == country.lower()
         elif isinstance(country, collections.abc.Iterable):
             return self.billing_address.country_code.lower() in country
         else:
-            return self.billing_address.country_code.lower() == country.lower()
+            return False
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_user_profile(instance, created, **kwargs):
