@@ -167,7 +167,7 @@ class BillingAddressForm(forms.ModelForm):
 
     class Meta:
         model = models.AccountBillingAddress
-        exclude = ('id', 'account', 'deleted', 'default', 'vat_id_verification_request')
+        exclude = ('id', 'account', 'deleted', 'default', 'vat_id_verification_request', 'residency_verified')
 
     def clean(self):
         super().clean()
