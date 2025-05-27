@@ -1366,7 +1366,7 @@ def update_from_gc_payment(payment_id, ledger_item=None):
 
 def update_from_gc_billing_request(request_id, ledger_item=None):
     ledger_item = models.LedgerItem.objects.filter(
-        type=models.LedgerItem.TYPE_GOCARDLESS, type_id=request_id
+        type=models.LedgerItem.TYPE_GOCARDLESS_PR, type_id=request_id
     ).first() if not ledger_item else ledger_item
 
     if not ledger_item:
@@ -1377,13 +1377,6 @@ def update_from_gc_billing_request(request_id, ledger_item=None):
         ledger_item.state = models.LedgerItem.STATE_FAILED
         ledger_item.save()
     elif request.status == "fulfilled":
-        if request.attributes.get("payment_request"):
-            ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
-            ledger_item.type_id = request.payment_request.links["payment"]
-            ledger_item.state = models.LedgerItem.STATE_PROCESSING
-            ledger_item.save()
-            update_from_gc_payment(ledger_item.type_id, ledger_item)
-
         if request.attributes.get("mandate_request"):
             mandate_id = request.mandate_request.links["mandate"]
             if request.mandate_request.scheme == "ach":
@@ -1402,6 +1395,13 @@ def update_from_gc_billing_request(request_id, ledger_item=None):
                 models.PADMandate.sync_mandate(mandate_id, ledger_item.account)
             elif request.mandate_request.scheme == "sepa_core":
                 models.GCSEPAMandate.sync_mandate(mandate_id, ledger_item.account)
+
+    if request.attributes.get("payment_request"):
+        ledger_item.type = models.LedgerItem.TYPE_GOCARDLESS
+        ledger_item.type_id = request.payment_request.links["payment"]
+        ledger_item.state = models.LedgerItem.STATE_PROCESSING
+        ledger_item.save()
+        update_from_gc_payment(ledger_item.type_id, ledger_item)
 
 
 def update_from_coinbase_charge(charge, ledger_item=None):
