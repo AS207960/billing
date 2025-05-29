@@ -456,6 +456,19 @@
                         </div>
                     </div>
                 </div>
+                <div class="col mb-4 d-flex">
+                    <div class="card flex-grow-1}">
+                        <div class="card-header text-center">
+                            &#x1f5fa;&#xfe0f; Global
+                        </div>
+                        <div class="card-body d-flex flex-column align-items-center text-center">
+                            <h3 class="display-4">&#x1f4b3;</h3>
+                            <h5 class="card-title">Card</h5>
+                            <a href="{% url 'add_card' %}?return_uri={{ request.path }}"
+                               class="btn btn-primary align-self-stretch">Add new card</a>
+                        </div>
+                    </div>
+                </div>
                 {% if user.account|can_use_payment_country:"at" or user.account|can_use_payment_country:"be" or user.account|can_use_payment_country:"de" or user.account|can_use_payment_country:"it" or user.account|can_use_payment_country:"nl" or user.account|can_use_payment_country:"es" %}
                     <div class="col mb-4 d-flex">
                         <div class="card flex-grow-1{% if selected_payment_method_type == "sofort" %} border-success{% endif %}">
