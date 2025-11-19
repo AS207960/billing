@@ -6,7 +6,6 @@ import django_countries
 import pytz
 import calendar
 import stripe
-import stripe.error
 import schwifty
 from django.db.models import Q
 from django.contrib.auth import get_user_model

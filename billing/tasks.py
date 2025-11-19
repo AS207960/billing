@@ -7,7 +7,7 @@ import google.protobuf.wrappers_pb2
 import pika
 import pywebpush
 import sentry_sdk
-import stripe.error
+import stripe
 import gocardless_pro.errors
 from django.conf import settings
 from django.db.models import Q
@@ -700,8 +700,8 @@ def attempt_charge_off_session(charge_state):
                     confirm=True,
                     off_session=True,
                 )
-            except (stripe.error.CardError, stripe.error.InvalidRequestError) as e:
-                if isinstance(e, stripe.error.InvalidRequestError):
+            except (stripe.CardError, stripe.InvalidRequestError) as e:
+                if isinstance(e, stripe.InvalidRequestError):
                     message = "Payment failed"
                 else:
                     err = e.error

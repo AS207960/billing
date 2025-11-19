@@ -1,7 +1,5 @@
 import csv
 
-import stripe
-import stripe.error
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render

@@ -6,7 +6,7 @@ import hmac
 import re
 import typing
 import json
-
+import stripe
 import cryptography.exceptions
 import cryptography.hazmat.backends
 import cryptography.hazmat.primitives.asymmetric.padding
@@ -14,7 +14,6 @@ import cryptography.hazmat.primitives.hashes
 import cryptography.hazmat.primitives.serialization
 import dateutil.parser
 import schwifty
-import stripe.error
 import pywisetransfer
 from django.conf import settings
 from django.db import transaction
@@ -76,7 +75,7 @@ def stripe_webhook(request):
         )
     except ValueError:
         return HttpResponseBadRequest()
-    except stripe.error.SignatureVerificationError:
+    except stripe.SignatureVerificationError:
         return HttpResponseBadRequest()
 
     with transaction.atomic():

@@ -1,10 +1,7 @@
-import decimal
 import json
-
 import django_countries
 import requests
 import stripe
-import stripe.error
 import django.core.validators
 from django.contrib.auth.decorators import login_required
 from django.db import transaction

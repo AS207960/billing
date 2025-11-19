@@ -1,6 +1,5 @@
 import secrets
 import stripe
-import stripe.error
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
@@ -408,7 +407,7 @@ def edit_ach_mandate(request, m_id):
     elif action == "default" and mandate.active:
         gc_mandate = gocardless_client.mandates.get(mandate.mandate_id)
         bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate.links.customer_bank_account)
-        if account.can_use_payment_country(bank_account.country_code):
+        if mandate.account.can_use_payment_country(bank_account.country_code):
             mandate.account.default_stripe_payment_method_id = None
             mandate.account.default_ach_mandate = mandate
             mandate.account.default_autogiro_mandate = None
@@ -1107,7 +1106,7 @@ def edit_sepa_mandate(request, m_id):
         elif action == "default" and gc_mandate.active:
             gc_mandate_obj = gocardless_client.mandates.get(gc_mandate.mandate_id)
             bank_account = gocardless_client.customer_bank_accounts.get(gc_mandate_obj.links.customer_bank_account)
-            if mandate.account.can_use_payment_country(bank_account.country_code):
+            if gc_mandate.account.can_use_payment_country(bank_account.country_code):
                 gc_mandate.account.default_stripe_payment_method_id = None
                 gc_mandate.account.default_ach_mandate = None
                 gc_mandate.account.default_autogiro_mandate = None

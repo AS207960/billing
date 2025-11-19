@@ -7,7 +7,6 @@ import django_countries
 import gocardless_pro.errors
 import schwifty
 import stripe
-import stripe.error
 import urllib.parse
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -486,7 +485,7 @@ def handle_payment(
                             confirm=True,
                             return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,)))
                         )
-                    except stripe.error.CardError as e:
+                    except stripe.CardError as e:
                         charge_state.last_error = e.user_message
                         charge_state.save()
                     else:
@@ -548,7 +547,7 @@ def handle_payment(
                             confirm=True,
                             return_url=request.build_absolute_uri(reverse('complete_top_up_card', args=(ledger_item.id,)))
                         )
-                    except stripe.error.CardError as e:
+                    except stripe.CardError as e:
                         charge_state.last_error = e.user_message
                         charge_state.save()
                     else:
