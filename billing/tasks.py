@@ -1428,7 +1428,7 @@ def update_from_coinbase_charge(charge, ledger_item=None):
     ledger_item.save()
 
 def setup_intent_succeeded(setup_intent):
-    if "sepa_debit" in setup_intent["payment_method_types"]:
+    if "sepa_debit" in setup_intent["payment_method_types"] and setup_intent["mandate"]:
         models.SEPAMandate.sync_mandate(
             setup_intent["mandate"],
             models.Account.objects.filter(stripe_customer_id=setup_intent["customer"]).first()
