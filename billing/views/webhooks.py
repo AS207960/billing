@@ -288,7 +288,6 @@ def xfw_webhook(request):
         amount = event["data"]["amount"]
         post_balance = event["data"]["post_transaction_balance_amount"]
 
-        wise_api.balance_statements.statement()
         statement = wise_api.borderless_accounts.statement(
             profile_id=profile_id,
             account_id=account_id,
@@ -338,7 +337,7 @@ def xfw_webhook(request):
                         if aus_match:
                             aus_data = aus_match.groupdict()
                             trans_account_data = {
-                                "country_code": "aus",
+                                "country_code": "au",
                                 "bank_code": "",
                                 "branch_code": aus_data["bsb"],
                                 "account_code": aus_data["account"],
