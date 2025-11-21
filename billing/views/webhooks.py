@@ -55,6 +55,9 @@ transferwise_fpid_re = re.compile(
     r"^\((?P<id>\w{20})(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})(?P<currency>\d{3})(?P<sort_code>\d{6})\)"
     r" (?P<account_number>\d{8})$"
 )
+transferwise_aus_re = re.compile(
+    r"^\((?P<bsb>[0-9]{6})\) (?P<account>[A-Z0-9]{9})$"
+)
 if settings.TRANSFERWISE_TOKEN:
     wise_api = pywisetransfer.Client(
         api_key=settings.TRANSFERWISE_TOKEN,
@@ -285,12 +288,13 @@ def xfw_webhook(request):
         amount = event["data"]["amount"]
         post_balance = event["data"]["post_transaction_balance_amount"]
 
+        wise_api.balance_statements.statement()
         statement = wise_api.borderless_accounts.statement(
             profile_id=profile_id,
             account_id=account_id,
             currency=currency,
-            interval_start=(credit_time - datetime.timedelta(seconds=5)).isoformat() + "Z",
-            interval_end=(credit_time + datetime.timedelta(seconds=5)).isoformat() + "Z",
+            interval_start=(credit_time - datetime.timedelta(seconds=5)).isoformat(),
+            interval_end=(credit_time + datetime.timedelta(seconds=5)).isoformat(),
         )
 
         credit_transactions = filter(
@@ -330,12 +334,22 @@ def xfw_webhook(request):
                             "account_code": fpid_data["account_number"],
                         }
                     else:
-                        trans_account_data = {
-                            "country_code": "xx",
-                            "bank_code": "",
-                            "branch_code": "",
-                            "account_code": sender_account,
-                        }
+                        aus_match = transferwise_aus_re.match(sender_account)
+                        if aus_match:
+                            aus_data = aus_match.groupdict()
+                            trans_account_data = {
+                                "country_code": "aus",
+                                "bank_code": "",
+                                "branch_code": aus_data["bsb"],
+                                "account_code": aus_data["account"],
+                            }
+                        else:
+                            trans_account_data = {
+                                "country_code": "xx",
+                                "bank_code": "",
+                                "branch_code": "",
+                                "account_code": sender_account,
+                            }
             else:
                 trans_account_data = {
                     "country_code": "xx",
