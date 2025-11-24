@@ -17,6 +17,7 @@ import schwifty
 import pywisetransfer
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -168,16 +169,22 @@ def attempt_complete_bank_transfer(
     error = None
 
     if ref or ledger_item:
+        normalised_ref = ref.upper().replace(" ", "").replace("\n", "")
         if not ledger_item:
-            normalised_ref = ref.upper().replace(" ", "").replace("\n", "")
             ledger_items = models.LedgerItem.objects.filter(
                 type=models.LedgerItem.TYPE_BACS,
-                state=models.LedgerItem.STATE_PENDING
+                state=models.LedgerItem.STATE_PENDING,
             )
             for poss_ledger_item in ledger_items:
                 if poss_ledger_item.type_id in normalised_ref:
                     ledger_item = poss_ledger_item
                     break
+
+        if not ledger_item:
+            ledger_item = models.LedgerItem.objects.filter(
+                type=models.LedgerItem.TYPE_BACS,
+                type_id=normalised_ref,
+            ).first()
 
         if (trans_account_data or override_country_check) and ledger_item:
             if trans_account_data:
@@ -194,6 +201,7 @@ def attempt_complete_bank_transfer(
                     or known_account
             ):
                 ledger_item.amount = amount
+                ledger_item.type_id = ref
                 ledger_item.state = models.LedgerItem.STATE_COMPLETED
                 if known_account:
                     ledger_item.evidence_bank_account = known_account
