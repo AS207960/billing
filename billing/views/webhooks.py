@@ -56,7 +56,7 @@ transferwise_fpid_re = re.compile(
     r" (?P<account_number>\d{8})$"
 )
 transferwise_aus_re = re.compile(
-    r"^\((?P<bsb>[0-9]{6})\) (?P<account>[A-Z0-9]{9})$"
+    r"^\((?P<bsb>[0-9]{6})\) (?P<account>[0-9]+)$"
 )
 if settings.TRANSFERWISE_TOKEN:
     wise_api = pywisetransfer.Client(
