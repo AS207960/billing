@@ -169,21 +169,21 @@ def attempt_complete_bank_transfer(
     error = None
 
     if ref or ledger_item:
-        normalised_ref = ref.upper().replace(" ", "").replace("\n", "")
+        normalised_ref = ref.upper().replace(" ", "").replace("\n", "") if ref else None
         if not ledger_item:
             ledger_items = models.LedgerItem.objects.filter(
                 type=models.LedgerItem.TYPE_BACS,
                 state=models.LedgerItem.STATE_PENDING,
             )
             for poss_ledger_item in ledger_items:
-                if poss_ledger_item.type_id in normalised_ref:
+                if normalised_ref and poss_ledger_item.type_id in normalised_ref:
                     ledger_item = poss_ledger_item
                     break
 
         if not ledger_item:
             ledger_item = models.LedgerItem.objects.filter(
                 type=models.LedgerItem.TYPE_BACS,
-                type_id=normalised_ref,
+                type_id=normalised_ref or "",
             ).first()
 
         if (trans_account_data or override_country_check) and ledger_item:
