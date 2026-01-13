@@ -92,7 +92,7 @@ def stripe_webhook(request):
             tasks.update_from_source(source)
         elif event.type in ('charge.pending', 'charge.succeeded', 'charge.failed', 'charge.succeeded',
                             'charge.refunded'):
-            charge = stripe.Charges.retrieve(event.data.object.id, expand=["refunds"])
+            charge = stripe.Charge.retrieve(event.data.object.id, expand=["refunds"])
             tasks.update_from_charge(charge)
         elif event.type == "charge.refund.updated":
             refund = event.data.object
