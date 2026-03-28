@@ -215,7 +215,7 @@ VAT_MOSS_COUNTRIES = (
 COUNTRY_CURRENCIES = {
     "at": "EUR",
     "be": "EUR",
-    "bg": "BGN",
+    "bg": "EUR",
     "cy": "EUR",
     "cz": "CZK",
     "de": "EUR",
@@ -225,7 +225,7 @@ COUNTRY_CURRENCIES = {
     "es": "EUR",
     "fi": "EUR",
     "fr": "EUR",
-    "hr": "HRK",
+    "hr": "EUR",
     "hu": "HUF",
     "ie": "EUR",
     "it": "EUR",
