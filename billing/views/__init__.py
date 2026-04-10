@@ -185,8 +185,8 @@ def complete_order(request, charge_id):
         ):
             payment_intent = stripe.PaymentIntent.retrieve(charge_state.payment_ledger_item.type_id)
             tasks.update_from_payment_intent(payment_intent, charge_state.payment_ledger_item)
-            if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
-                return redirect(payment_intent["next_action"]["redirect_to_url"]["url"])
+            if payment_intent.next_action and payment_intent.next_action.type == "redirect_to_url":
+                return redirect(payment_intent.next_action.redirect_to_url.url)
         elif charge_state.payment_ledger_item.type == models.LedgerItem.TYPE_SOURCES:
             source = stripe.Source.retrieve(charge_state.payment_ledger_item.type_id)
             tasks.update_from_source(source, charge_state.payment_ledger_item)

@@ -496,9 +496,9 @@ def handle_payment(
                         ledger_item.save()
                         tasks.update_from_payment_intent(payment_intent, ledger_item)
 
-                        if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                        if payment_intent.next_action and payment_intent.next_action.type == "redirect_to_url":
                             return HandlePaymentOutcome.REDIRECT, \
-                                   (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+                                (ledger_item, payment_intent.next_action.redirect_to_url.url)
 
                         return HandlePaymentOutcome.DONE, ledger_item
 
@@ -558,9 +558,9 @@ def handle_payment(
                         ledger_item.save()
                         tasks.update_from_payment_intent(payment_intent, ledger_item)
 
-                        if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                        if payment_intent.next_action and payment_intent.next_action.type == "redirect_to_url":
                             return HandlePaymentOutcome.REDIRECT, \
-                                   (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+                                (ledger_item, payment_intent.next_action.redirect_to_url.url)
 
                 elif selected_payment_method_type == "sofort":
                     payment_intent = stripe.PaymentIntent.create(
@@ -599,9 +599,9 @@ def handle_payment(
                     ledger_item.save()
                     tasks.update_from_payment_intent(payment_intent, ledger_item)
 
-                    if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                    if payment_intent.next_action and payment_intent.next_action.type == "redirect_to_url":
                         return HandlePaymentOutcome.REDIRECT, \
-                               (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+                            (ledger_item, payment_intent.next_action.redirect_to_url.url)
 
                 elif selected_payment_method_type == "giropay":
                     payment_intent = stripe.PaymentIntent.create(
@@ -627,9 +627,9 @@ def handle_payment(
                     ledger_item.save()
                     tasks.update_from_payment_intent(payment_intent, ledger_item)
 
-                    if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                    if payment_intent.next_action and payment_intent.next_action.type == "redirect_to_url":
                         return HandlePaymentOutcome.REDIRECT, \
-                               (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+                            (ledger_item, payment_intent.next_action.redirect_to_url.url)
 
                 elif selected_payment_method_type == "bancontact":
                     payment_intent = stripe.PaymentIntent.create(
@@ -665,9 +665,9 @@ def handle_payment(
                     ledger_item.save()
                     tasks.update_from_payment_intent(payment_intent, ledger_item)
 
-                    if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                    if payment_intent.next_action and payment_intent.next_action.type == "redirect_to_url":
                         return HandlePaymentOutcome.REDIRECT, \
-                               (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+                            (ledger_item, payment_intent.next_action.redirect_to_url.url)
 
                 elif selected_payment_method_type == "eps":
                     payment_intent = stripe.PaymentIntent.create(
@@ -693,9 +693,9 @@ def handle_payment(
                     ledger_item.save()
                     tasks.update_from_payment_intent(payment_intent, ledger_item)
 
-                    if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                    if payment_intent.next_action and payment_intent.next_action.type == "redirect_to_url":
                         return HandlePaymentOutcome.REDIRECT, \
-                               (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+                            (ledger_item, payment_intent.next_action.redirect_to_url.url)
 
                 elif selected_payment_method_type == "ideal":
                     payment_intent = stripe.PaymentIntent.create(
@@ -731,9 +731,9 @@ def handle_payment(
                     ledger_item.save()
                     tasks.update_from_payment_intent(payment_intent, ledger_item)
 
-                    if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                    if payment_intent.next_action and payment_intent.next_action.type == "redirect_to_url":
                         return HandlePaymentOutcome.REDIRECT, \
-                               (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+                            (ledger_item, payment_intent.next_action.redirect_to_url.url)
 
                 elif selected_payment_method_type == "p24":
                     payment_intent = stripe.PaymentIntent.create(
@@ -759,9 +759,9 @@ def handle_payment(
                     ledger_item.save()
                     tasks.update_from_payment_intent(payment_intent, ledger_item)
 
-                    if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
+                    if payment_intent.next_action and payment_intent.next_action.type == "redirect_to_url":
                         return HandlePaymentOutcome.REDIRECT, \
-                               (ledger_item, payment_intent["next_action"]["redirect_to_url"]["url"])
+                            (ledger_item, payment_intent.next_action.redirect_to_url.url)
 
                 elif selected_payment_method_type == "multibanco":
                     source = stripe.Source.create(
@@ -1340,8 +1340,8 @@ def complete_top_up_card(request, item_id):
 
         return redirect('dashboard')
 
-    if payment_intent.get("next_action") and payment_intent["next_action"]["type"] == "redirect_to_url":
-        return redirect(payment_intent["next_action"]["redirect_to_url"]["url"])
+    if payment_intent.next_action and payment_intent.next_action.type == "redirect_to_url":
+        return redirect(payment_intent.next_action.redirect_to_url.url)
 
     if charge_state:
         return redirect('complete_order', charge_state.id)
