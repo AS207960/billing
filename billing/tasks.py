@@ -249,7 +249,8 @@ def try_update_charge_state(instance: models.LedgerItem, mail=True, force_mail=F
 
     if charge_state and charge_state.ledger_item:
         if charge_state.ready_to_complete and instance.state == instance.STATE_COMPLETED and \
-                charge_state.ledger_item and charge_state.account.balance >= (-charge_state.ledger_item.amount):
+                charge_state.ledger_item and charge_state.account.balance >= (-charge_state.ledger_item.amount) and \
+                charge_state.ledger_item.state != charge_state.ledger_item.STATE_FAILED:
             charge_state.ledger_item.state = charge_state.ledger_item.STATE_COMPLETED
             charge_state.ledger_item.save()
 
