@@ -256,122 +256,122 @@ def attempt_complete_bank_transfer(
     return error
 
 
-@csrf_exempt
-@require_POST
-def xfw_webhook(request):
-    payload = request.body
-    sig_header = request.META.get('HTTP_X_SIGNATURE_SHA256')
-    is_test = request.META.get('HTTP_X_TEST_NOTIFICATION')
-
-    try:
-        xfw_sig = base64.b64decode(sig_header)
-    except binascii.Error:
-        return HttpResponseBadRequest()
-
-    pubkey = transferwise_live_pub if settings.TRANSFERWISE_ENV == "live" else transferwise_sandbox_pub
-
-    try:
-        pubkey.verify(
-            xfw_sig,
-            payload,
-            cryptography.hazmat.primitives.asymmetric.padding.PKCS1v15(),
-            cryptography.hazmat.primitives.hashes.SHA256()
-        )
-    except cryptography.exceptions.InvalidSignature:
-        return HttpResponseForbidden()
-
-    try:
-        event = json.loads(payload)
-    except json.JSONDecodeError:
-        return HttpResponseBadRequest()
-
-    if is_test and is_test.lower() == "true":
-        return HttpResponse(status=204)
-
-    if event.get("event_type") == "balances#credit":
-        profile_id = event["data"]["resource"]["profile_id"]
-        account_id = event["data"]["resource"]["id"]
-        credit_time = dateutil.parser.parse(event["data"]["occurred_at"])
-        currency = event["data"]["currency"]
-        amount = event["data"]["amount"]
-        post_balance = event["data"]["post_transaction_balance_amount"]
-
-        statement = wise_api.borderless_accounts.statement(
-            profile_id=profile_id,
-            account_id=account_id,
-            currency=currency,
-            interval_start=(credit_time - datetime.timedelta(seconds=5)).isoformat(),
-            interval_end=(credit_time + datetime.timedelta(seconds=5)).isoformat(),
-        )
-
-        credit_transactions = filter(
-            lambda t: t.type == "CREDIT" and t.details.type == "DEPOSIT",
-            statement.transactions
-        )
-        found_t = None
-        for t in credit_transactions:
-            if t.amount.value == amount and t.runningBalance.value == post_balance:
-                found_t = t
-                break
-
-        if found_t:
-            sender_account = found_t.details.get("senderAccount")
-            if sender_account:
-                try:
-                    trans_iban = sender_account
-                    swift_match = transferwise_swift_re.match(sender_account)
-                    if swift_match:
-                        trans_iban = swift_match["iban"]
-
-                    trans_iban = schwifty.IBAN(trans_iban)
-                    trans_account_data = {
-                        "country_code": trans_iban.country_code.lower(),
-                        "bank_code": trans_iban.bank_code,
-                        "branch_code": trans_iban.branch_code,
-                        "account_code": trans_iban.account_code
-                    }
-                except ValueError:
-                    fpid_match = transferwise_fpid_re.match(sender_account)
-                    if fpid_match:
-                        fpid_data = fpid_match.groupdict()
-                        trans_account_data = {
-                            "country_code": "gb",
-                            "bank_code": "",
-                            "branch_code": fpid_data["sort_code"],
-                            "account_code": fpid_data["account_number"],
-                        }
-                    else:
-                        aus_match = transferwise_aus_re.match(sender_account)
-                        if aus_match:
-                            aus_data = aus_match.groupdict()
-                            trans_account_data = {
-                                "country_code": "au",
-                                "bank_code": "",
-                                "branch_code": aus_data["bsb"],
-                                "account_code": aus_data["account"],
-                            }
-                        else:
-                            trans_account_data = {
-                                "country_code": "xx",
-                                "bank_code": "",
-                                "branch_code": "",
-                                "account_code": sender_account,
-                            }
-            else:
-                trans_account_data = {
-                    "country_code": "xx",
-                    "bank_code": "",
-                    "branch_code": "",
-                    "account_code": ""
-                }
-
-            amount = decimal.Decimal(found_t["amount"]["value"]) * \
-                     models.ExchangeRate.get_rate(found_t["amount"]["currency"], "GBP")
-            ref = found_t["details"].get("paymentReference")
-            
-            attempt_complete_bank_transfer(ref, amount, trans_account_data, data=found_t)
-
-    return HttpResponse(status=204)
+# @csrf_exempt
+# @require_POST
+# def xfw_webhook(request):
+#     payload = request.body
+#     sig_header = request.META.get('HTTP_X_SIGNATURE_SHA256')
+#     is_test = request.META.get('HTTP_X_TEST_NOTIFICATION')
+#
+#     try:
+#         xfw_sig = base64.b64decode(sig_header)
+#     except binascii.Error:
+#         return HttpResponseBadRequest()
+#
+#     pubkey = transferwise_live_pub if settings.TRANSFERWISE_ENV == "live" else transferwise_sandbox_pub
+#
+#     try:
+#         pubkey.verify(
+#             xfw_sig,
+#             payload,
+#             cryptography.hazmat.primitives.asymmetric.padding.PKCS1v15(),
+#             cryptography.hazmat.primitives.hashes.SHA256()
+#         )
+#     except cryptography.exceptions.InvalidSignature:
+#         return HttpResponseForbidden()
+#
+#     try:
+#         event = json.loads(payload)
+#     except json.JSONDecodeError:
+#         return HttpResponseBadRequest()
+#
+#     if is_test and is_test.lower() == "true":
+#         return HttpResponse(status=204)
+#
+#     if event.get("event_type") == "balances#credit":
+#         profile_id = event["data"]["resource"]["profile_id"]
+#         account_id = event["data"]["resource"]["id"]
+#         credit_time = dateutil.parser.parse(event["data"]["occurred_at"])
+#         currency = event["data"]["currency"]
+#         amount = event["data"]["amount"]
+#         post_balance = event["data"]["post_transaction_balance_amount"]
+#
+#         statement = wise_api.borderless_accounts.statement(
+#             profile_id=profile_id,
+#             account_id=account_id,
+#             currency=currency,
+#             interval_start=(credit_time - datetime.timedelta(seconds=5)).isoformat(),
+#             interval_end=(credit_time + datetime.timedelta(seconds=5)).isoformat(),
+#         )
+#
+#         credit_transactions = filter(
+#             lambda t: t.type == "CREDIT" and t.details.type == "DEPOSIT",
+#             statement.transactions
+#         )
+#         found_t = None
+#         for t in credit_transactions:
+#             if t.amount.value == amount and t.runningBalance.value == post_balance:
+#                 found_t = t
+#                 break
+#
+#         if found_t:
+#             sender_account = found_t.details.get("senderAccount")
+#             if sender_account:
+#                 try:
+#                     trans_iban = sender_account
+#                     swift_match = transferwise_swift_re.match(sender_account)
+#                     if swift_match:
+#                         trans_iban = swift_match["iban"]
+#
+#                     trans_iban = schwifty.IBAN(trans_iban)
+#                     trans_account_data = {
+#                         "country_code": trans_iban.country_code.lower(),
+#                         "bank_code": trans_iban.bank_code,
+#                         "branch_code": trans_iban.branch_code,
+#                         "account_code": trans_iban.account_code
+#                     }
+#                 except ValueError:
+#                     fpid_match = transferwise_fpid_re.match(sender_account)
+#                     if fpid_match:
+#                         fpid_data = fpid_match.groupdict()
+#                         trans_account_data = {
+#                             "country_code": "gb",
+#                             "bank_code": "",
+#                             "branch_code": fpid_data["sort_code"],
+#                             "account_code": fpid_data["account_number"],
+#                         }
+#                     else:
+#                         aus_match = transferwise_aus_re.match(sender_account)
+#                         if aus_match:
+#                             aus_data = aus_match.groupdict()
+#                             trans_account_data = {
+#                                 "country_code": "au",
+#                                 "bank_code": "",
+#                                 "branch_code": aus_data["bsb"],
+#                                 "account_code": aus_data["account"],
+#                             }
+#                         else:
+#                             trans_account_data = {
+#                                 "country_code": "xx",
+#                                 "bank_code": "",
+#                                 "branch_code": "",
+#                                 "account_code": sender_account,
+#                             }
+#             else:
+#                 trans_account_data = {
+#                     "country_code": "xx",
+#                     "bank_code": "",
+#                     "branch_code": "",
+#                     "account_code": ""
+#                 }
+#
+#             amount = decimal.Decimal(found_t["amount"]["value"]) * \
+#                      models.ExchangeRate.get_rate(found_t["amount"]["currency"], "GBP")
+#             ref = found_t["details"].get("paymentReference")
+#
+#             attempt_complete_bank_transfer(ref, amount, trans_account_data, data=found_t)
+#
+#     return HttpResponse(status=204)
 
 
 @csrf_exempt

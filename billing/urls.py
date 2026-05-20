@@ -74,7 +74,7 @@ urlpatterns = [
     path('view_freeagent_invoice/<str:invoice_id>/pdf/', views.freeagent.view_freeagent_invoice_pdf, name='view_freeagent_invoice_pdf'),
     path('stripe_webhook/', views.webhooks.stripe_webhook),
     path('gc_webhook/', views.webhooks.gc_webhook),
-    path('xfw_webhook/', views.webhooks.xfw_webhook),
+    # path('xfw_webhook/', views.webhooks.xfw_webhook),
     path('coinbase_webhook/', views.webhooks.coinbase_webhook),
     path('monzo_webhook/<secret_key>/', views.webhooks.monzo_webhook),
     path('charge_user/<user_id>/', views.api.charge_user),

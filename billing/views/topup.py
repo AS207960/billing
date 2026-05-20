@@ -1558,54 +1558,6 @@ def show_bank_details(request, amount, ref, currency):
             "amount": amount,
             "ref": ref
         })
-    elif currency == "usd":
-        amount = models.ExchangeRate.get_rate('gbp', 'usd') * amount
-        return render(request, "billing/top_up_bank_usd.html", {
-            "amount": amount,
-            "ref": ref
-        })
-    elif currency == "eur":
-        amount = models.ExchangeRate.get_rate('gbp', 'eur') * amount
-        return render(request, "billing/top_up_bank_eur.html", {
-            "amount": amount,
-            "ref": ref
-        })
-    elif currency == "aud":
-        amount = models.ExchangeRate.get_rate('gbp', 'aud') * amount
-        return render(request, "billing/top_up_bank_aud.html", {
-            "amount": amount,
-            "ref": ref
-        })
-    elif currency == "nzd":
-        amount = models.ExchangeRate.get_rate('gbp', 'nzd') * amount
-        return render(request, "billing/top_up_bank_nzd.html", {
-            "amount": amount,
-            "ref": ref
-        })
-    elif currency == "huf":
-        amount = models.ExchangeRate.get_rate('gbp', 'huf') * amount
-        return render(request, "billing/top_up_bank_huf.html", {
-            "amount": amount,
-            "ref": ref
-        })
-    elif currency == "sgd":
-        amount = models.ExchangeRate.get_rate('gbp', 'sgd') * amount
-        return render(request, "billing/top_up_bank_sgd.html", {
-            "amount": amount,
-            "ref": ref
-        })
-    elif currency == "ron":
-        amount = models.ExchangeRate.get_rate('gbp', 'ron') * amount
-        return render(request, "billing/top_up_bank_ron.html", {
-            "amount": amount,
-            "ref": ref
-        })
-    elif currency == "try":
-        amount = models.ExchangeRate.get_rate('gbp', 'try') * amount
-        return render(request, "billing/top_up_bank_try.html", {
-            "amount": amount,
-            "ref": ref
-        })
     else:
         raise Http404()
 
